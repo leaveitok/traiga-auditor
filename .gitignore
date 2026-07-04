@@ -1,0 +1,65 @@
+# ── CRITICAL: Service Account Keys ───────────────────────────────────────────
+# These files contain private keys and MUST NEVER be committed.
+# If you accidentally commit a key, rotate it immediately in Google Cloud Console.
+service_account.json
+*service_account*.json
+*.serviceaccount.json
+firebase-adminsdk*.json
+google-credentials*.json
+
+# ── Environment Variables ─────────────────────────────────────────────────────
+deploy/env.yaml
+.env
+.env.local
+.env.*.local
+# Keep .env.example committed — it documents required vars without real values
+!.env.example
+
+# ── Python ────────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+ENV/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+htmlcov/
+.coverage
+coverage.xml
+
+# ── Node / Frontend ───────────────────────────────────────────────────────────
+node_modules/
+frontend/dist/
+frontend/.vite/
+frontend/coverage/
+
+# ── Firebase / GCP ────────────────────────────────────────────────────────────
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+# Keep firebase.json and .firebaserc committed (project config, no secrets)
+
+# ── OS artifacts ─────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── IDE ───────────────────────────────────────────────────────────────────────
+.vscode/settings.json
+.idea/
+*.swp
+*.swo
+
+# ── Temp / generated ─────────────────────────────────────────────────────────
+*.tmp
+*.log
+tmp/
+temp/

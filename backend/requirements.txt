@@ -1,0 +1,38 @@
+# AI Transparency Auditor v2 — backend dependencies
+
+# ── API framework ─────────────────────────────────────────────────────────────
+fastapi>=0.111.0
+uvicorn[standard]>=0.29.0
+pydantic>=2.7.0
+python-dotenv>=1.0.0
+
+# ── Google Sheets backend ─────────────────────────────────────────────────────
+google-api-python-client>=2.130.0
+google-auth>=2.29.0
+google-auth-httplib2>=0.2.0
+
+# ── Crawler (live audits) ─────────────────────────────────────────────────────
+playwright>=1.44.0          # After install: playwright install chromium
+playwright-stealth>=1.0.0   # Cloudflare/WAF bypass: pip install playwright-stealth
+requests>=2.31.0
+beautifulsoup4>=4.12.0
+
+# ── Authentication ────────────────────────────────────────────────────────────
+firebase-admin>=6.5.0       # Firebase ID token verification (Google Auth)
+
+# ── Report generation ─────────────────────────────────────────────────────────
+python-docx>=1.1.0          # TRAIGA compliance report DOCX generation
+
+# ── Schema validation ─────────────────────────────────────────────────────────
+jsonschema>=4.21.0
+
+# ── Rate limiting ─────────────────────────────────────────────────────────────
+slowapi>=0.1.9             # In-memory rate limiting for FastAPI (no Redis needed for MVP)
+
+# ── Scheduling ────────────────────────────────────────────────────────────────
+apscheduler>=3.10.0        # Automated periodic compliance scans (AsyncIOScheduler)
+
+# ── Testing ───────────────────────────────────────────────────────────────────
+pytest>=8.2.0
+pytest-asyncio>=0.23.0
+httpx>=0.27.0              # Required by FastAPI TestClient for async routes

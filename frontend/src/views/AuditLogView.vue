@@ -1,0 +1,86 @@
+<template>
+  <v-container fluid class="pa-6">
+    <div class="d-flex align-center justify-space-between mb-6 flex-wrap ga-3">
+      <div>
+        <div class="text-h5 font-weight-bold">Audit Log</div>
+        <div class="text-caption text-medium-emphasis">
+          Append-only evidence trail — synced from Google Sheets
+        </div>
+      </div>
+      <v-btn icon="mdi-refresh" variant="outlined" @click="load" />
+    </div>
+
+    <v-card>
+      <v-data-table
+        :headers="headers"
+        :items="rows"
+        :loading="loading"
+        item-value="timestamp_utc"
+        hover
+        density="compact"
+      >
+        <template #item.timestamp_utc="{ item }">
+          <span class="text-caption">{{ fmtDate(item.timestamp_utc) }}</span>
+        </template>
+        <template #item.failures="{ item }">
+          <v-chip :color="Number(item.failures) > 0 ? 'error' : 'success'"
+                  size="x-small" label>{{ item.failures }}</v-chip>
+        </template>
+        <template #item.details="{ item }">
+          <v-btn size="x-small" variant="text" icon="mdi-code-json"
+                 @click="showDetails(item)" />
+        </template>
+      </v-data-table>
+    </v-card>
+
+    <v-dialog v-model="detailDialog" max-width="480">
+      <v-card>
+        <v-card-title>Log Entry Details</v-card-title>
+        <v-card-text>
+          <pre class="text-caption" style="white-space:pre-wrap">{{ JSON.stringify(detailItem, null, 2) }}</pre>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn @click="detailDialog = false">Close</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+  </v-container>
+</template>
+
+<script setup>
+import { ref, onMounted } from 'vue'
+import { logsApi } from '../api/client'
+
+const rows         = ref([])
+const loading      = ref(false)
+const detailDialog = ref(false)
+const detailItem   = ref(null)
+
+const headers = [
+  { title: 'Timestamp',    key: 'timestamp_utc', sortable: true  },
+  { title: 'Event',        key: 'event',         sortable: true  },
+  { title: 'Cities',       key: 'city_count',    sortable: true  },
+  { title: 'Failures',     key: 'failures',      sortable: true  },
+  { title: 'Details',      key: 'details',       sortable: false },
+]
+
+const fmtDate = (iso) => iso ? new Date(iso).toLocaleString() : '—'
+
+function showDetails(item) {
+  detailItem.value   = item
+  detailDialog.value = true
+}
+
+async function load() {
+  loading.value = true
+  try {
+    const res = await logsApi.list(200)
+    rows.value = res.data
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(load)
+</script>

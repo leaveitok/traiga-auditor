@@ -1,0 +1,9 @@
+
+============================================================
+  AI Transparency Auditor v2 - Deployment
+  Project : traiga-auditor
+  Region  : us-central1
+============================================================
+
+[0/5] Setting GCP project...
+Updated property [core/project].

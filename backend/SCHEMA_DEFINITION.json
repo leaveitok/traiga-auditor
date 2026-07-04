@@ -1,0 +1,459 @@
+{
+  "meta": {
+    "schema_name": "AI_Transparency_Auditor.GovernanceAsCode",
+    "schema_version": "0.1.0",
+    "generated": "2026-05-25",
+    "description": "Governance-as-Code ruleset and AI vendor fingerprint database for the External Transparency Agent.",
+    "legal_basis": {
+      "authoritative_statute": "Texas HB 149 (Responsible Artificial Intelligence Governance Act / TRAIGA)",
+      "codification": "Tex. Bus. & Com. Code, Chapter 552 (Artificial Intelligence Protection)",
+      "effective_date": "2026-01-01",
+      "aliases": [
+        "SB 149"
+      ],
+      "alias_note": "'SB 149' is a known label slip retained ONLY for legacy-document resolution. HB 149 / Ch. 552 is authoritative.",
+      "cure_period_days": 60,
+      "enforcement_authority": "Texas Attorney General",
+      "disclaimer": "Engineering artifact, not legal advice. Findings are candidate signals for human/legal review."
+    }
+  },
+  "AI_Vendor_Fingerprints": {
+    "module_description": "Weighted signatures for the fingerprint engine. ALL signatures are verification_status='unverified_candidate' unless noted.",
+    "match_threshold": 0.6,
+    "indicator_types": [
+      "script_host_regex",
+      "js_global_symbol",
+      "dom_selector",
+      "iframe_origin_regex",
+      "cookie_name_regex",
+      "network_request_regex",
+      "text_marker_regex"
+    ],
+    "vendors": [
+      {
+        "vendor_id": "citibot",
+        "display_name": "Citibot",
+        "category": "gov_chatbot_sms_web",
+        "asset_types": [
+          "chatbot",
+          "virtual_assistant"
+        ],
+        "verification_status": "unverified_candidate",
+        "note": "Widget is typically GTM-injected or async-loaded. Static-fallback detection relies on text_marker_regex against raw HTML and GTM container inspection in crawler.",
+        "indicators": [
+          {
+            "type": "script_host_regex",
+            "pattern": "(^|\\.)citibot\\.(io|net)",
+            "weight": 0.7
+          },
+          {
+            "type": "iframe_origin_regex",
+            "pattern": "citibot\\.(io|net)",
+            "weight": 0.7
+          },
+          {
+            "type": "network_request_regex",
+            "pattern": "citibot\\.(io|net)",
+            "weight": 0.6
+          },
+          {
+            "type": "text_marker_regex",
+            "pattern": "citibot\\.(io|net)",
+            "weight": 0.6,
+            "note": "Matches citibot.io or citibot.net anywhere in rendered HTML. Lewisville confirmed uses citibot.net."
+          },
+          {
+            "type": "text_marker_regex",
+            "pattern": "webchat[\\-_]ui\\.citibot\\.(io|net)",
+            "weight": 0.7,
+            "note": "Matches webchat-ui.citibot.net — confirmed embed subdomain for Lewisville deployment."
+          },
+          {
+            "type": "text_marker_regex",
+            "pattern": "gtm_citibot|citibot.*tag|tag.*citibot",
+            "weight": 0.5,
+            "note": "GTM container tag label patterns surfaced by crawler GTM container inspection."
+          },
+          {
+            "type": "dom_selector",
+            "pattern": "[id*='citibot'], [class*='citibot']",
+            "weight": 0.4
+          },
+          {
+            "type": "text_marker_regex",
+            "pattern": "powered by citibot",
+            "weight": 0.3
+          }
+        ]
+      },
+      {
+        "vendor_id": "civicplus",
+        "display_name": "CivicPlus",
+        "category": "gov_cms_engagement_suite",
+        "asset_types": [
+          "chatbot",
+          "automated_intake_widget",
+          "decision_widget"
+        ],
+        "verification_status": "unverified_candidate",
+        "indicators": [
+          {
+            "type": "script_host_regex",
+            "pattern": "(^|\\.)civicplus\\.com",
+            "weight": 0.5
+          },
+          {
+            "type": "dom_selector",
+            "pattern": "[class*='cp-chat'], [data-civicplus]",
+            "weight": 0.3
+          },
+          {
+            "type": "cookie_name_regex",
+            "pattern": "civicplus",
+            "weight": 0.2
+          }
+        ]
+      },
+      {
+        "vendor_id": "munibit",
+        "display_name": "Munibit",
+        "category": "gov_tech_ai_widget",
+        "asset_types": [
+          "chatbot",
+          "automated_intake_widget"
+        ],
+        "verification_status": "unverified_candidate",
+        "note": "Vendor named in project brief; existence and signatures must be confirmed before use.",
+        "indicators": [
+          {
+            "type": "script_host_regex",
+            "pattern": "(^|\\.)munibit\\.",
+            "weight": 0.5
+          },
+          {
+            "type": "js_global_symbol",
+            "pattern": "Munibit|munibitWidget",
+            "weight": 0.3
+          },
+          {
+            "type": "dom_selector",
+            "pattern": "[id*='munibit'], [class*='munibit']",
+            "weight": 0.2
+          }
+        ]
+      },
+      {
+        "vendor_id": "granicus",
+        "display_name": "Granicus (govDelivery / engagement)",
+        "category": "gov_engagement_suite",
+        "asset_types": [
+          "chatbot",
+          "automated_intake_widget"
+        ],
+        "verification_status": "unverified_candidate",
+        "indicators": [
+          {
+            "type": "script_host_regex",
+            "pattern": "(^|\\.)granicus\\.com",
+            "weight": 0.5
+          },
+          {
+            "type": "iframe_origin_regex",
+            "pattern": "granicus",
+            "weight": 0.3
+          }
+        ]
+      },
+      {
+        "vendor_id": "claude_ai_chatbot",
+        "display_name": "Claude AI Chatbot (Anthropic)",
+        "category": "gov_ai_chatbot_llm",
+        "asset_types": [
+          "chatbot",
+          "virtual_assistant",
+          "llm_interface"
+        ],
+        "verification_status": "confirmed_live",
+        "note": "Confirmed on cityofdenton.com 2026-06-27 via Chrome MCP deep scan. Requires TRAIGA 552.051 disclosure.",
+        "indicators": [
+          {
+            "type": "dom_selector",
+            "pattern": "[id^='claude-static-chat'], [id^='claude-agent-glow']",
+            "weight": 0.9
+          },
+          {
+            "type": "dom_selector",
+            "pattern": "[id='claude-static-chat-button'], [id='claude-static-indicator-container']",
+            "weight": 0.9
+          },
+          {
+            "type": "dom_selector",
+            "pattern": "[id^='claude-agent-animation'], [id^='claude-static-close']",
+            "weight": 0.7
+          },
+          {
+            "type": "text_marker_regex",
+            "pattern": "claude-static-chat|claude-agent-glow",
+            "weight": 0.8
+          },
+          {
+            "type": "js_global_symbol",
+            "pattern": "claude_agent|claudeAgent|ClaudeChat",
+            "weight": 0.6
+          }
+        ]
+      },
+      {
+        "vendor_id": "generic_llm_chat",
+        "display_name": "Generic / self-hosted LLM chat widget",
+        "category": "generic",
+        "asset_types": [
+          "chatbot"
+        ],
+        "verification_status": "heuristic",
+        "note": "Catch-all heuristic for unbranded conversational widgets; low individual weights to limit false positives.",
+        "indicators": [
+          {
+            "type": "dom_selector",
+            "pattern": "[class*='chat-widget'], [class*='chatbot'], [aria-label*='chat']",
+            "weight": 0.25
+          },
+          {
+            "type": "text_marker_regex",
+            "pattern": "ask (me|our) (a question|assistant)|virtual assistant|ai assistant",
+            "weight": 0.2
+          },
+          {
+            "type": "network_request_regex",
+            "pattern": "/(chat|completions|assistant|messages)\\b",
+            "weight": 0.25
+          }
+        ]
+      }
+    ]
+  },
+  "Compliance_Ruleset": {
+    "Internal_Governance_Module": {
+      "module_description": "RESERVED for future inline use against City-operated AI systems. Not evaluated by the external observer.",
+      "enabled": false,
+      "rules": [
+        {
+          "rule_id": "INT-NIST-GOVERN-01",
+          "title": "AI inventory and governance ownership documented",
+          "framework": "NIST AI RMF (Govern)",
+          "citation": "NIST AI RMF 1.0 -- GOVERN function",
+          "severity": "medium",
+          "evaluator": "manual_attestation",
+          "remediation": "Maintain an AI system inventory with assigned governance owner.",
+          "status_default": "not_assessed"
+        },
+        {
+          "rule_id": "INT-TRAIGA-SAFEHARBOR-01",
+          "title": "Internal/adversarial testing program evidence",
+          "framework": "HB 149 / TRAIGA safe harbor",
+          "citation": "Tex. Bus. & Com. Code Ch. 552 (safe-harbor provisions)",
+          "severity": "informational",
+          "evaluator": "manual_attestation",
+          "remediation": "Document red-team / adversarial testing to support good-faith defense.",
+          "status_default": "not_assessed"
+        }
+      ]
+    },
+    "External_Transparency_Module": {
+      "module_description": "Evaluated by the External Transparency Agent against publicly observable evidence only.",
+      "enabled": true,
+      "rules": [
+        {
+          "rule_id": "EXT-DISCLOSURE-PRESENCE-01",
+          "title": "AI-interaction disclosure present",
+          "framework": "HB 149 / TRAIGA",
+          "citation": "Tex. Bus. & Com. Code 552.051",
+          "applies_when": "ai_asset_detected",
+          "severity": "high",
+          "evaluator": "disclosure_presence",
+          "pass_condition": "A statement that the user is interacting with an AI system is present in or adjacent to the asset.",
+          "remediation": "Add a clear statement that the user is interacting with an AI system.",
+          "status_default": "not_assessed"
+        },
+        {
+          "rule_id": "EXT-DISCLOSURE-TIMING-02",
+          "title": "Disclosure shown before or at time of interaction",
+          "framework": "HB 149 / TRAIGA",
+          "citation": "Tex. Bus. & Com. Code 552.051",
+          "applies_when": "ai_asset_detected",
+          "severity": "high",
+          "evaluator": "disclosure_timing",
+          "pass_condition": "Disclosure is visible before/at first interaction, not buried in footer-only links.",
+          "remediation": "Surface the disclosure at the entry point of the AI asset.",
+          "status_default": "not_assessed"
+        },
+        {
+          "rule_id": "EXT-DISCLOSURE-CLARITY-03",
+          "title": "Disclosure is clear, conspicuous, plain-language, no dark patterns",
+          "framework": "HB 149 / TRAIGA",
+          "citation": "Tex. Bus. & Com. Code 552.051",
+          "applies_when": "ai_asset_detected",
+          "severity": "medium",
+          "evaluator": "disclosure_clarity",
+          "pass_condition": "Disclosure language is plain, prominent, and not obscured by dark-pattern design.",
+          "remediation": "Rewrite disclosure in plain language and increase prominence.",
+          "status_default": "not_assessed"
+        },
+        {
+          "rule_id": "EXT-PRIVACY-POLICY-04",
+          "title": "Privacy policy linked, reachable, and addresses automated processing",
+          "framework": "HB 149 / TRAIGA (transparency) + general privacy practice",
+          "citation": "Tex. Bus. & Com. Code Ch. 552 (transparency objectives)",
+          "applies_when": "ai_asset_detected",
+          "severity": "medium",
+          "evaluator": "privacy_policy_audit",
+          "pass_condition": "A reachable privacy policy is linked from the asset context and references automated/AI processing.",
+          "remediation": "Link a reachable privacy policy that addresses AI/automated processing.",
+          "status_default": "not_assessed"
+        },
+        {
+          "rule_id": "EXT-BIOMETRIC-VISIBILITY-05",
+          "title": "Biometric capture notice/consent visible when biometric indicators present",
+          "framework": "HB 149 / TRAIGA (biometric constraints)",
+          "citation": "Tex. Bus. & Com. Code Ch. 552 (biometric provisions)",
+          "applies_when": "biometric_indicator_detected",
+          "severity": "high",
+          "evaluator": "biometric_consent_visibility",
+          "pass_condition": "Where biometric capture is indicated, notice/consent is surfaced to the user.",
+          "remediation": "Surface biometric notice/consent; confirm lawful basis with counsel.",
+          "status_default": "not_assessed"
+        }
+      ]
+    }
+  },
+  "violation_template": {
+    "description": "Shape of every violation record. cure_period_status and days_remaining are REQUIRED per project spec.",
+    "fields": {
+      "violation_id": {
+        "type": "string",
+        "description": "Stable hash of {city, asset_id, rule_id}."
+      },
+      "city": {
+        "type": "string"
+      },
+      "domain": {
+        "type": "string"
+      },
+      "asset_id": {
+        "type": "string"
+      },
+      "vendor_id": {
+        "type": "string"
+      },
+      "rule_id": {
+        "type": "string"
+      },
+      "citation": {
+        "type": "string"
+      },
+      "severity": {
+        "type": "string",
+        "enum": [
+          "informational",
+          "low",
+          "medium",
+          "high"
+        ]
+      },
+      "first_observed_utc": {
+        "type": "string",
+        "format": "date-time"
+      },
+      "last_observed_utc": {
+        "type": "string",
+        "format": "date-time"
+      },
+      "cure_deadline_utc": {
+        "type": "string",
+        "format": "date-time",
+        "description": "first_observed + 60 days."
+      },
+      "cure_period_status": {
+        "type": "boolean",
+        "description": "true while inside the active 60-day cure window."
+      },
+      "days_remaining": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 60
+      },
+      "status": {
+        "type": "string",
+        "enum": [
+          "open",
+          "in_cure",
+          "cured",
+          "expired"
+        ]
+      },
+      "evidence": {
+        "type": "object",
+        "description": "Indicators that fired; URLs; no end-user PII."
+      },
+      "needs_human_review": {
+        "type": "boolean",
+        "default": true
+      }
+    },
+    "required": [
+      "violation_id",
+      "city",
+      "rule_id",
+      "citation",
+      "severity",
+      "first_observed_utc",
+      "cure_period_status",
+      "days_remaining",
+      "status"
+    ]
+  },
+  "scorecard_schema": {
+    "scan_cadence_hours": 24,
+    "cure_period_days": 60,
+    "score_start": 100,
+    "severity_weights": {
+      "informational": 0,
+      "low": 5,
+      "medium": 12,
+      "high": 25
+    },
+    "in_cure_weight_multiplier": 0.5,
+    "expired_weight_multiplier": 1.0,
+    "bands": {
+      "green": [
+        90,
+        100
+      ],
+      "amber": [
+        70,
+        89
+      ],
+      "red": [
+        0,
+        69
+      ]
+    },
+    "row_fields": [
+      "city",
+      "jurisdiction",
+      "domain",
+      "ai_assets_detected",
+      "traiga_status",
+      "sb149_status",
+      "open_violations",
+      "min_days_remaining",
+      "compliance_score",
+      "band",
+      "last_scanned_utc"
+    ],
+    "sort": {
+      "by": "min_days_remaining",
+      "order": "asc"
+    }
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "description": "Seed registry of municipal targets for the External Transparency Agent. For the TAGITM remit this can scale toward ~1,200 entries.",
+  "targets": [
+    {
+      "city": "City of Lewisville",
+      "jurisdiction": "TX",
+      "domain": "cityoflewisville.com",
+      "url": "https://www.cityoflewisville.com",
+      "tags": ["home_jurisdiction"],
+      "cloudflare_protected": false
+    },
+    {
+      "city": "City of McKinney",
+      "jurisdiction": "TX",
+      "domain": "mckinneytexas.org",
+      "url": "https://www.mckinneytexas.org",
+      "tags": ["dfw_metro"],
+      "cloudflare_protected": false
+    },
+    {
+      "city": "City of Garland",
+      "jurisdiction": "TX",
+      "domain": "garlandtx.gov",
+      "url": "https://www.garlandtx.gov",
+      "tags": ["dfw_metro"],
+      "cloudflare_protected": false
+    },
+    {
+      "city": "City of Denton",
+      "jurisdiction": "TX",
+      "domain": "cityofdenton.com",
+      "url": "https://www.cityofdenton.com",
+      "tags": ["dfw_metro"],
+      "cloudflare_protected": false
+    }
+  ]
+}
