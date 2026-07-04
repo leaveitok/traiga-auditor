@@ -11,6 +11,8 @@ from core.config import (  # noqa: F401
     CRAWL_DELAY_SECONDS,
     REQUEST_TIMEOUT_SECONDS,
     USER_AGENT,
+    SCAN_PROXY_URL,
+    SCAN_PROXY_ONLY_FLAGGED,
 )
 from pathlib import Path
 

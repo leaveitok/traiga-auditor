@@ -55,3 +55,17 @@ REQUEST_TIMEOUT_SECONDS: int = 15
 USER_AGENT: str = (
     "LewisvilleAITransparencyAuditor/2.0 (+external-observer; respects robots.txt)"
 )
+
+# ── Residential proxy (WAF bypass) ───────────────────────────────────────────
+# Municipal sites behind Cloudflare/WAF serve bot-challenge pages to Google
+# datacenter IPs (confirmed: cityoflewisville.com returns a 302-byte challenge
+# to Cloud Run). Routing the crawler through a residential/ISP proxy presents a
+# residential origin IP so the real page loads.
+#
+# Supply the full proxy URL via Secret Manager / env — never hardcode it:
+#   SCAN_PROXY_URL=http://user:pass@proxy.provider.com:port
+# Leave empty to crawl directly (local dev, or cities that don't block).
+# SCAN_PROXY_ONLY_FLAGGED=true routes ONLY targets flagged cloudflare_protected
+# through the proxy, to conserve paid proxy bandwidth.
+SCAN_PROXY_URL: str = os.environ.get("SCAN_PROXY_URL", "").strip()
+SCAN_PROXY_ONLY_FLAGGED: bool = os.environ.get("SCAN_PROXY_ONLY_FLAGGED", "false").lower() == "true"

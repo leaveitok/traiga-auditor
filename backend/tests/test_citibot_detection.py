@@ -123,6 +123,41 @@ def test_crawl_site_falls_back_when_playwright_tier_raises():
         del sys.modules["playwright.sync_api"]
 
 
+def test_playwright_proxy_url_parsing():
+    """Proxy URL with credentials -> Playwright proxy dict."""
+    import engine.crawler as cr
+    d = cr._playwright_proxy("http://user1:pass2@proxy.example.com:8080")
+    assert d["server"] == "http://proxy.example.com:8080", d
+    assert d["username"] == "user1" and d["password"] == "pass2", d
+
+
+def test_playwright_proxy_no_credentials():
+    import engine.crawler as cr
+    d = cr._playwright_proxy("http://proxy.example.com:8080")
+    assert d == {"server": "http://proxy.example.com:8080"}, d
+
+
+def test_crawl_site_skips_proxy_when_unset(monkeypatch=None):
+    """use_proxy=True but SCAN_PROXY_URL empty -> no proxy passed (direct crawl)."""
+    import engine.crawler as cr
+    from engine import config as cfg
+    captured = {}
+    orig_static, orig_url = cr._crawl_static, cfg.SCAN_PROXY_URL
+    cfg.SCAN_PROXY_URL = ""
+    # Force the static tier by making the playwright import path yield 0 captures
+    orig_pw = cr._crawl_with_playwright
+    cr._crawl_with_playwright = lambda *a, **k: []
+    def _cap_static(seed, mp, md, sr=True, proxy=""):
+        captured["proxy"] = proxy
+        return [PageCapture(url=seed, html="", render_engine="static")]
+    cr._crawl_static = _cap_static
+    try:
+        cr.crawl_site("https://x.gov", use_proxy=True)
+        assert captured["proxy"] == "", f"expected no proxy, got {captured['proxy']!r}"
+    finally:
+        cr._crawl_with_playwright, cr._crawl_static, cfg.SCAN_PROXY_URL = orig_pw, orig_static, orig_url
+
+
 if __name__ == "__main__":
     fails = 0
     for name, fn in sorted(globals().items()):

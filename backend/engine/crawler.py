@@ -67,20 +67,42 @@ def _robots_allowed(url: str) -> bool:
         return True
 
 
+def _playwright_proxy(proxy_url: str) -> dict:
+    """Convert a proxy URL (optionally with user:pass@) into Playwright's proxy dict."""
+    parts = urlparse(proxy_url)
+    server = f"{parts.scheme}://{parts.hostname}"
+    if parts.port:
+        server += f":{parts.port}"
+    cfg = {"server": server}
+    if parts.username:
+        cfg["username"] = parts.username
+    if parts.password:
+        cfg["password"] = parts.password
+    return cfg
+
+
 def crawl_site(seed_url: str,
                max_pages: int = config.MAX_PAGES_PER_SITE,
                max_depth: int = config.MAX_DEPTH,
-               skip_robots: bool = True) -> List[PageCapture]:
+               skip_robots: bool = True,
+               use_proxy: bool = True) -> List[PageCapture]:
     """Crawl a single site starting at seed_url, returning page captures.
 
     skip_robots=True (default) bypasses robots.txt for explicitly registered
     audit targets — city admins who add their own domain consent to scanning.
     Falls back gracefully through render tiers. Returns [] if nothing fetchable.
+
+    use_proxy=True (default) routes through config.SCAN_PROXY_URL when set — the
+    residential-proxy path that bypasses datacenter-IP WAF blocks. The pipeline
+    passes use_proxy=False for targets that don't need it (see caller).
     """
+    proxy = config.SCAN_PROXY_URL if (use_proxy and config.SCAN_PROXY_URL) else ""
+    if proxy:
+        print(f"[crawler] Routing {seed_url} through residential proxy")
     try:
         from playwright.sync_api import sync_playwright  # type: ignore
         print(f"[crawler] Using Playwright for {seed_url}")
-        captures = _crawl_with_playwright(seed_url, max_pages, max_depth, sync_playwright, skip_robots)
+        captures = _crawl_with_playwright(seed_url, max_pages, max_depth, sync_playwright, skip_robots, proxy)
         if captures:
             return captures
         # Playwright ran but captured nothing (WAF block, nav failure, stripped
@@ -98,7 +120,7 @@ def crawl_site(seed_url: str,
 
     try:
         print(f"[crawler] Using static crawler for {seed_url}")
-        return _crawl_static(seed_url, max_pages, max_depth, skip_robots)
+        return _crawl_static(seed_url, max_pages, max_depth, skip_robots, proxy)
     except ImportError:
         # Neither Playwright nor requests/bs4 available; caller should use fixtures.
         return []
@@ -186,14 +208,14 @@ def _apply_stealth(page) -> None:
     """)
 
 
-def _crawl_with_playwright(seed_url, max_pages, max_depth, sync_playwright, skip_robots=True) -> List[PageCapture]:
+def _crawl_with_playwright(seed_url, max_pages, max_depth, sync_playwright, skip_robots=True, proxy="") -> List[PageCapture]:
     captures: List[PageCapture] = []
     seen: set = set()
     frontier: List[tuple] = [(seed_url, 0)]
     host = urlparse(seed_url).netloc
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(
+        launch_kwargs = dict(
             headless=True,
             args=[
                 "--no-sandbox",
@@ -201,6 +223,11 @@ def _crawl_with_playwright(seed_url, max_pages, max_depth, sync_playwright, skip
                 "--disable-blink-features=AutomationControlled",
             ],
         )
+        if proxy:
+            # Playwright accepts proxy at launch; credentials embedded in the URL
+            # are parsed into server/username/password below.
+            launch_kwargs["proxy"] = _playwright_proxy(proxy)
+        browser = p.chromium.launch(**launch_kwargs)
         context = browser.new_context(
             user_agent=(
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -363,7 +390,7 @@ def _fetch_gtm_container(gtm_id: str, session) -> str:
     return ""
 
 
-def _crawl_static(seed_url, max_pages, max_depth, skip_robots=True) -> List[PageCapture]:
+def _crawl_static(seed_url, max_pages, max_depth, skip_robots=True, proxy="") -> List[PageCapture]:
     import requests  # type: ignore
     from bs4 import BeautifulSoup  # type: ignore
 
@@ -374,6 +401,8 @@ def _crawl_static(seed_url, max_pages, max_depth, skip_robots=True) -> List[Page
     headers = {"User-Agent": config.USER_AGENT}
     session = requests.Session()
     session.headers.update(headers)
+    if proxy:
+        session.proxies.update({"http": proxy, "https": proxy})
     fetched_gtm_ids: set = set()   # avoid re-fetching the same container across pages
 
     while frontier and len(captures) < max_pages:

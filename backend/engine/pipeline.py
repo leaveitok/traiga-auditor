@@ -110,7 +110,14 @@ def run_full_audit(
             if demo_fixtures and url in demo_fixtures:
                 captures = [PageCapture.from_fixture(url, demo_fixtures[url]["fixture"])]
             else:
-                captures = crawl_site(url)
+                # Proxy policy: config.SCAN_PROXY_ONLY_FLAGGED routes only
+                # cloudflare_protected targets through the (paid) residential
+                # proxy to conserve bandwidth; otherwise all targets use it when
+                # SCAN_PROXY_URL is set. crawl_site no-ops the proxy if unset.
+                from engine import config as _cfg
+                flagged = str(target.get("cloudflare_protected", "")).strip().lower() in ("true", "1", "yes")
+                use_proxy = (not _cfg.SCAN_PROXY_ONLY_FLAGGED) or flagged
+                captures = crawl_site(url, use_proxy=use_proxy)
         except Exception as exc:
             import traceback as _tb
             print(f"[pipeline] WARN: crawl failed for {city} ({url}): {type(exc).__name__}: {exc}\n{_tb.format_exc()}")
