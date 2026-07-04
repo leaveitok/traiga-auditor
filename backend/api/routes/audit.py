@@ -182,7 +182,28 @@ async def trigger_audit(
     else:
         targets = repo.get_targets()
         if city_filter:
+            # Individual re-audit: always scan the requested city (this is the
+            # only path that re-scrapes a proxy city — e.g. to update its status
+            # or confirm a fix). Proxy cost is incurred deliberately, one city.
             targets = [t for t in targets if t.get("city") == city_filter]
+        else:
+            # Bulk "Run Audit": skip proxy (ScraperAPI / cloudflare_protected)
+            # cities that ALREADY have an open violation. Once a paid-scrape city
+            # is confirmed positive, it is only re-scanned on demand (individual
+            # re-audit), never in the recurring bulk run — this is the ScraperAPI
+            # cost control. Free (Playwright) cities and not-yet-flagged proxy
+            # cities remain in the bulk run so violations can still be discovered
+            # and cure clocks keep advancing.
+            def _is_proxy(t: Dict[str, Any]) -> bool:
+                return str(t.get("cloudflare_protected", "")).strip().lower() in ("true", "1", "yes")
+            try:
+                open_v = repo.get_violations()
+                cities_with_open = {v.get("city") for v in open_v
+                                    if str(v.get("status", "")).lower() != "cured"}
+            except Exception:
+                cities_with_open = set()
+            targets = [t for t in targets
+                       if not (_is_proxy(t) and t.get("city") in cities_with_open)]
         if not targets:
             raise HTTPException(status_code=400, detail="No active targets found for this city")
 

@@ -48,13 +48,30 @@ def _indicator_haystack(cap: PageCapture, itype: str) -> List[str]:
     }.get(itype, [])
 
 
+# Structural CSS/HTML tokens that appear in almost every page. A vendor
+# dom_selector like [class*='cp-chat'] must match the DISTINCTIVE value
+# ('cp-chat'), never the attribute name ('class') — otherwise the indicator
+# fires on every page that has class= attributes, adding a phantom score to
+# the vendor everywhere (observed: CivicPlus scoring 0.3 on every site,
+# including sites merely BUILT ON the CivicPlus CMS). See test_dom_selector_*.
+_DOM_STOPWORDS = {
+    "class", "style", "data", "div", "span", "aria", "href", "src", "type",
+    "name", "value", "role", "label", "title", "input", "button", "hidden",
+    "text", "link", "item", "menu", "icon", "container", "wrapper", "content",
+    "header", "footer", "nav", "main", "section", "form", "table",
+}
+
+
 def _matches(pattern: str, itype: str, values: List[str]) -> bool:
     if itype == "dom_selector":
         # Approximate CSS-ish selector matching against raw HTML: extract the
-        # quoted attribute fragments (e.g. id*='citibot') and search for them.
+        # distinctive fragments (e.g. 'citibot', 'cp-chat') and search for them.
+        # Drop structural attribute names so the indicator only fires on the
+        # vendor-specific token, not on generic markup present on every page.
         frags = re.findall(r"[\['\"]\s*([a-z0-9_-]{3,})", pattern, flags=re.I)
+        frags = [fr for fr in frags if fr.lower() not in _DOM_STOPWORDS]
         html = values[0] if values else ""
-        return any(f.lower() in html.lower() for f in frags)
+        return bool(frags) and any(f.lower() in html.lower() for f in frags)
     try:
         rx = re.compile(pattern, flags=re.I)
     except re.error:
