@@ -158,6 +158,29 @@ def test_crawl_site_skips_proxy_when_unset(monkeypatch=None):
         cr._crawl_with_playwright, cr._crawl_static, cfg.SCAN_PROXY_URL = orig_pw, orig_static, orig_url
 
 
+def test_crawl_site_proxy_uses_static_only_no_browser():
+    """When SCAN_PROXY_URL is set, crawl_site must use the single-request static
+    tier and NOT drive Playwright through the metered proxy (credit-burn guard)."""
+    import engine.crawler as cr
+    from engine import config as cfg
+    calls = {"pw": 0, "static": 0}
+    orig_pw, orig_static, orig_url = cr._crawl_with_playwright, cr._crawl_static, cfg.SCAN_PROXY_URL
+    cfg.SCAN_PROXY_URL = "http://scraperapi.premium=true:KEY@proxy-server.scraperapi.com:8001"
+    def _pw(*a, **k):
+        calls["pw"] += 1; return [PageCapture(url="x", render_engine="playwright")]
+    def _static(seed, mp, md, sr=True, proxy=""):
+        calls["static"] += 1
+        assert proxy == cfg.SCAN_PROXY_URL, "proxy not passed to static tier"
+        return [PageCapture(url=seed, render_engine="static")]
+    cr._crawl_with_playwright, cr._crawl_static = _pw, _static
+    try:
+        out = cr.crawl_site("https://waf-city.gov", use_proxy=True)
+        assert calls["static"] == 1 and calls["pw"] == 0, calls
+        assert out and out[0].render_engine == "static"
+    finally:
+        cr._crawl_with_playwright, cr._crawl_static, cfg.SCAN_PROXY_URL = orig_pw, orig_static, orig_url
+
+
 if __name__ == "__main__":
     fails = 0
     for name, fn in sorted(globals().items()):

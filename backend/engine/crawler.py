@@ -98,7 +98,20 @@ def crawl_site(seed_url: str,
     """
     proxy = config.SCAN_PROXY_URL if (use_proxy and config.SCAN_PROXY_URL) else ""
     if proxy:
-        print(f"[crawler] Routing {seed_url} through residential proxy")
+        # Metered residential proxies (e.g. ScraperAPI premium) bill PER request.
+        # Driving a headless browser through the proxy turns every sub-resource
+        # (CSS/JS/images — often 100+ per page) into a separate billed request,
+        # which is prohibitively expensive. Use the single-request static tier
+        # instead: for WAF-blocked municipal sites whose vendor tag is in the
+        # server-rendered HTML (e.g. Lewisville's Citibot), one proxied fetch is
+        # sufficient. If a proxied target genuinely needs JS execution, add
+        # `.render=true` to SCAN_PROXY_URL so the proxy renders server-side
+        # (still one billed request), rather than routing a browser through it.
+        print(f"[crawler] Routing {seed_url} through proxy — static tier only (1 request, no browser)")
+        try:
+            return _crawl_static(seed_url, max_pages, max_depth, skip_robots, proxy)
+        except ImportError:
+            return []
     try:
         from playwright.sync_api import sync_playwright  # type: ignore
         print(f"[crawler] Using Playwright for {seed_url}")
@@ -403,6 +416,15 @@ def _crawl_static(seed_url, max_pages, max_depth, skip_robots=True, proxy="") ->
     session.headers.update(headers)
     if proxy:
         session.proxies.update({"http": proxy, "https": proxy})
+        # ScraperAPI (and similar) proxy mode intercepts TLS and presents its
+        # own certificate, so certificate verification must be disabled for
+        # proxied requests. Ref: ScraperAPI proxy-mode docs (curl -k / verify=False).
+        session.verify = False
+        try:
+            import urllib3
+            urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+        except Exception:
+            pass
     fetched_gtm_ids: set = set()   # avoid re-fetching the same container across pages
 
     while frontier and len(captures) < max_pages:
