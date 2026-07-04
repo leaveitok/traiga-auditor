@@ -67,6 +67,7 @@ jobs:
             --region=${{ env.REGION }} \
             --platform=managed \
             --allow-unauthenticated \
+            --no-cpu-throttling \
             --env-vars-file=deploy/env.yaml \
             --set-secrets=/secrets/service_account.json=traiga-service-account:latest \
             --memory=2Gi \
