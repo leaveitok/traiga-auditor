@@ -47,6 +47,19 @@ jobs:
           docker push --all-tags \
             ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.AR_REPO }}/${{ env.IMAGE }}
 
+      - name: Write env.yaml
+        run: |
+          {
+            echo 'GOOGLE_SERVICE_ACCOUNT_FILE: /secrets/service_account.json'
+            echo 'SPREADSHEET_ID: 1kWpfVMu1GhPRU5xNBQxqu2t12h6vSfrWZufNPHUNYHk'
+            echo 'FIREBASE_PROJECT_ID: traiga-auditor'
+            echo 'ADMIN_EMAILS: leaveitok@gmail.com'
+            echo 'REQUIRE_AUTH: "true"'
+            echo 'CORS_ORIGINS: https://traiga-auditor.web.app,https://traiga-auditor.firebaseapp.com'
+            echo 'SCAN_CADENCE_HOURS: "24"'
+            echo 'API_HOST: 0.0.0.0'
+          } > deploy/env.yaml
+
       - name: Deploy to Cloud Run
         run: |
           gcloud run deploy ${{ env.SERVICE }} \
