@@ -5,6 +5,7 @@ without modification.
 from core.config import (  # noqa: F401
     SCHEMA_FILE as _schema_file,
     CURE_PERIOD_DAYS,
+    CURE_CONFIRM_SCANS,
     SCAN_CADENCE_HOURS,
     MAX_PAGES_PER_SITE,
     MAX_DEPTH,
