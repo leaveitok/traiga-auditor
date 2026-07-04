@@ -58,6 +58,7 @@ jobs:
             echo 'CORS_ORIGINS: https://traiga-auditor.web.app,https://traiga-auditor.firebaseapp.com'
             echo 'SCAN_CADENCE_HOURS: "24"'
             echo 'API_HOST: 0.0.0.0'
+            echo 'SCAN_PROXY_ONLY_FLAGGED: "true"'
           } > deploy/env.yaml
 
       - name: Deploy to Cloud Run
@@ -69,7 +70,7 @@ jobs:
             --allow-unauthenticated \
             --no-cpu-throttling \
             --env-vars-file=deploy/env.yaml \
-            --set-secrets=/secrets/service_account.json=traiga-service-account:latest \
+            --set-secrets=/secrets/service_account.json=traiga-service-account:latest,SCAN_PROXY_URL=traiga-scan-proxy:latest \
             --memory=2Gi \
             --cpu=1 \
             --min-instances=0 \
