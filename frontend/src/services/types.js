@@ -117,6 +117,10 @@
  * @property {string}           domain
  * @property {string}           asset_id
  * @property {string}           vendor_id
+ * @property {string}           [vendor_display_name] - Friendly name resolved from schema (e.g. "Citibot")
+ * @property {string}           [asset_type]          - e.g. "chatbot / virtual assistant"
+ * @property {string}           [finding_summary]     - Reviewer-facing sentence, e.g. "This site uses Citibot (chatbot)."
+ * @property {string[]}         [matched_signals]     - Plain-English list of signature types that fired
  * @property {string}           rule_id           - e.g. "ETM-001"
  * @property {string}           citation          - Statutory reference
  * @property {ViolationSeverity} severity

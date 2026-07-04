@@ -46,6 +46,14 @@
                 Needs Review
               </v-chip>
             </div>
+            <div class="text-body-2 font-weight-medium mb-1">
+              <v-icon size="small" color="primary" class="mr-1">mdi-robot-outline</v-icon>
+              {{ v.finding_summary || ('This site uses ' + (v.vendor_display_name || v.vendor_id)) }}
+            </div>
+            <div v-if="v.matched_signals && v.matched_signals.length"
+                 class="text-caption text-medium-emphasis mb-2">
+              Matched via: {{ v.matched_signals.join(', ') }}
+            </div>
             <div class="text-caption text-medium-emphasis">{{ v.citation }}</div>
             <div class="text-caption mt-1">
               First observed: {{ fmtDate(v.first_observed_utc) }} ·
@@ -69,6 +77,10 @@
           <span>Violation Detail</span>
           <v-btn icon="mdi-close" variant="text" @click="detail = false" />
         </v-card-title>
+        <v-alert v-if="selected.finding_summary" type="info" variant="tonal"
+                 density="compact" class="mt-2" icon="mdi-robot-outline">
+          {{ selected.finding_summary }}
+        </v-alert>
         <v-list density="compact" class="mt-2">
           <v-list-item title="Violation ID" :subtitle="selected.violation_id" />
           <v-list-item title="City" :subtitle="selected.city" />
@@ -76,7 +88,11 @@
           <v-list-item title="Rule" :subtitle="selected.rule_id" />
           <v-list-item title="Citation" :subtitle="selected.citation" />
           <v-list-item title="Severity" :subtitle="selected.severity" />
-          <v-list-item title="Vendor" :subtitle="selected.vendor_id" />
+          <v-list-item title="AI System" :subtitle="selected.vendor_display_name || selected.vendor_id" />
+          <v-list-item title="Asset Type" :subtitle="selected.asset_type || '—'" />
+          <v-list-item title="Matched Signatures"
+                       :subtitle="(selected.matched_signals && selected.matched_signals.length) ? selected.matched_signals.join(', ') : '—'" />
+          <v-list-item title="Vendor ID" :subtitle="selected.vendor_id" />
           <v-list-item title="Status" :subtitle="selected.status" />
           <v-list-item title="First Observed" :subtitle="fmtDate(selected.first_observed_utc)" />
           <v-list-item title="Cure Deadline" :subtitle="fmtDate(selected.cure_deadline_utc)" />
