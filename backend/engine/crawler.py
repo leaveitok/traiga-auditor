@@ -80,7 +80,13 @@ def crawl_site(seed_url: str,
     try:
         from playwright.sync_api import sync_playwright  # type: ignore
         print(f"[crawler] Using Playwright for {seed_url}")
-        return _crawl_with_playwright(seed_url, max_pages, max_depth, sync_playwright, skip_robots)
+        captures = _crawl_with_playwright(seed_url, max_pages, max_depth, sync_playwright, skip_robots)
+        if captures:
+            return captures
+        # Playwright ran but captured nothing (WAF block, nav failure, stripped
+        # response). Fall through to the static tier — a plain requests fetch
+        # sometimes succeeds where headless Chromium is fingerprinted/blocked.
+        print(f"[crawler] Playwright returned 0 captures for {seed_url} — falling back to static tier")
     except ImportError:
         print(f"[crawler] Playwright not available, falling back to static for {seed_url}")
 
@@ -278,6 +284,12 @@ def _crawl_with_playwright(seed_url, max_pages, max_depth, sync_playwright, skip
                     iframe_srcs = page.eval_on_selector_all(
                         "iframe", "els => els.map(e => e.src)") or []
 
+                # Merge hosts visible in the (GTM-augmented) HTML blob into the
+                # DOM-queried hosts.  DOM queries miss hosts that only appear in
+                # fetched GTM container JS; the HTML scan catches them.
+                dom_script_hosts = list(dict.fromkeys(
+                    list(dom_script_hosts) + _hosts_from_html(html)))
+
                 # Per-page network URLs (slice from before this page's load)
                 page_net_urls = context_net_urls[net_before:]
 
@@ -403,8 +415,8 @@ def _crawl_static(seed_url, max_pages, max_depth, skip_robots=True) -> List[Page
                 href = urljoin(url, a["href"])
                 if urlparse(href).netloc == host and href not in seen:
                     frontier.append((href, depth + 1))
-        except Exception:
-            pass
+        except Exception as exc:
+            print(f"[crawler] Static fetch error on {url}: {type(exc).__name__}: {exc}")
         finally:
             time.sleep(config.CRAWL_DELAY_SECONDS)
     return captures
@@ -413,7 +425,9 @@ def _crawl_static(seed_url, max_pages, max_depth, skip_robots=True) -> List[Page
 def _hosts_from_html(html: str) -> List[str]:
     import re
     hosts = []
-    for m in re.finditer(r'src=["\']([^"\']+)["\']', html, flags=re.I):
+    # \\? tolerates backslash-escaped quotes (src=\"https://...\") as found in
+    # GTM container JS vtp_html fragments, where script tags are JSON-encoded.
+    for m in re.finditer(r'src=\\?["\']([^"\'\\]+)', html, flags=re.I):
         netloc = urlparse(m.group(1)).netloc
         if netloc:
             hosts.append(netloc)

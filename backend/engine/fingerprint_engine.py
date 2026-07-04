@@ -44,7 +44,7 @@ def _indicator_haystack(cap: PageCapture, itype: str) -> List[str]:
         "iframe_origin_regex": cap.iframe_origins,
         "cookie_name_regex": cap.cookie_names,
         "network_request_regex": cap.network_urls,
-        "text_marker_regex": [cap.text or cap.html],
+        "text_marker_regex": [cap.text or "", cap.html or ""],  # search BOTH: vendor markers (script URLs, GTM fragments) live in HTML, never in visible text
     }.get(itype, [])
 
 
