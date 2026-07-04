@@ -15,6 +15,11 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Belt & suspenders: install the browser revision matching the pip-installed
+# playwright version, so a future version drift between requirements.txt and
+# the base image can never again ship an image without a launchable browser.
+RUN playwright install chromium
+
 # Copy application source
 COPY . .
 

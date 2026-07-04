@@ -59,7 +59,7 @@ def test_text_marker_fires_on_html_when_text_is_nonempty():
         url="https://www.cityoflewisville.com",
         html=LIVE_HTML,
         script_hosts=[],          # DOM query missed it (async/late injection)
-        text=VISIBLE_TEXT,        # non-empty → old engine never searched html
+        text=VISIBLE_TEXT,        # non-empty -> old engine never searched html
         render_engine="playwright",
     )
     hits = _detected(cap)
@@ -95,6 +95,32 @@ def test_clean_city_no_false_positive():
         render_engine="playwright",
     )
     assert not _detected(cap), "clean city must not trigger detections"
+
+
+def test_crawl_site_falls_back_when_playwright_tier_raises():
+    """Playwright launch failure (e.g. missing browser binary in the container,
+    the 2026-07-04 Cloud Run incident) must fall through to the static tier
+    instead of aborting the city's crawl."""
+    import types
+    import engine.crawler as cr
+    fake = types.ModuleType("playwright.sync_api")
+    fake.sync_playwright = lambda: None
+    sys.modules.setdefault("playwright", types.ModuleType("playwright"))
+    sys.modules["playwright.sync_api"] = fake
+    sentinel = [PageCapture(url="https://x.gov", html="", render_engine="static")]
+    orig_pw, orig_static = cr._crawl_with_playwright, cr._crawl_static
+
+    def _boom(*a, **k):
+        raise RuntimeError("BrowserType.launch: Executable doesn't exist")
+
+    cr._crawl_with_playwright = _boom
+    cr._crawl_static = lambda *a, **k: sentinel
+    try:
+        result = cr.crawl_site("https://x.gov", max_pages=1, max_depth=0)
+        assert result == sentinel, "static tier must be used when Playwright tier raises"
+    finally:
+        cr._crawl_with_playwright, cr._crawl_static = orig_pw, orig_static
+        del sys.modules["playwright.sync_api"]
 
 
 if __name__ == "__main__":

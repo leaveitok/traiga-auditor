@@ -89,6 +89,12 @@ def crawl_site(seed_url: str,
         print(f"[crawler] Playwright returned 0 captures for {seed_url} — falling back to static tier")
     except ImportError:
         print(f"[crawler] Playwright not available, falling back to static for {seed_url}")
+    except Exception as exc:
+        # Playwright is installed but unusable (browser binary missing from the
+        # container image, launch failure, crash). Never abort the city's scan
+        # on a tier failure — log loudly and fall through to the static tier.
+        print(f"[crawler] Playwright tier FAILED for {seed_url}: "
+              f"{type(exc).__name__}: {exc} — falling back to static tier")
 
     try:
         print(f"[crawler] Using static crawler for {seed_url}")
@@ -455,19 +461,4 @@ _DOWNLOAD_PATH_PATTERNS = (
 
 def _is_navigable(url: str) -> bool:
     """Return False for binary/download URLs that Playwright can't navigate to."""
-    path = urlparse(url).path.lower().split("?")[0]
-    if any(path.endswith(ext) for ext in _BINARY_EXTS):
-        return False
-    if any(pat in path for pat in _DOWNLOAD_PATH_PATTERNS):
-        return False
-    return True
-
-
-def _links_from_html(html: str, base: str) -> List[str]:
-    import re
-    links = []
-    for m in re.finditer(r'href=["\']([^"\']+)["\']', html, flags=re.I):
-        url = urljoin(base, m.group(1))
-        if _is_navigable(url):
-            links.append(url)
-    return links
+    path = urlparse(url).path.lower().split("?")
