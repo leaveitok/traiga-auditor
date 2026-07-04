@@ -431,7 +431,7 @@ def _crawl_static(seed_url, max_pages, max_depth, skip_robots=True) -> List[Page
 def _hosts_from_html(html: str) -> List[str]:
     import re
     hosts = []
-    # \\? tolerates backslash-escaped quotes (src=\"https://...\") as found in
+    # \? tolerates backslash-escaped quotes (src=\"https://...\") as found in
     # GTM container JS vtp_html fragments, where script tags are JSON-encoded.
     for m in re.finditer(r'src=\\?["\']([^"\'\\]+)', html, flags=re.I):
         netloc = urlparse(m.group(1)).netloc
@@ -461,4 +461,19 @@ _DOWNLOAD_PATH_PATTERNS = (
 
 def _is_navigable(url: str) -> bool:
     """Return False for binary/download URLs that Playwright can't navigate to."""
-    path = urlparse(url).path.lower().split("?")
+    path = urlparse(url).path.lower().split("?")[0]
+    if any(path.endswith(ext) for ext in _BINARY_EXTS):
+        return False
+    if any(pat in path for pat in _DOWNLOAD_PATH_PATTERNS):
+        return False
+    return True
+
+
+def _links_from_html(html: str, base: str) -> List[str]:
+    import re
+    links = []
+    for m in re.finditer(r'href=["\']([^"\']+)["\']', html, flags=re.I):
+        url = urljoin(base, m.group(1))
+        if _is_navigable(url):
+            links.append(url)
+    return links
