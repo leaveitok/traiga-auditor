@@ -200,6 +200,7 @@ def run_full_audit(
             assets=per_city_assets.get(city, []),
             open_violations=city_open,
             scorecard_cfg=scorecard_cfg,
+            crawl_ok=(city in crawled_cities),
         ))
     scorecard = build_scorecard(rows, scorecard_cfg)
 

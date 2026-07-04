@@ -29,7 +29,8 @@ def _band(score: int, bands: Dict[str, List[int]]) -> str:
 def build_city_row(city: str, jurisdiction: str, domain: str,
                    assets: List[Dict[str, Any]],
                    open_violations: List[Dict[str, Any]],
-                   scorecard_cfg: Dict[str, Any]) -> Dict[str, Any]:
+                   scorecard_cfg: Dict[str, Any],
+                   crawl_ok: bool = True) -> Dict[str, Any]:
     weights = scorecard_cfg["severity_weights"]
     in_cure_mult = scorecard_cfg.get("in_cure_weight_multiplier", 0.5)
     expired_mult = scorecard_cfg.get("expired_weight_multiplier", 1.0)
@@ -43,8 +44,18 @@ def build_city_row(city: str, jurisdiction: str, domain: str,
         score -= base * mult
     score = max(0, int(round(score)))
 
+    # Status resolution. When there are no open violations we must distinguish
+    # three very different situations that were previously all "not_assessed":
+    #   - assets present            -> compliant (AI found, disclosures OK)
+    #   - crawl OK, no assets       -> no_ai_detected (assessed; site has no AI)
+    #   - crawl failed / 0 captures -> scan_failed (WAF/error; could not assess)
     if not open_violations:
-        status = "compliant" if assets else "not_assessed"
+        if assets:
+            status = "compliant"
+        elif crawl_ok:
+            status = "no_ai_detected"
+        else:
+            status = "scan_failed"
     elif any(v.get("status") == "expired" for v in open_violations):
         status = "expired"
     elif all(v.get("status") == "in_cure" for v in open_violations):

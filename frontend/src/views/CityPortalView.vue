@@ -65,7 +65,7 @@
               <v-btn color="primary" variant="elevated"
                      prepend-icon="mdi-file-document-outline"
                      :loading="generatingReport"
-                     :disabled="cityRow.traiga_status === 'not_assessed'"
+                     :disabled="['not_assessed','scan_failed'].includes(cityRow.traiga_status)"
                      @click="downloadReport">
                 Generate Compliance Report
               </v-btn>

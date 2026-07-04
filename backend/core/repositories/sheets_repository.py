@@ -313,6 +313,8 @@ class SheetsRepository:
             "non_compliant":            sum(1 for r in rows if r.get("traiga_status") == "non_compliant"),
             "expired":                  sum(1 for r in rows if r.get("traiga_status") == "expired"),
             "not_assessed":             sum(1 for r in rows if r.get("traiga_status") == "not_assessed"),
+            "no_ai_detected":           sum(1 for r in rows if r.get("traiga_status") == "no_ai_detected"),
+            "scan_failed":              sum(1 for r in rows if r.get("traiga_status") == "scan_failed"),
             "average_compliance_score": round(sum(scores) / len(scores), 1) if scores else None,
         }
 

@@ -42,7 +42,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * @typedef {'compliant'|'in_cure'|'non_compliant'|'expired'|'not_assessed'} TraigaStatus
+ * @typedef {'compliant'|'in_cure'|'non_compliant'|'expired'|'no_ai_detected'|'scan_failed'|'not_assessed'} TraigaStatus
  */
 
 /**
@@ -84,6 +84,8 @@
  * @property {number}       non_compliant
  * @property {number}       expired
  * @property {number}       not_assessed
+ * @property {number}       no_ai_detected
+ * @property {number}       scan_failed
  * @property {number|null}  average_compliance_score
  */
 

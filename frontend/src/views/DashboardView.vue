@@ -127,13 +127,13 @@
         </template>
 
         <template #item.actions="{ item }">
-          <v-tooltip :text="item.traiga_status === 'not_assessed' ? 'Run audit first' : 'Generate Compliance Report'" location="top">
+          <v-tooltip :text="['not_assessed','scan_failed'].includes(item.traiga_status) ? 'Assess this city first (scan failed or not yet run)' : 'Generate Compliance Report'" location="top">
             <template #activator="{ props }">
               <span v-bind="props">
                 <v-btn
                   size="small" variant="text" color="primary"
                   :loading="rStore.isGenerating(item.city)"
-                  :disabled="item.traiga_status === 'not_assessed'"
+                  :disabled="['not_assessed','scan_failed'].includes(item.traiga_status)"
                   @click.stop="downloadReport(item.city)"
                 >
                   <v-icon start>mdi-file-document-outline</v-icon>
@@ -205,6 +205,7 @@ const kpis = computed(() => {
     { label: 'In Cure',       value: s.in_cure,       color: 'warning' },
     { label: 'Non-Compliant', value: s.non_compliant, color: 'error'   },
     { label: 'Expired',       value: s.expired,       color: 'error'   },
+    { label: 'Scan Failed',   value: s.scan_failed ?? 0, color: 'grey'  },
     { label: 'Avg Score',     value: s.average_compliance_score ?? '—', color: 'info' },
   ]
 })

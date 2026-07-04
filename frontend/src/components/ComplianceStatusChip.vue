@@ -16,6 +16,8 @@ const MAP = {
   in_cure:      { color: 'warning', icon: 'mdi-clock-alert',     label: 'In Cure'       },
   non_compliant:{ color: 'error',   icon: 'mdi-close-circle',    label: 'Non-Compliant' },
   expired:      { color: 'error',   icon: 'mdi-alert-octagon',   label: 'Expired'       },
+  no_ai_detected:{ color: 'info',    icon: 'mdi-robot-off-outline', label: 'No AI Detected' },
+  scan_failed:  { color: 'grey',    icon: 'mdi-cloud-alert',     label: 'Scan Failed'   },
   not_assessed: { color: 'default', icon: 'mdi-help-circle',     label: 'Not Assessed'  },
 }
 

@@ -49,8 +49,8 @@
             <div class="d-flex align-center ga-3 flex-wrap">
               <AuditRunButton :city-override="cityName" @audit-complete="refresh" />
 
-              <!-- Deep Scan — only shown for not_assessed cities -->
-              <v-btn v-if="cityRow.traiga_status === 'not_assessed'"
+              <!-- Deep Scan — shown when a city could not be assessed (scan failed / blocked) -->
+              <v-btn v-if="['not_assessed','scan_failed'].includes(cityRow.traiga_status)"
                 color="warning" variant="elevated"
                 prepend-icon="mdi-magnify-scan"
                 @click="deepScanDialog = true"
@@ -272,7 +272,7 @@
             <li>Copy the prompt below</li>
             <li>Paste it into your Claude (Cowork) session</li>
             <li>Claude will navigate the site, extract AI tool signals, and post results back to the backend</li>
-            <li>Return here and refresh — the city will update from <em>not_assessed</em></li>
+            <li>Return here and refresh — the city will update from <em>Scan Failed</em></li>
           </ol>
 
           <v-textarea
