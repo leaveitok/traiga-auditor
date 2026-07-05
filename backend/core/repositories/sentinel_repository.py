@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import json
 import os
+import threading
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Protocol, runtime_checkable
 
@@ -122,12 +123,18 @@ class SheetsSentinelRepository:
         )
         self._svc = build("sheets", "v4", credentials=creds, cache_discovery=False)
         self._sheet = self._svc.spreadsheets()
+        # httplib2 (under googleapiclient) is NOT thread-safe. Cloud Run serves
+        # requests concurrently and the frontend fires events+summary+devices in
+        # parallel; without this lock the shared connection deadlocks. Mirrors the
+        # serialization used by the main SheetsRepository.
+        self._lock = threading.RLock()
 
     # ── generic helpers (same shape as core/sheets.py) ────────────────────────
     def _read_all(self, tab: str) -> List[Dict[str, Any]]:
-        result = self._sheet.values().get(
-            spreadsheetId=self._spreadsheet_id, range=f"'{tab}'"
-        ).execute()
+        with self._lock:
+            result = self._sheet.values().get(
+                spreadsheetId=self._spreadsheet_id, range=f"'{tab}'"
+            ).execute()
         rows = result.get("values", [])
         if len(rows) < 2:
             return []
@@ -138,30 +145,32 @@ class SheetsSentinelRepository:
     def _append(self, tab: str, headers: List[str], row: Dict[str, Any]) -> None:
         _assert_metadata_only(row)
         values = [str(row.get(h, "")) for h in headers]
-        self._sheet.values().append(
-            spreadsheetId=self._spreadsheet_id, range=f"'{tab}'!A1",
-            valueInputOption="RAW", insertDataOption="INSERT_ROWS",
-            body={"values": [values]},
-        ).execute()
+        with self._lock:
+            self._sheet.values().append(
+                spreadsheetId=self._spreadsheet_id, range=f"'{tab}'!A1",
+                valueInputOption="RAW", insertDataOption="INSERT_ROWS",
+                body={"values": [values]},
+            ).execute()
 
     def ensure_schema(self) -> None:
-        meta = self._svc.spreadsheets().get(spreadsheetId=self._spreadsheet_id).execute()
-        existing = [s["properties"]["title"] for s in meta.get("sheets", [])]
-        for tab, headers in ((SHEET_EVENTS, EVENT_HEADERS), (SHEET_HEARTBEATS, HEARTBEAT_HEADERS)):
-            if tab not in existing:
-                self._svc.spreadsheets().batchUpdate(
-                    spreadsheetId=self._spreadsheet_id,
-                    body={"requests": [{"addSheet": {"properties": {"title": tab}}}]},
+        with self._lock:
+            meta = self._svc.spreadsheets().get(spreadsheetId=self._spreadsheet_id).execute()
+            existing = [s["properties"]["title"] for s in meta.get("sheets", [])]
+            for tab, headers in ((SHEET_EVENTS, EVENT_HEADERS), (SHEET_HEARTBEATS, HEARTBEAT_HEADERS)):
+                if tab not in existing:
+                    self._svc.spreadsheets().batchUpdate(
+                        spreadsheetId=self._spreadsheet_id,
+                        body={"requests": [{"addSheet": {"properties": {"title": tab}}}]},
+                    ).execute()
+                result = self._sheet.values().get(
+                    spreadsheetId=self._spreadsheet_id, range=f"'{tab}'!A1:Z1"
                 ).execute()
-            result = self._sheet.values().get(
-                spreadsheetId=self._spreadsheet_id, range=f"'{tab}'!A1:Z1"
-            ).execute()
-            current = result.get("values", [[]])
-            if not current or not current[0]:
-                self._sheet.values().update(
-                    spreadsheetId=self._spreadsheet_id, range=f"'{tab}'!A1",
-                    valueInputOption="RAW", body={"values": [headers]},
-                ).execute()
+                current = result.get("values", [[]])
+                if not current or not current[0]:
+                    self._sheet.values().update(
+                        spreadsheetId=self._spreadsheet_id, range=f"'{tab}'!A1",
+                        valueInputOption="RAW", body={"values": [headers]},
+                    ).execute()
 
     def store_event(self, row: Dict[str, Any]) -> None:
         row.setdefault("received_utc", _now_iso())
