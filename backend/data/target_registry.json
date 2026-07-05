@@ -6,15 +6,19 @@
       "jurisdiction": "TX",
       "domain": "cityoflewisville.com",
       "url": "https://www.cityoflewisville.com",
-      "tags": ["home_jurisdiction"],
-      "cloudflare_protected": false
+      "tags": [
+        "home_jurisdiction"
+      ],
+      "cloudflare_protected": true
     },
     {
       "city": "City of McKinney",
       "jurisdiction": "TX",
       "domain": "mckinneytexas.org",
       "url": "https://www.mckinneytexas.org",
-      "tags": ["dfw_metro"],
+      "tags": [
+        "dfw_metro"
+      ],
       "cloudflare_protected": false
     },
     {
@@ -22,7 +26,9 @@
       "jurisdiction": "TX",
       "domain": "garlandtx.gov",
       "url": "https://www.garlandtx.gov",
-      "tags": ["dfw_metro"],
+      "tags": [
+        "dfw_metro"
+      ],
       "cloudflare_protected": false
     },
     {
@@ -30,7 +36,9 @@
       "jurisdiction": "TX",
       "domain": "cityofdenton.com",
       "url": "https://www.cityofdenton.com",
-      "tags": ["dfw_metro"],
+      "tags": [
+        "dfw_metro"
+      ],
       "cloudflare_protected": false
     }
   ]
