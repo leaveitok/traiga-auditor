@@ -80,5 +80,6 @@ jobs:
             --max-instances=3 \
             --timeout=300 \
             --concurrency=80 \
+            --session-affinity \
             --project=${{ env.PROJECT_ID }} \
             --quiet

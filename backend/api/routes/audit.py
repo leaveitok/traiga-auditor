@@ -81,6 +81,8 @@ class AuditRunResponse(BaseModel):
     observed_failures: int
     open_violations:   int
     error:             Optional[str]
+    # Real-time progress: {"current_city": str, "completed": int, "total": int}
+    progress:          Optional[Dict[str, Any]] = None
 
 
 class ChromeCapture(BaseModel):
@@ -129,12 +131,21 @@ async def _run_audit_task(
     _audit_state["started_utc"]  = datetime.now(timezone.utc).isoformat()
     _audit_state["finished_utc"] = None
     _audit_state["error"]        = None
+    _audit_state["progress"]     = {"current_city": "", "completed": 0,
+                                    "total": len(targets)}
+
+    def _on_progress(p: Dict[str, Any]) -> None:
+        # Called from the executor thread; plain dict assignment is atomic
+        # enough for a monotonic status readout.
+        _audit_state["progress"] = p
+
     try:
         from engine.pipeline import run_full_audit
         fixtures = DEMO_FIXTURES if demo else None
         loop     = asyncio.get_event_loop()
         result   = await loop.run_in_executor(
-            None, lambda: run_full_audit(targets, repo, fixtures)
+            None, lambda: run_full_audit(targets, repo, fixtures,
+                                         progress_cb=_on_progress)
         )
         _audit_state.update({
             "status":       "completed",

@@ -109,14 +109,15 @@
           <v-chip
             v-if="item.cloudflare_protected"
             color="warning" variant="tonal" size="x-small" label
-            title="Cloudflare-protected — requires manual Deep Scan"
+            title="WAF-protected — scanned via residential proxy"
           >
             <v-icon start size="12">mdi-shield-alert-outline</v-icon>
-            Manual Scan
+            Proxy
           </v-chip>
-          <v-chip v-else color="success" variant="tonal" size="x-small" label>
+          <v-chip v-else color="success" variant="tonal" size="x-small" label
+                  title="Direct crawl — auto-escalates to proxy if a WAF is detected">
             <v-icon start size="12">mdi-robot-outline</v-icon>
-            Auto
+            Direct
           </v-chip>
         </template>
 
@@ -205,6 +206,7 @@ const kpis = computed(() => {
     { label: 'In Cure',       value: s.in_cure,       color: 'warning' },
     { label: 'Non-Compliant', value: s.non_compliant, color: 'error'   },
     { label: 'Expired',       value: s.expired,       color: 'error'   },
+    { label: 'No AI Detected', value: s.no_ai_detected ?? 0, color: 'teal' },
     { label: 'Scan Failed',   value: s.scan_failed ?? 0, color: 'grey'  },
     { label: 'Avg Score',     value: s.average_compliance_score ?? '—', color: 'info' },
   ]

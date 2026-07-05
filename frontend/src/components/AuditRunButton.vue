@@ -22,7 +22,10 @@
     <!-- Progress bar shown only while running -->
     <div v-if="auditStore.isRunning" style="width: 100%; max-width: 420px">
       <v-progress-linear
-        indeterminate
+        :indeterminate="!auditStore.progress || !auditStore.progress.total"
+        :model-value="auditStore.progress && auditStore.progress.total
+          ? (auditStore.progress.completed / auditStore.progress.total) * 100
+          : 0"
         color="primary"
         rounded
         height="6"
@@ -113,7 +116,18 @@ const PROGRESS_MESSAGES = [
 ]
 
 const msgIndex       = ref(0)
-const progressMessage = computed(() => PROGRESS_MESSAGES[msgIndex.value])
+// Real per-city progress from the backend when available; rotating
+// messages only as a fallback before the first progress packet arrives.
+const progressMessage = computed(() => {
+  const p = auditStore.progress
+  if (p && p.total) {
+    const n = Math.min(p.completed + 1, p.total)
+    return p.current_city
+      ? `Scanning ${p.current_city} (${n} of ${p.total})…`
+      : `Scanning ${n} of ${p.total}…`
+  }
+  return PROGRESS_MESSAGES[msgIndex.value]
+})
 let   _msgTimer      = null
 
 watch(() => auditStore.isRunning, (running) => {
@@ -152,9 +166,14 @@ const statusLabel = computed(() => ({
   idle:      'Idle',
 }[auditStore.status] || auditStore.status))
 
+// Emit audit-complete when the scan actually FINISHES (status transition),
+// not when the trigger POST returns — the scan runs as a background task.
+watch(() => auditStore.status, (s, prev) => {
+  if (prev === 'running' && s === 'completed') emit('audit-complete')
+})
+
 async function startAudit() {
   dialog.value = false
   await auditStore.trigger(demoMode.value, effectiveCity.value)
-  emit('audit-complete')
 }
 </script>

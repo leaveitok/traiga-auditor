@@ -22,6 +22,7 @@ def run_full_audit(
     targets: List[Dict[str, Any]],
     repo: GovernanceRepository,
     demo_fixtures: Optional[Dict[str, Any]] = None,
+    progress_cb: Optional[Any] = None,
 ) -> Dict[str, Any]:
     """
     Execute the full 5-stage audit pipeline for a list of targets.
@@ -32,6 +33,17 @@ def run_full_audit(
       3. Validate — apply External_Transparency_Module disclosure rules
       4. Reconcile — merge new findings with existing violation state
       5. Scorecard — compute per-city compliance row and persist
+
+    INCREMENTAL PERSISTENCE: each city's scorecard row and violations are
+    written as soon as that city finishes, so a polling dashboard repaints
+    in real time during a long multi-city run. Per-city reconcile is
+    semantically identical to the old end-of-run batch reconcile because
+    both violation records and observations are city-keyed, and the
+    crawled_cities guard restricts cure logic to the city just scanned.
+
+    progress_cb, when provided, is called as
+    progress_cb({"current_city": str, "completed": int, "total": int})
+    before each city starts and after it persists.
 
     Args:
         targets:       List of target dicts (city, url, domain, jurisdiction).
@@ -96,12 +108,23 @@ def run_full_audit(
     observed_failures: List[Dict[str, Any]] = []
     per_city_assets:   Dict[str, List[Dict[str, Any]]] = {}
     crawled_cities:    set = set()   # cities where crawler returned >= 1 page of content
+    rows: List[Dict[str, Any]] = []
+    total = len(targets)
 
-    for target in targets:
+    def _progress(city: str, completed: int) -> None:
+        if progress_cb:
+            try:
+                progress_cb({"current_city": city, "completed": completed, "total": total})
+            except Exception:
+                pass  # progress reporting must never break the scan
+
+    for idx, target in enumerate(targets):
         city   = target["city"]
         domain = target.get("domain") or target.get("url", "")
         url    = target.get("url", domain)
         per_city_assets.setdefault(city, [])
+        _progress(city, idx)
+        city_failures: List[Dict[str, Any]] = []
 
         # Per-city error isolation: a crawl failure for one city must not
         # abort the entire pipeline run.  Log and continue.
@@ -189,7 +212,7 @@ def run_full_audit(
                 "verification_status": asset.verification_status,
             })
             for v in validate(cap, asset, rules):
-                observed_failures.append({
+                city_failures.append({
                     "city":      city,
                     "domain":    domain,
                     "asset_id":  asset.asset_id,
@@ -204,32 +227,42 @@ def run_full_audit(
                     },
                 })
 
-    state    = reconcile(state, observed_failures, crawled_cities=crawled_cities)
-    all_open = open_violations(state)
+        observed_failures.extend(city_failures)
 
-    rows = []
-    for target in targets:
-        city      = target["city"]
-        city_open = [v for v in all_open if v["city"] == city]
-        rows.append(build_city_row(
+        # ── Per-city reconcile + persist (incremental / real-time) ───────────
+        # Equivalent to the old batch reconcile: records and observations are
+        # city-keyed, and the crawled_cities guard means this call can only
+        # open/refresh/cure THIS city's violations.
+        state = reconcile(
+            state, city_failures,
+            crawled_cities=({city} if city in crawled_cities else set()),
+        )
+        city_open = [v for v in open_violations(state) if v["city"] == city]
+        row = build_city_row(
             city=city,
             jurisdiction=target.get("jurisdiction", ""),
-            domain=target.get("domain") or target.get("url", ""),
+            domain=domain,
             assets=per_city_assets.get(city, []),
             open_violations=city_open,
             scorecard_cfg=scorecard_cfg,
             crawl_ok=(city in crawled_cities),
-        ))
+        )
+        rows.append(row)
+        try:
+            # Write THIS city's row + violations now, so a polling dashboard
+            # repaints while the run continues with the next city.
+            repo.write_scorecard_rows([row])
+            repo.write_violations(
+                [v for v in state["violations"].values() if v.get("city") == city])
+        except Exception as exc:
+            # One city's persistence failure must not abort the whole run.
+            print(f"[pipeline] WARN: persist failed for {city}: "
+                  f"{type(exc).__name__}: {exc}")
+        _progress(city, idx + 1)
+
+    all_open  = open_violations(state)
     scorecard = build_scorecard(rows, scorecard_cfg)
 
-    # Persist via repository — engine has no knowledge of storage.
-    # write_scorecard_rows uses _upsert_by_key — only writes the scanned cities'
-    # rows (insert or update); other cities' rows are untouched in Sheets.
-    # write_violations writes only the scoped (target-city) violations — preserved
-    # (other-city) violations are already correct in Sheets and must not be
-    # rewritten, as that would trigger an O(N*2) Sheets API call storm.
-    repo.write_scorecard_rows(rows)
-    repo.write_violations(list(state["violations"].values()))
     repo.append_audit_log(
         event="scan_complete",
         city_count=scorecard["city_count"],

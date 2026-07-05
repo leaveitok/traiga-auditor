@@ -7,6 +7,8 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { GovernanceService } from '../services/GovernanceService'
+import { useScorecardStore } from './scorecard'
+import { useViolationsStore } from './violations'
 
 export const useAuditStore = defineStore('audit', () => {
   /** @type {import('vue').Ref<import('../services/types').AuditRunStatus>} */
@@ -17,6 +19,8 @@ export const useAuditStore = defineStore('audit', () => {
   const observedFailures = ref(0)
   const openViolations   = ref(0)
   const errorMsg         = ref(null)
+  /** {current_city, completed, total} while a scan is running */
+  const progress         = ref(null)
   let   _pollTimer       = null
 
   const isRunning = computed(() => status.value === 'running')
@@ -56,8 +60,25 @@ export const useAuditStore = defineStore('audit', () => {
       observedFailures.value = d.observed_failures
       openViolations.value   = d.open_violations
       errorMsg.value         = d.error
+      progress.value         = d.progress ?? null
     } catch (e) {
       errorMsg.value = e.message
+    }
+  }
+
+  /**
+   * Repaint data stores from the backend. The pipeline persists each city's
+   * row and violations AS IT FINISHES, so refetching on every poll makes
+   * results appear on the dashboard in real time during a long run.
+   */
+  async function _refreshData() {
+    try {
+      await Promise.all([
+        useScorecardStore().fetchScorecard(),
+        useViolationsStore().fetchViolations(),
+      ])
+    } catch (e) {
+      console.warn('[audit store] live data refresh failed:', e.message)
     }
   }
 
@@ -65,13 +86,18 @@ export const useAuditStore = defineStore('audit', () => {
     if (_pollTimer) clearInterval(_pollTimer)
     _pollTimer = setInterval(async () => {
       await refreshStatus()
-      if (status.value !== 'running') clearInterval(_pollTimer)
+      await _refreshData()                       // live repaint every poll
+      if (status.value !== 'running') {
+        clearInterval(_pollTimer)
+        progress.value = null
+        await _refreshData()                     // final authoritative repaint
+      }
     }, 3000)
   }
 
   return {
     status, startedUtc, finishedUtc, cityCount,
-    observedFailures, openViolations, errorMsg, isRunning,
+    observedFailures, openViolations, errorMsg, isRunning, progress,
     scheduleStatus,
     trigger, refreshStatus, fetchScheduleStatus,
   }

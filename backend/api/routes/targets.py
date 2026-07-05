@@ -38,7 +38,7 @@ def create_target(
     repo: GovernanceRepository = Depends(get_repository),
 ):
     # TODO: enforce admin-only write permission (auth placeholder)
-    return repo.add_target(
+    created = repo.add_target(
         city=body.city,
         jurisdiction=body.jurisdiction,
         domain=body.domain,
@@ -46,6 +46,27 @@ def create_target(
         tags=body.tags,
         cloudflare_protected=body.cloudflare_protected,
     )
+    # Instant visibility: a target has no scorecard row until its first scan,
+    # which made newly added cities invisible on the dashboard. Write a
+    # not_assessed placeholder row now; the first scan overwrites it (upsert
+    # keyed on city). Non-fatal if it fails — the target itself was created.
+    try:
+        repo.write_scorecard_rows([{
+            "city":               body.city,
+            "jurisdiction":       body.jurisdiction,
+            "domain":             body.domain,
+            "ai_assets_detected": [],
+            "traiga_status":      "not_assessed",
+            "open_violations":    [],
+            "min_days_remaining": "",
+            "compliance_score":   "",
+            "band":               "",
+            "last_scanned_utc":   "",
+        }])
+    except Exception as exc:
+        print(f"[targets] WARN: placeholder scorecard row failed for "
+              f"{body.city}: {type(exc).__name__}: {exc}")
+    return created
 
 
 @router.delete("/{target_id}", status_code=204)

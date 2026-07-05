@@ -53,7 +53,16 @@
             label="Cloudflare protected"
             color="warning"
             density="compact"
-            hint="Routes scans through manual Chrome deep scan instead of headless crawler"
+            hint="Known WAF-protected site — scan via residential proxy (auto-detected during scans if unknown)"
+            persistent-hint
+            inset
+          />
+          <v-switch
+            v-model="scanNow"
+            color="primary"
+            label="Scan immediately after adding"
+            density="compact"
+            hint="Runs a single-city audit right away so results appear without waiting for the next scheduled scan"
             persistent-hint
             inset
           />
@@ -84,6 +93,7 @@
 <script setup>
 import { ref } from 'vue'
 import { useTargetsStore } from '../stores/targets'
+import { useAuditStore } from '../stores/audit'
 
 const props = defineProps({
   /** Controls dialog open/closed state via v-model */
@@ -93,6 +103,8 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue', 'added'])
 
 const store   = useTargetsStore()
+const auditStore = useAuditStore()
+const scanNow = ref(true)
 const formRef = ref(null)
 const saving  = ref(false)
 const errorMsg  = ref('')
@@ -139,11 +151,19 @@ async function submit() {
       url:  form.value.url || form.value.domain,
       tags: tagsInput.value.split(',').map(t => t.trim()).filter(Boolean),
     })
-    snackbarMsg.value = `${form.value.city} added to the target registry`
+    const cityName = form.value.city
+    snackbarMsg.value = scanNow.value
+      ? `${cityName} added — scan starting now`
+      : `${cityName} added to the target registry`
     snackbar.value = true
     emit('added', newTarget)
     emit('update:modelValue', false)
     resetForm()
+    if (scanNow.value) {
+      // Fire-and-forget: the audit store polls status and live-refreshes
+      // the scorecard, so the new city's result paints in when ready.
+      auditStore.trigger(false, cityName)
+    }
   } catch (e) {
     errorMsg.value = e?.response?.data?.detail || e.message || 'Failed to add target'
   } finally {
