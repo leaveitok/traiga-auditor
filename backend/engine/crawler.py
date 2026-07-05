@@ -54,6 +54,49 @@ class PageCapture:
         )
 
 
+# ── WAF / bot-challenge detection ─────────────────────────────────────────────
+# An operator cannot be expected to know which municipalities front their sites
+# with Cloudflare/Akamai/Imperva. The cloudflare_protected flag is therefore an
+# OPTIONAL routing hint, not a requirement: every capture is checked for
+# challenge markers so the pipeline can auto-escalate to the residential proxy
+# and, failing that, classify the scan as FAILED (fail-secure) — a WAF-blocked
+# city must never score as no_ai_detected.
+_WAF_CHALLENGE_MARKERS = (
+    # Cloudflare
+    "cf-chl", "__cf_chl", "cdn-cgi/challenge-platform", "cf-browser-verification",
+    "attention required! | cloudflare", "just a moment...",
+    "checking your browser before accessing",
+    "enable javascript and cookies to continue",
+    # Imperva / Incapsula
+    "_incapsula_resource", "incapsula incident id", "request unsuccessful. incapsula",
+    # Akamai
+    "ak-challenge", "akamai bot manager",
+    # PerimeterX / HUMAN
+    "px-captcha", "perimeterx",
+    # Generic interstitials
+    "verify you are human",
+)
+
+
+def is_waf_challenge(cap: "PageCapture") -> bool:
+    """True if a capture looks like a WAF/bot-challenge page, not real content.
+
+    Two signals, either sufficient:
+      1. A known challenge marker anywhere in the HTML.
+      2. Challenge *shape*: a tiny document with no scripts and no iframes —
+         no real municipal homepage looks like that. (Lewisville's WAF served
+         a 302-byte page to Cloud Run's datacenter IP — confirmed 2026-07.)
+    False positives are acceptable by design: the consequence is one proxy
+    retry and, at worst, an honest scan_failed — visible, never silent.
+    """
+    hay = (cap.html or "").lower()
+    if any(m in hay for m in _WAF_CHALLENGE_MARKERS):
+        return True
+    if len(cap.html or "") < 2048 and not cap.script_hosts and not cap.iframe_origins:
+        return True
+    return False
+
+
 def _robots_allowed(url: str) -> bool:
     try:
         parts = urlparse(url)

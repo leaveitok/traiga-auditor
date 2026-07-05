@@ -56,7 +56,7 @@ def run_full_audit(
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
     from engine import rule_loader
-    from engine.crawler import PageCapture, crawl_site
+    from engine.crawler import PageCapture, crawl_site, is_waf_challenge
     from engine.fingerprint_engine import fingerprint
     from engine.disclosure_validator import validate
     from engine.cure_period import reconcile, open_violations
@@ -118,6 +118,24 @@ def run_full_audit(
                 flagged = str(target.get("cloudflare_protected", "")).strip().lower() in ("true", "1", "yes")
                 use_proxy = (not _cfg.SCAN_PROXY_ONLY_FLAGGED) or flagged
                 captures = crawl_site(url, use_proxy=use_proxy)
+
+                # WAF auto-escalation: the operator can't know which cities
+                # front with a WAF, so the flag is only a routing hint. If every
+                # capture from a direct crawl looks like a challenge page and a
+                # proxy is configured, retry once through the proxy.
+                if (captures and not use_proxy and _cfg.SCAN_PROXY_URL
+                        and all(is_waf_challenge(c) for c in captures)):
+                    print(f"[pipeline] {city} | WAF challenge detected on direct crawl "
+                          f"— auto-escalating to residential proxy")
+                    captures = crawl_site(url, use_proxy=True)
+
+                # Fail-secure: challenge pages carry no vendor surface. If all
+                # captures are still challenges, treat the crawl as FAILED so
+                # the city scores scan_failed — never a silent no_ai_detected.
+                if captures and all(is_waf_challenge(c) for c in captures):
+                    print(f"[pipeline] {city} | captures are WAF challenge pages "
+                          f"— marking scan failed (fail-secure)")
+                    captures = []
         except Exception as exc:
             import traceback as _tb
             print(f"[pipeline] WARN: crawl failed for {city} ({url}): {type(exc).__name__}: {exc}\n{_tb.format_exc()}")
