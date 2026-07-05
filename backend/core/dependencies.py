@@ -46,8 +46,8 @@ def get_repository() -> GovernanceRepository:
     The singleton ensures the in-memory TTL cache in SheetsRepository
     survives across requests (cache is per-instance, not per-call).
 
-    MIGRATION: Change the one line below to swap the entire platform backend:
-        _repo_instance = FirestoreRepository()
+    MIGRATION: backend selection is env-var driven (GOVERNANCE_STORE =
+    "sheets" | "firestore") so rollback is a config change, not a revert.
 
     TESTING: Override per-test with:
         app.dependency_overrides[get_repository] = lambda: MockGovernanceRepository(...)
@@ -56,10 +56,15 @@ def get_repository() -> GovernanceRepository:
     """
     global _repo_instance
     if _repo_instance is None:
-        # Lazy import — prevents circular imports since route modules import
-        # this file, and SheetsRepository imports from core/ too.
-        from core.repositories.sheets_repository import SheetsRepository
-        _repo_instance = SheetsRepository()
+        # Lazy imports — prevent circular imports since route modules import
+        # this file, and repository modules import from core/ too.
+        from core import config
+        if config.GOVERNANCE_STORE == "firestore":
+            from core.repositories.firestore_repository import FirestoreRepository
+            _repo_instance = FirestoreRepository()
+        else:
+            from core.repositories.sheets_repository import SheetsRepository
+            _repo_instance = SheetsRepository()
     return _repo_instance
 
 
@@ -79,8 +84,15 @@ def get_sentinel_repository():
     """
     global _sentinel_repo_instance
     if _sentinel_repo_instance is None:
-        from core.repositories.sentinel_repository import SheetsSentinelRepository
-        _sentinel_repo_instance = SheetsSentinelRepository()
+        from core import config
+        if config.SENTINEL_STORE == "firestore":
+            from core.repositories.firestore_sentinel_repository import (
+                FirestoreSentinelRepository,
+            )
+            _sentinel_repo_instance = FirestoreSentinelRepository()
+        else:
+            from core.repositories.sentinel_repository import SheetsSentinelRepository
+            _sentinel_repo_instance = SheetsSentinelRepository()
         try:
             _sentinel_repo_instance.ensure_schema()   # create tabs on first use (idempotent)
         except Exception as exc:

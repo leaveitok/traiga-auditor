@@ -11,6 +11,9 @@ google-api-python-client>=2.130.0
 google-auth>=2.29.0
 google-auth-httplib2>=0.2.0
 
+# ── Firestore backend (Phase 2 storage — GOVERNANCE_STORE/SENTINEL_STORE) ────
+google-cloud-firestore>=2.16.0
+
 # ── Crawler (live audits) ─────────────────────────────────────────────────────
 playwright==1.44.0          # MUST match Dockerfile base image (mcr.microsoft.com/playwright/python:v1.44.0-jammy). '>=' let pip pull a newer playwright whose browser revision is absent from the image -> BrowserType.launch failed in Cloud Run (2026-07-04).
 playwright-stealth>=1.0.0   # Cloudflare/WAF bypass: pip install playwright-stealth

@@ -59,6 +59,9 @@ jobs:
             echo 'SCAN_CADENCE_HOURS: "24"'
             echo 'API_HOST: 0.0.0.0'
             echo 'SCAN_PROXY_ONLY_FLAGGED: "true"'
+            echo 'GOVERNANCE_STORE: "firestore"'
+            echo 'SENTINEL_STORE: "firestore"'
+            echo 'FIRESTORE_SENTINEL_DB: traiga-sentinel'
           } > deploy/env.yaml
 
       - name: Deploy to Cloud Run

@@ -69,3 +69,18 @@ USER_AGENT: str = (
 # through the proxy, to conserve paid proxy bandwidth.
 SCAN_PROXY_URL: str = os.environ.get("SCAN_PROXY_URL", "").strip()
 SCAN_PROXY_ONLY_FLAGGED: bool = os.environ.get("SCAN_PROXY_ONLY_FLAGGED", "false").lower() == "true"
+
+# ── Storage backend selection (Firestore migration, Phase 2) ─────────────────
+# "sheets" (legacy) or "firestore". Defaults to sheets so ROLLBACK IS A CONFIG
+# CHANGE: unset/flip the env var and redeploy — no code revert needed.
+GOVERNANCE_STORE: str = os.environ.get("GOVERNANCE_STORE", "sheets").strip().lower()
+SENTINEL_STORE: str = os.environ.get("SENTINEL_STORE", "sheets").strip().lower()
+
+# Firestore project + named databases. Dashboard data lives in "(default)"
+# (the only database covered by the free tier); Sentinel telemetry lives in a
+# SEPARATE named database for dataset integrity/security separation.
+FIRESTORE_PROJECT_ID: str = os.environ.get(
+    "FIRESTORE_PROJECT_ID", os.environ.get("FIREBASE_PROJECT_ID", "")
+).strip()
+FIRESTORE_GOVERNANCE_DB: str = os.environ.get("FIRESTORE_GOVERNANCE_DB", "(default)").strip()
+FIRESTORE_SENTINEL_DB: str = os.environ.get("FIRESTORE_SENTINEL_DB", "traiga-sentinel").strip()
