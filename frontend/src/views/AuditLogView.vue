@@ -4,7 +4,7 @@
       <div>
         <div class="text-h5 font-weight-bold">Audit Log</div>
         <div class="text-caption text-medium-emphasis">
-          Append-only evidence trail — synced from Google Sheets
+          Append-only evidence trail — scans, configuration changes, and administrative actions
         </div>
       </div>
       <v-btn icon="mdi-refresh" variant="outlined" @click="load" />
@@ -21,6 +21,13 @@
       >
         <template #item.timestamp_utc="{ item }">
           <span class="text-caption">{{ fmtDate(item.timestamp_utc) }}</span>
+        </template>
+        <template #item._actor="{ item }">
+          <v-chip size="x-small" :color="item._actor === 'system' ? 'grey' : 'primary'"
+                  variant="tonal" label>{{ item._actor }}</v-chip>
+        </template>
+        <template #item._summary="{ item }">
+          <span class="text-caption">{{ item._summary }}</span>
         </template>
         <template #item.failures="{ item }">
           <v-chip :color="Number(item.failures) > 0 ? 'error' : 'success'"
@@ -60,10 +67,19 @@ const detailItem   = ref(null)
 const headers = [
   { title: 'Timestamp',    key: 'timestamp_utc', sortable: true  },
   { title: 'Event',        key: 'event',         sortable: true  },
+  { title: 'Actor',        key: '_actor',        sortable: true  },
+  { title: 'Summary',      key: '_summary',      sortable: false },
   { title: 'Cities',       key: 'city_count',    sortable: true  },
   { title: 'Failures',     key: 'failures',      sortable: true  },
   { title: 'Details',      key: 'details',       sortable: false },
 ]
+
+/** Parse details_json once so Actor/Summary render as first-class columns. */
+function enrich(row) {
+  let d = {}
+  try { d = JSON.parse(row.details_json || '{}') } catch { /* legacy rows */ }
+  return { ...row, _actor: d.actor || 'system', _summary: d.summary || '' }
+}
 
 const fmtDate = (iso) => iso ? new Date(iso).toLocaleString() : '—'
 
@@ -76,7 +92,7 @@ async function load() {
   loading.value = true
   try {
     const res = await logsApi.list(200)
-    rows.value = res.data
+    rows.value = res.data.map(enrich)
   } finally {
     loading.value = false
   }

@@ -11,8 +11,17 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
+from core.auth import get_current_user
 from core.dependencies import get_repository
 from core.governance_service import GovernanceRepository
+
+
+def _log_activity(repo, event: str, details: dict) -> None:
+    """System activity trail — never let logging break the action itself."""
+    try:
+        repo.append_audit_log(event=event, city_count=0, failures=0, details=details)
+    except Exception as exc:
+        print(f"[activity] WARN: could not log {event}: {type(exc).__name__}: {exc}")
 
 router = APIRouter(prefix="/targets", tags=["targets"])
 
@@ -36,6 +45,7 @@ def list_targets(repo: GovernanceRepository = Depends(get_repository)):
 def create_target(
     body: TargetCreate,
     repo: GovernanceRepository = Depends(get_repository),
+    user: dict = Depends(get_current_user),
 ):
     # TODO: enforce admin-only write permission (auth placeholder)
     created = repo.add_target(
@@ -66,6 +76,12 @@ def create_target(
     except Exception as exc:
         print(f"[targets] WARN: placeholder scorecard row failed for "
               f"{body.city}: {type(exc).__name__}: {exc}")
+    _log_activity(repo, "target_added", {
+        "actor": user.get("email", "unknown"),
+        "summary": f"Added {body.city} ({body.domain})",
+        "city": body.city,
+        "cloudflare_protected": body.cloudflare_protected,
+    })
     return created
 
 
@@ -73,8 +89,14 @@ def create_target(
 def delete_target(
     target_id: str,
     repo: GovernanceRepository = Depends(get_repository),
+    user: dict = Depends(get_current_user),
 ):
     # TODO: enforce admin-only write permission (auth placeholder)
     ok = repo.deactivate_target(target_id)
     if not ok:
         raise HTTPException(status_code=404, detail="Target not found")
+    _log_activity(repo, "target_deactivated", {
+        "actor": user.get("email", "unknown"),
+        "summary": f"Deactivated target {target_id}",
+        "target_id": target_id,
+    })

@@ -18,6 +18,7 @@ from typing import Any, Dict, List
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
 
+from core.auth import get_current_user
 from core.dependencies import get_repository
 from core.governance_service import GovernanceRepository
 
@@ -28,6 +29,7 @@ router = APIRouter(prefix="/reports", tags=["reports"])
 def generate_report(
     city: str,
     repo: GovernanceRepository = Depends(get_repository),
+    user: dict = Depends(get_current_user),
 ):
     """
     Generate a TRAIGA compliance report DOCX for a single city and return it
@@ -35,6 +37,15 @@ def generate_report(
     TODO: enforce role check — viewer or admin only (auth placeholder).
     TODO: scope to requesting user's assigned city for city-scoped roles.
     """
+    try:
+        repo.append_audit_log(
+            event="report_generated", city_count=1, failures=0,
+            details={"actor": user.get("email", "unknown"),
+                     "summary": f"Compliance report generated for {city}",
+                     "city": city})
+    except Exception as exc:
+        print(f"[activity] WARN: could not log report_generated: {exc}")
+
     # ── Fetch scorecard row ────────────────────────────────────────────────────
     rows = repo.get_scorecard()
     city_row = next((r for r in rows if r.get("city") == city), None)

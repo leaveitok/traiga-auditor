@@ -97,4 +97,14 @@ async def upsert_user(
         raise HTTPException(status_code=403, detail="Admin access required")
     # TODO: enforce admin-only write permission (auth placeholder)
     repo.upsert_user(email=payload.email, role=payload.role, city=payload.city)
+    try:
+        repo.append_audit_log(
+            event="user_role_changed", city_count=0, failures=0,
+            details={"actor": user.get("email", "unknown"),
+                     "summary": f"{payload.email} set to role={payload.role}"
+                                + (f", city={payload.city}" if payload.city else ""),
+                     "target_user": payload.email, "role": payload.role,
+                     "city": payload.city})
+    except Exception as exc:
+        print(f"[activity] WARN: could not log user_role_changed: {exc}")
     return UserProfile(email=payload.email, role=payload.role, city=payload.city)

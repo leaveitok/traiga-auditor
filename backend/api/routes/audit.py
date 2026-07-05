@@ -219,6 +219,18 @@ async def trigger_audit(
             raise HTTPException(status_code=400, detail="No active targets found for this city")
 
     background_tasks.add_task(_run_audit_task, targets, demo, repo)
+    try:
+        repo.append_audit_log(
+            event="audit_triggered", city_count=len(targets), failures=0,
+            details={
+                "actor":   user.get("email", "unknown"),
+                "summary": (f"Scan started for {city_filter}" if city_filter
+                            else f"Full scan started ({len(targets)} cities)"),
+                "scope":   city_filter or "all",
+                "demo":    demo,
+            })
+    except Exception as exc:
+        print(f"[activity] WARN: could not log audit_triggered: {exc}")
     return AuditRunResponse(status="started", **{
         k: _audit_state[k] for k in AuditRunResponse.model_fields if k != "status"
     })
