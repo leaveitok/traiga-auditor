@@ -70,7 +70,7 @@ jobs:
             --allow-unauthenticated \
             --no-cpu-throttling \
             --env-vars-file=deploy/env.yaml \
-            --set-secrets=/secrets/service_account.json=traiga-service-account:latest,SCAN_PROXY_URL=traiga-scan-proxy:latest \
+            --set-secrets=/secrets/service_account.json=traiga-service-account:latest,SCAN_PROXY_URL=traiga-scan-proxy:latest,SENTINEL_INGEST_TOKENS=traiga-sentinel-tokens:latest \
             --memory=2Gi \
             --cpu=1 \
             --min-instances=0 \
