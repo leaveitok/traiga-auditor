@@ -81,4 +81,8 @@ def get_sentinel_repository():
     if _sentinel_repo_instance is None:
         from core.repositories.sentinel_repository import SheetsSentinelRepository
         _sentinel_repo_instance = SheetsSentinelRepository()
+        try:
+            _sentinel_repo_instance.ensure_schema()   # create tabs on first use (idempotent)
+        except Exception as exc:
+            print(f"[sentinel] ensure_schema failed (routes may 500 until fixed): {exc}")
     return _sentinel_repo_instance
