@@ -163,12 +163,14 @@ def test_device_silent_flag(sclient):
     from datetime import datetime, timedelta, timezone
     fresh = (datetime.now(timezone.utc) - timedelta(minutes=5)).isoformat()
     stale = (datetime.now(timezone.utc) - timedelta(hours=3)).isoformat()
-    sclient.post("/api/sentinel/ingest",
-                 json=_heartbeat_packet(device_id="DEV-FRESH", timestamp_utc=fresh),
-                 headers={"X-Sentinel-Token": TOKEN})
-    sclient.post("/api/sentinel/ingest",
-                 json=_heartbeat_packet(event_id="hb-2", device_id="DEV-STALE", timestamp_utc=stale),
-                 headers={"X-Sentinel-Token": TOKEN})
+    r1 = sclient.post("/api/sentinel/ingest",
+                      json=_heartbeat_packet(device_id="DEV-FRESH", timestamp_utc=fresh),
+                      headers={"X-Sentinel-Token": TOKEN})
+    r2 = sclient.post("/api/sentinel/ingest",
+                      json=_heartbeat_packet(event_id="hb-stale-0002", device_id="DEV-STALE", timestamp_utc=stale),
+                      headers={"X-Sentinel-Token": TOKEN})
+    assert r1.status_code == 202, r1.text
+    assert r2.status_code == 202, r2.text
     devices = {d["device_id"]: d for d in sclient.get("/api/sentinel/devices").json()}
     assert devices["DEV-FRESH"]["silent"] is False
     assert devices["DEV-STALE"]["silent"] is True
