@@ -89,6 +89,7 @@ const adminNavItems = [
   { to: '/dashboard',  icon: 'mdi-view-dashboard',    title: 'Dashboard'        },
   { to: '/targets',    icon: 'mdi-city',               title: 'Target Registry'  },
   { to: '/violations', icon: 'mdi-alert-circle',       title: 'Violations'       },
+  { to: '/sentinel',   icon: 'mdi-shield-lock',        title: 'Sentinel (DLP)'   },
   { to: '/logs',       icon: 'mdi-text-box-outline',   title: 'Audit Log'        },
   { to: '/settings',   icon: 'mdi-cog',                title: 'Settings'         },
 ]

@@ -31,6 +31,12 @@ const routes = [
     meta: { title: 'Violations & Cure Periods', icon: 'mdi-alert-circle', requiresAuth: true },
   },
   {
+    path: '/sentinel',
+    name: 'Sentinel',
+    component: () => import('../views/SentinelView.vue'),
+    meta: { title: 'Sentinel — Internal AI DLP', icon: 'mdi-shield-lock', requiresAdmin: true },
+  },
+  {
     path: '/logs',
     name: 'AuditLog',
     component: () => import('../views/AuditLogView.vue'),

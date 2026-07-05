@@ -61,3 +61,24 @@ def get_repository() -> GovernanceRepository:
         from core.repositories.sheets_repository import SheetsRepository
         _repo_instance = SheetsRepository()
     return _repo_instance
+
+
+# ── Sentinel storage singleton (internal browser-DLP telemetry) ───────────────
+# SEPARATE from get_repository() by design: Sentinel data is employee-level
+# monitoring metadata and must never be reachable through the external-scan
+# repository or its routes. Uses SENTINEL_SPREADSHEET_ID (own document).
+_sentinel_repo_instance = None
+
+
+def get_sentinel_repository():
+    """
+    FastAPI dependency factory for Sentinel telemetry storage.
+
+    TESTING: override with
+        app.dependency_overrides[get_sentinel_repository] = lambda: MemorySentinelRepository()
+    """
+    global _sentinel_repo_instance
+    if _sentinel_repo_instance is None:
+        from core.repositories.sentinel_repository import SheetsSentinelRepository
+        _sentinel_repo_instance = SheetsSentinelRepository()
+    return _sentinel_repo_instance

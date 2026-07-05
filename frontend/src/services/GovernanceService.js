@@ -189,6 +189,22 @@ const downloadPolicy = (city) =>
   }).then(r => r.data)
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Sentinel — Internal browser DLP (admin / security role only)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Fetch Sentinel DLP events (metadata only), optionally filtered.
+ * @param {{ policy_id?: string, user_id?: string, limit?: number }} [params]
+ */
+const getSentinelEvents = (params = {}) => http.get('/sentinel/events', { params }).then(r => r.data)
+
+/** Fetch per-device heartbeat health (silent = possible bypass). */
+const getSentinelDevices = () => http.get('/sentinel/devices').then(r => r.data)
+
+/** Fetch aggregate Sentinel KPIs (events by policy/site, blocked count, device health). */
+const getSentinelSummary = () => http.get('/sentinel/summary').then(r => r.data)
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Health
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -224,6 +240,10 @@ export const GovernanceService = {
   downloadReport,
   // Remediation
   downloadPolicy,
+  // Sentinel (internal DLP)
+  getSentinelEvents,
+  getSentinelDevices,
+  getSentinelSummary,
   // Health
   checkHealth,
 }
