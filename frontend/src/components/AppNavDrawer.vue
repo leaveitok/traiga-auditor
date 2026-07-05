@@ -3,9 +3,9 @@
 
     <!-- Logo / header -->
     <v-list-item
-      prepend-icon="mdi-shield-check"
-      title="AI Transparency Auditor"
-      subtitle="TRAIGA / HB 149"
+      prepend-icon="mdi-shield-star"
+      title="TRAIGA Auditor"
+      subtitle="AI Transparency · Texas HB 149"
       nav
     >
       <template #append>
@@ -34,8 +34,9 @@
 
       <!-- Statute reference link -->
       <v-list density="compact" nav>
-        <v-list-item prepend-icon="mdi-information-outline"
-                     title="HB 149 / TRAIGA"
+        <v-list-item prepend-icon="mdi-scale-balance"
+                     title="Tex. Bus. &amp; Com. Code Ch. 552"
+                     subtitle="Read the statute"
                      href="https://statutes.capitol.texas.gov/Docs/BC/htm/BC.552.htm"
                      target="_blank"
                      rounded="lg" />

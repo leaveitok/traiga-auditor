@@ -263,11 +263,28 @@ def run_full_audit(
     all_open  = open_violations(state)
     scorecard = build_scorecard(rows, scorecard_cfg)
 
+    def _safe_score(v):
+        try:
+            return int(float(str(v))) if v not in (None, "", "None", "NaN") else None
+        except (ValueError, TypeError):
+            return None
+    scores = [s for s in (_safe_score(r.get("compliance_score")) for r in rows)
+              if s is not None]
     repo.append_audit_log(
         event="scan_complete",
         city_count=scorecard["city_count"],
         failures=len(observed_failures),
-        details={"open_violations": len(all_open)},
+        # avg_score + status counts feed the dashboard TrendChart;
+        # summary/actor render in the Audit Log's activity columns.
+        details={
+            "open_violations": len(all_open),
+            "avg_score":       round(sum(scores) / len(scores), 1) if scores else None,
+            "compliant":       sum(1 for r in rows if r.get("traiga_status") == "compliant"),
+            "in_cure":         sum(1 for r in rows if r.get("traiga_status") == "in_cure"),
+            "scan_failed":     sum(1 for r in rows if r.get("traiga_status") == "scan_failed"),
+            "summary":         f"Scan finished: {len(rows)} cities, "
+                               f"{len(all_open)} open violations",
+        },
     )
 
     return {

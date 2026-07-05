@@ -49,11 +49,21 @@
 
     <!-- Summary KPI cards -->
     <v-row class="mb-4">
-      <v-col v-for="kpi in kpis" :key="kpi.label" cols="6" sm="4" md="2">
+      <v-col v-for="kpi in kpis" :key="kpi.label" cols="6" sm="4" md="3">
         <v-card :color="kpi.color" variant="tonal" class="text-center pa-4">
           <div class="text-h4 font-weight-bold">{{ kpi.value }}</div>
           <div class="text-caption font-weight-medium">{{ kpi.label }}</div>
         </v-card>
+      </v-col>
+    </v-row>
+
+    <!-- Map + trend row -->
+    <v-row class="mb-4">
+      <v-col cols="12" md="7">
+        <TexasComplianceMap :rows="store.rows" />
+      </v-col>
+      <v-col cols="12" md="5">
+        <TrendChart />
       </v-col>
     </v-row>
 
@@ -144,6 +154,18 @@
             </template>
           </v-tooltip>
         </template>
+        <template #no-data>
+          <div class="text-center py-10">
+            <v-icon size="44" class="mb-2 text-medium-emphasis">mdi-city-variant-outline</v-icon>
+            <div class="text-body-1 font-weight-medium">No cities monitored yet</div>
+            <div class="text-caption text-medium-emphasis mb-4">
+              Add your first Texas municipality to begin TRAIGA compliance monitoring.
+            </div>
+            <v-btn color="primary" prepend-icon="mdi-plus" @click="addCityDialog = true">
+              Add City
+            </v-btn>
+          </div>
+        </template>
       </v-data-table>
 
       <!-- Report generation snackbar -->
@@ -165,6 +187,8 @@ import AuditRunButton from '../components/AuditRunButton.vue'
 import ComplianceStatusChip from '../components/ComplianceStatusChip.vue'
 import CurePeriodGauge from '../components/CurePeriodGauge.vue'
 import AddCityDialog from '../components/AddCityDialog.vue'
+import TexasComplianceMap from '../components/TexasComplianceMap.vue'
+import TrendChart from '../components/TrendChart.vue'
 import { useReportsStore } from '../stores/reports'
 
 const store      = useScorecardStore()
