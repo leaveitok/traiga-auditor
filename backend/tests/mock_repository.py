@@ -35,12 +35,16 @@ class MockGovernanceRepository:
         violations: Optional[List[Dict[str, Any]]] = None,
         audit_log:  Optional[List[Dict[str, Any]]] = None,
         users:      Optional[List[Dict[str, Any]]] = None,
+        agencies:   Optional[List[Dict[str, Any]]] = None,
+        ai_assets:  Optional[List[Dict[str, Any]]] = None,
     ):
         self._targets    = list(targets   or [])
         self._scorecard  = list(scorecard or [])
         self._violations = list(violations or [])
         self._audit_log  = list(audit_log  or [])
         self._users      = list(users      or [])
+        self._agencies   = list(agencies   or [])
+        self._ai_assets  = list(ai_assets  or [])
 
     # ── Schema ────────────────────────────────────────────────────────────────
 
@@ -171,3 +175,43 @@ class MockGovernanceRepository:
 
     def get_users(self) -> List[Dict[str, Any]]:
         return list(self._users)
+
+    def delete_user(self, email: str) -> bool:
+        before = len(self._users)
+        self._users = [u for u in self._users if u.get("email") != email]
+        return len(self._users) < before
+
+    # ── Agencies ──────────────────────────────────────────────────────────────
+
+    def get_agencies(self) -> List[Dict[str, Any]]:
+        return list(self._agencies)
+
+    def get_agency(self, agency_id: str) -> Optional[Dict[str, Any]]:
+        return next((a for a in self._agencies if a.get("id") == agency_id), None)
+
+    def upsert_agency(self, agency_id: Optional[str], name: str,
+                      granted_cities: List[str]) -> Dict[str, Any]:
+        row = {"id": agency_id or str(len(self._agencies) + 1),
+               "name": name, "granted_cities": list(granted_cities)}
+        self._agencies = [a for a in self._agencies if a.get("id") != row["id"]]
+        self._agencies.append(row)
+        return row
+
+    # ── AI Use-Case Inventory ─────────────────────────────────────────────────
+
+    def get_ai_assets(self, city: Optional[str] = None) -> List[Dict[str, Any]]:
+        rows = list(self._ai_assets)
+        if city:
+            rows = [r for r in rows if r.get("city") == city]
+        return rows
+
+    def upsert_ai_asset(self, asset: Dict[str, Any]) -> Dict[str, Any]:
+        key = asset.get("asset_key", "")
+        if not key:
+            raise ValueError("asset_key is required")
+        existing = next((r for r in self._ai_assets
+                         if r.get("asset_key") == key), {})
+        merged = {**existing, **{k: v for k, v in asset.items() if v is not None}}
+        self._ai_assets = [r for r in self._ai_assets if r.get("asset_key") != key]
+        self._ai_assets.append(merged)
+        return merged

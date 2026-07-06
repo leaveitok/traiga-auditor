@@ -47,6 +47,7 @@ COLL_VIOLATIONS = "violations"
 COLL_AUDIT_LOG  = "audit_log"
 COLL_USERS      = "users"
 COLL_AGENCIES   = "agencies"
+COLL_AI_ASSETS  = "ai_assets"
 
 # google-cloud-firestore's Query.DESCENDING is literally this string; using the
 # literal keeps every method testable against a fake client without the SDK.
@@ -308,3 +309,23 @@ class FirestoreRepository:
         }
         ref.set(self._stringify(doc))
         return {**doc, "granted_cities": list(granted_cities)}
+
+    # ── AI Use-Case Inventory ─────────────────────────────────────────────────
+
+    def get_ai_assets(self, city: Optional[str] = None) -> List[Dict[str, Any]]:
+        rows = self._read_all(COLL_AI_ASSETS)
+        if city:
+            rows = [r for r in rows if r.get("city") == city]
+        return rows
+
+    def upsert_ai_asset(self, asset: Dict[str, Any]) -> Dict[str, Any]:
+        """Merge-preserving upsert keyed by asset_key (see Protocol contract)."""
+        key = asset.get("asset_key", "")
+        if not key:
+            raise ValueError("asset_key is required")
+        ref = self._db.collection(COLL_AI_ASSETS).document(_doc_id(key))
+        snap = ref.get()
+        existing = snap.to_dict() if snap.exists else {}
+        merged = {**existing, **{k: v for k, v in asset.items() if v is not None}}
+        ref.set(self._stringify(merged))
+        return merged

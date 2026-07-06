@@ -31,6 +31,12 @@ const routes = [
     meta: { title: 'Violations & Cure Periods', icon: 'mdi-alert-circle', requiresAuth: true },
   },
   {
+    path: '/inventory',
+    name: 'Inventory',
+    component: () => import('../views/InventoryView.vue'),
+    meta: { title: 'AI Inventory', icon: 'mdi-clipboard-list-outline', requiresAuth: true },
+  },
+  {
     path: '/sentinel',
     name: 'Sentinel',
     component: () => import('../views/SentinelView.vue'),

@@ -18,6 +18,61 @@ from typing import Any, Dict, List, Optional
 from core.governance_service import GovernanceRepository
 
 
+def _asset_key(city: str, vendor_id: str) -> str:
+    """Stable inventory key for a scan-discovered asset: one per city+vendor."""
+    safe = lambda s: str(s).strip().lower().replace(" ", "-").replace("/", "_")
+    return f"{safe(city)}::{safe(vendor_id)}"
+
+
+def _feed_inventory(repo: GovernanceRepository, city: str,
+                    detected: list) -> None:
+    """
+    Reconcile one successfully-crawled city's detections into the ai_assets
+    registry. Writes MACHINE fields only; the repository merge contract
+    preserves human fields. Previously scan-discovered assets for this city
+    that were NOT re-observed are marked presence=not_reobserved (never
+    deleted, never auto-retired — a human decides retirement).
+    """
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc).isoformat()
+    seen_keys = set()
+    existing = {r.get("asset_key"): r for r in repo.get_ai_assets(city=city)}
+
+    for a in detected:
+        key = _asset_key(city, a.get("vendor_id", "unknown"))
+        seen_keys.add(key)
+        record = {
+            "asset_key":          key,
+            "city":               city,
+            "vendor_id":          a.get("vendor_id", ""),
+            "display_name":       a.get("display_name", ""),
+            "asset_types_json":   json.dumps(a.get("asset_type", []) or []),
+            "provenance":         "discovered_scan",
+            "presence":           "active",
+            "last_observed_utc":  now,
+            "page_url":           a.get("page_url", ""),
+            "match_confidence":   str(a.get("match_confidence", "")),
+            "evidence_json":      json.dumps({
+                "verification_status": a.get("verification_status", ""),
+            }),
+        }
+        prior = existing.get(key)
+        if not prior:
+            record["first_observed_utc"] = now
+            record["lifecycle_status"]   = "discovered"
+        repo.upsert_ai_asset(record)
+
+    # Mark this city's scan-discovered assets that did not reappear.
+    for r in existing.values():
+        if (r.get("provenance") == "discovered_scan"
+                and r.get("asset_key") not in seen_keys
+                and r.get("presence") != "not_reobserved"):
+            repo.upsert_ai_asset({
+                "asset_key": r.get("asset_key"),
+                "presence":  "not_reobserved",
+            })
+
+
 def run_full_audit(
     targets: List[Dict[str, Any]],
     repo: GovernanceRepository,
@@ -258,6 +313,18 @@ def run_full_audit(
             # One city's persistence failure must not abort the whole run.
             print(f"[pipeline] WARN: persist failed for {city}: "
                   f"{type(exc).__name__}: {exc}")
+
+        # ── Inventory discovery feed (must never break a scan) ───────────────
+        # Upsert each detected asset into the AI Use-Case Inventory. Machine
+        # fields only — the repo's merge contract preserves human fields
+        # (owner, attestation, purpose). Skipped entirely if the crawl failed:
+        # absence of evidence is not evidence of absence (fail-secure).
+        if city in crawled_cities:
+            try:
+                _feed_inventory(repo, city, per_city_assets.get(city, []))
+            except Exception as exc:
+                print(f"[pipeline] WARN: inventory feed failed for {city}: "
+                      f"{type(exc).__name__}: {exc}")
         _progress(city, idx + 1)
 
     all_open  = open_violations(state)

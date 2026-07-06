@@ -80,6 +80,15 @@ HEADERS: Dict[str, List[str]] = {
     config.SHEET_USERS: [
         "email", "role", "city", "created_utc", "agency_id", "cities",
     ],
+    "AIAssets": [
+        "asset_key", "city", "vendor_id", "display_name", "asset_types_json",
+        "provenance", "lifecycle_status", "presence",
+        "first_observed_utc", "last_observed_utc",
+        "page_url", "match_confidence", "evidence_json",
+        "owner_email", "owner_name",
+        "attested_by", "attested_utc", "attestation_note",
+        "department", "purpose", "data_categories_json", "next_review_utc",
+    ],
     "Agencies": [
         "id", "name", "granted_cities", "created_utc",
     ],
@@ -472,6 +481,39 @@ class SheetsRepository:
         }
         self._upsert_by_key("Agencies", "id", aid, row)
         return {**row, "granted_cities": list(granted_cities)}
+
+    # ── AI Use-Case Inventory ─────────────────────────────────────────────────
+
+    def get_ai_assets(self, city: Optional[str] = None) -> List[Dict[str, Any]]:
+        rows = self._cached_read("AIAssets", ttl=60)
+        if city:
+            rows = [r for r in rows if r.get("city") == city]
+        return list(rows)
+
+    def upsert_ai_asset(self, asset: Dict[str, Any]) -> Dict[str, Any]:
+        """Merge-preserving upsert keyed by asset_key (see Protocol contract)."""
+        key = asset.get("asset_key", "")
+        if not key:
+            raise ValueError("asset_key is required")
+        self._invalidate("AIAssets")
+        existing = next((r for r in self._read_all_raw_dicts("AIAssets")
+                         if r.get("asset_key") == key), {})
+        merged = {**existing, **{k: v for k, v in asset.items() if v is not None}}
+        self._upsert_by_key("AIAssets", "asset_key", key,
+                            {k: str(v) for k, v in merged.items()})
+        return merged
+
+    def _read_all_raw_dicts(self, tab: str) -> List[Dict[str, Any]]:
+        """Uncached dict read (upsert must merge against fresh data)."""
+        rows = self._execute(self._sheet.values().get(
+            spreadsheetId=config.SPREADSHEET_ID,
+            range=self._range(tab),
+        )).get("values", [])
+        if len(rows) < 2:
+            return []
+        headers = rows[0]
+        return [dict(zip(headers, r + [""] * (len(headers) - len(r))))
+                for r in rows[1:]]
 
     def upsert_user(self, email: str, role: str, city: Optional[str] = None,
                     agency_id: Optional[str] = None,

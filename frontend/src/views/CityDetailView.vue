@@ -195,6 +195,11 @@
             </v-expansion-panels>
           </v-card>
 
+          <!-- AI Use-Case Inventory (this city) -->
+          <div class="mt-4">
+            <AiInventoryPanel :city="cityName" />
+          </div>
+
         </v-col>
 
         <!-- Right col: Cure period summary + quick stats -->
@@ -307,6 +312,7 @@ import { useViolationsStore } from '../stores/violations'
 import ComplianceStatusChip from '../components/ComplianceStatusChip.vue'
 import CurePeriodGauge from '../components/CurePeriodGauge.vue'
 import AuditRunButton from '../components/AuditRunButton.vue'
+import AiInventoryPanel from '../components/AiInventoryPanel.vue'
 import { useReportsStore } from '../stores/reports'
 import { useRemediationStore } from '../stores/remediation'
 

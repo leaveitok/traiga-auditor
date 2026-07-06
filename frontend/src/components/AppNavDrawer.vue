@@ -89,9 +89,10 @@ const drawer = ref(true)
 const rail   = ref(false)
 
 const baseItems = [
-  { to: '/dashboard',  icon: 'mdi-view-dashboard',  title: 'Dashboard'      },
-  { to: '/violations', icon: 'mdi-alert-circle',    title: 'Violations'     },
-  { to: '/sentinel',   icon: 'mdi-shield-lock',     title: 'Sentinel (DLP)' },
+  { to: '/dashboard',  icon: 'mdi-view-dashboard',          title: 'Dashboard'      },
+  { to: '/inventory',  icon: 'mdi-clipboard-list-outline',  title: 'AI Inventory'   },
+  { to: '/violations', icon: 'mdi-alert-circle',            title: 'Violations'     },
+  { to: '/sentinel',   icon: 'mdi-shield-lock',             title: 'Sentinel (DLP)' },
 ]
 const manageItems = [
   { to: '/targets',    icon: 'mdi-city',              title: 'Target Registry' },

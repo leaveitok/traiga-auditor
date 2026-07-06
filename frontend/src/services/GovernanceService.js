@@ -104,6 +104,20 @@ const triggerAudit = (demo = false, cityFilter = null, cities = null) => {
   return http.post(`/audit/run?${params}`).then(r => r.data)
 }
 
+// ── AI Use-Case Inventory ─────────────────────────────────────────────────────
+
+/** List AI assets (RBAC-scoped server-side). Optional city filter. */
+const getInventory = (city = null) =>
+  http.get('/inventory', { params: city ? { city } : {} }).then(r => r.data)
+
+/** Declare an asset the scanner can't see (internal tool, vendor system). */
+const declareAsset = (payload) =>
+  http.post('/inventory', payload).then(r => r.data)
+
+/** Attest, assign owner, edit context, or retire an asset. */
+const updateAsset = (assetKey, patch) =>
+  http.patch(`/inventory/${encodeURIComponent(assetKey)}`, patch).then(r => r.data)
+
 // ── Admin: users & agencies ──────────────────────────────────────────────────
 const getMe        = ()       => http.get('/auth/me').then(r => r.data)
 const getUsers     = ()       => http.get('/auth/users').then(r => r.data)
@@ -241,6 +255,10 @@ export const GovernanceService = {
   triggerAudit,
   getAuditStatus,
   getScheduleStatus,
+  // AI Use-Case Inventory
+  getInventory,
+  declareAsset,
+  updateAsset,
   // Admin (users & agencies)
   getMe,
   getUsers,

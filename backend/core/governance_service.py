@@ -190,6 +190,27 @@ class GovernanceRepository(Protocol):
         """Remove a user. Returns True if a record was deleted."""
         ...
 
+    # ── AI Use-Case Inventory ─────────────────────────────────────────────────
+
+    def get_ai_assets(self, city: Optional[str] = None) -> List[Dict[str, Any]]:
+        """
+        Return AI asset registry records, optionally filtered by city.
+        Route-level RBAC scopes rows to the principal's visible cities.
+        """
+        ...
+
+    def upsert_ai_asset(self, asset: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Create or update an asset record keyed by asset_key.
+
+        MERGE CONTRACT: when the record exists, only the keys present in
+        `asset` are written; absent keys are preserved. This is what lets a
+        scan refresh machine fields (last_observed_utc, evidence, presence)
+        without ever clobbering human fields (owner, attestation, purpose).
+        Returns the merged record.
+        """
+        ...
+
     # ── Agencies (multi-tenant) ───────────────────────────────────────────────
 
     def get_agencies(self) -> List[Dict[str, Any]]:
