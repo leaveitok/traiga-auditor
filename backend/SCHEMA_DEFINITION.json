@@ -115,6 +115,44 @@
         ]
       },
       {
+        "vendor_id": "repd",
+        "display_name": "Repd (Ask City Hall)",
+        "category": "gov_tech_ai_widget",
+        "asset_types": [
+          "chatbot",
+          "automated_intake_widget"
+        ],
+        "verification_status": "verified_observed",
+        "note": "AI civic Q&A widget observed live on cityofdenton.com 2026-07-05: iframe id='repd-embed' src=embed.repd.us/denton, 'Ask City Hall' launcher bubble.",
+        "indicators": [
+          {
+            "type": "script_host_regex",
+            "pattern": "(^|\\.)repd\\.us",
+            "weight": 0.7
+          },
+          {
+            "type": "iframe_origin_regex",
+            "pattern": "(^|\\.)repd\\.us",
+            "weight": 0.7
+          },
+          {
+            "type": "network_request_regex",
+            "pattern": "repd\\.us",
+            "weight": 0.6
+          },
+          {
+            "type": "text_marker_regex",
+            "pattern": "embed\\.repd\\.us|repd-embed",
+            "weight": 0.6
+          },
+          {
+            "type": "dom_selector",
+            "pattern": "[id*='repd'], [class*='repd']",
+            "weight": 0.4
+          }
+        ]
+      },
+      {
         "vendor_id": "munibit",
         "display_name": "Munibit",
         "category": "gov_tech_ai_widget",
