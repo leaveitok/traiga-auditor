@@ -78,7 +78,10 @@ HEADERS: Dict[str, List[str]] = {
         "timestamp_utc", "event", "city_count", "failures", "details_json"
     ],
     config.SHEET_USERS: [
-        "email", "role", "city", "created_utc",
+        "email", "role", "city", "created_utc", "agency_id", "cities",
+    ],
+    "Agencies": [
+        "id", "name", "granted_cities", "created_utc",
     ],
 }
 
@@ -417,15 +420,77 @@ class SheetsRepository:
     # ── Users ─────────────────────────────────────────────────────────────────
 
     def get_user(self, email: str) -> Optional[Dict[str, Any]]:
-        """Return the user row for the given email, or None if not found."""
+        """Return the LATEST user row for the given email, or None."""
         rows = self._cached_read(config.SHEET_USERS, ttl=120)
+        match = None
         for row in rows:
             if row.get("email", "").lower() == email.lower():
-                return row
+                match = row      # keep scanning; last write wins
+        return match
+
+    def delete_user(self, email: str) -> bool:
+        """Blank out every row for this email. Returns True if any removed."""
+        self._invalidate(config.SHEET_USERS)
+        result = self._execute(self._sheet.values().get(
+            spreadsheetId=config.SPREADSHEET_ID,
+            range=self._range(config.SHEET_USERS)))
+        rows = result.get("values", [])
+        if not rows:
+            return False
+        headers = rows[0]
+        email_col = headers.index("email") if "email" in headers else 0
+        removed = False
+        for i, row in enumerate(rows[1:], start=2):
+            if len(row) > email_col and row[email_col].lower() == email.lower():
+                self._execute(self._sheet.values().update(
+                    spreadsheetId=config.SPREADSHEET_ID,
+                    range=self._range(config.SHEET_USERS, f"A{i}"),
+                    valueInputOption="RAW",
+                    body={"values": [[""] * len(headers)]}))
+                removed = True
+        return removed
+
+    # ── Agencies ──────────────────────────────────────────────────────────────
+
+    def get_agencies(self) -> List[Dict[str, Any]]:
+        return list(self._cached_read("Agencies", ttl=120))
+
+    def get_agency(self, agency_id: str) -> Optional[Dict[str, Any]]:
+        for a in self._cached_read("Agencies", ttl=120):
+            if a.get("id") == agency_id:
+                return a
         return None
 
-    def upsert_user(self, email: str, role: str, city: Optional[str]) -> None:
-        # TODO: enforce admin-only write permission (auth placeholder)
+    def upsert_agency(self, agency_id: Optional[str], name: str,
+                      granted_cities: List[str]) -> Dict[str, Any]:
+        self._invalidate("Agencies")
+        aid = agency_id or str(uuid.uuid4())[:8]
+        row = {
+            "id": aid, "name": name,
+            "granted_cities": json.dumps(list(granted_cities)),
+            "created_utc": _now_iso(),
+        }
+        self._upsert_by_key("Agencies", "id", aid, row)
+        return {**row, "granted_cities": list(granted_cities)}
+
+    def upsert_user(self, email: str, role: str, city: Optional[str] = None,
+                    agency_id: Optional[str] = None,
+                    cities: Optional[List[str]] = None) -> None:
+        self._invalidate(config.SHEET_USERS)
+        city_list = list(cities) if cities is not None else ([city] if city else [])
+        # Latest row wins on lookup (get_user scans and the reader takes the
+        # last match); append a fresh fully-populated row.
+        self._append_row(config.SHEET_USERS, {
+            "email": email, "role": role,
+            "city": (city_list[0] if city_list else ""),
+            "agency_id": agency_id or "",
+            "cities": json.dumps(city_list),
+            "created_utc": _now_iso(),
+        })
+        return
+
+    def _legacy_upsert_user(self, email: str, role: str, city: Optional[str]) -> None:
+        # (retained for reference; superseded by the append-latest-wins upsert)
         self._invalidate(config.SHEET_USERS)
         rows = self._read_all_raw(config.SHEET_USERS)
         if not rows:

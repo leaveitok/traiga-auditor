@@ -20,6 +20,7 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from pydantic import BaseModel
 
+from core.access import resolve_principal, scope_requested_cities
 from core.auth import get_current_user, is_admin
 from core.dependencies import get_repository, limiter
 from core.governance_service import GovernanceRepository
@@ -169,21 +170,27 @@ async def trigger_audit(
     background_tasks: BackgroundTasks,
     demo: bool = False,
     city_filter: Optional[str] = None,
+    cities: Optional[str] = None,   # comma-separated multi-select from the dashboard
     user: dict = Depends(get_current_user),
     repo: GovernanceRepository = Depends(get_repository),
 ):
     if _audit_state["status"] == "running":
         raise HTTPException(status_code=409, detail="Audit already running")
 
-    # City-scoped users can only audit their assigned city
-    if not is_admin(user["email"]):
-        user_row = repo.get_user(user["email"])
-        if not user_row or not user_row.get("city"):
-            raise HTTPException(
-                status_code=403,
-                detail="No city assigned to your account. Contact your administrator."
-            )
-        city_filter = user_row["city"]
+    principal = resolve_principal(user, repo)
+    if not principal.can_trigger_audit():
+        raise HTTPException(
+            status_code=403,
+            detail="Your role does not permit running audits. Contact your administrator.")
+
+    # Requested cities: explicit multi-select > single city_filter > all-visible.
+    requested = None
+    if cities:
+        requested = [c.strip() for c in cities.split(",") if c.strip()]
+    elif city_filter:
+        requested = [city_filter]
+    # Intersect with what this principal may audit (fail-secure).
+    allowed_cities = scope_requested_cities(requested, principal)
 
     if demo:
         targets = [
@@ -192,11 +199,15 @@ async def trigger_audit(
         ]
     else:
         targets = repo.get_targets()
-        if city_filter:
-            # Individual re-audit: always scan the requested city (this is the
-            # only path that re-scrapes a proxy city — e.g. to update its status
-            # or confirm a fix). Proxy cost is incurred deliberately, one city.
-            targets = [t for t in targets if t.get("city") == city_filter]
+        if not principal.all_cities:
+            # Hard tenant boundary: a scoped user can never audit outside scope.
+            targets = [t for t in targets if t.get("city") in principal.cities]
+        if allowed_cities:
+            # Explicit selection (single re-audit or multi-select): scan exactly
+            # these. Individual re-audit is the only path that re-scrapes a proxy
+            # city on demand; proxy cost is incurred deliberately.
+            sel = set(allowed_cities)
+            targets = [t for t in targets if t.get("city") in sel]
         else:
             # Bulk "Run Audit": skip proxy (ScraperAPI / cloudflare_protected)
             # cities that ALREADY have an open violation. Once a paid-scrape city
@@ -224,9 +235,11 @@ async def trigger_audit(
             event="audit_triggered", city_count=len(targets), failures=0,
             details={
                 "actor":   user.get("email", "unknown"),
-                "summary": (f"Scan started for {city_filter}" if city_filter
+                "summary": (f"Scan started for {', '.join(allowed_cities)}"
+                            if allowed_cities
                             else f"Full scan started ({len(targets)} cities)"),
-                "scope":   city_filter or "all",
+                "scope":   ", ".join(allowed_cities) if allowed_cities else "all",
+                "cities":  allowed_cities[0] if len(allowed_cities) == 1 else None,
                 "demo":    demo,
             })
     except Exception as exc:

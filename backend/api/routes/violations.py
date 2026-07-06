@@ -11,6 +11,7 @@ from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 
+from core.access import filter_rows, resolve_principal
 from core.auth import get_current_user, is_admin
 from core.dependencies import get_repository
 from core.governance_service import GovernanceRepository
@@ -87,10 +88,11 @@ def _enrich(v: Dict[str, Any]) -> Dict[str, Any]:
 def list_violations(
     status: Optional[str] = None,
     city: Optional[str] = None,
+    user: dict = Depends(get_current_user),
     repo: GovernanceRepository = Depends(get_repository),
 ):
-    # TODO: scope to requesting user's jurisdiction (auth placeholder)
-    rows = repo.get_violations(status=status, city=city)
+    principal = resolve_principal(user, repo)
+    rows = filter_rows(repo.get_violations(status=status, city=city), principal)
     enriched = [_enrich(r) for r in rows]
     enriched.sort(key=lambda r: (r["days_remaining"] is None, r["days_remaining"] or 9999))
     return enriched
@@ -99,12 +101,15 @@ def list_violations(
 @router.get("/{violation_id}")
 def get_violation(
     violation_id: str,
+    user: dict = Depends(get_current_user),
     repo: GovernanceRepository = Depends(get_repository),
 ):
-    # TODO: scope to requesting user's jurisdiction (auth placeholder)
+    principal = resolve_principal(user, repo)
     rows = repo.get_violations()
     for r in rows:
         if r.get("violation_id") == violation_id:
+            if not principal.can_see_city(r.get("city")):
+                raise HTTPException(status_code=404, detail="Violation not found")
             return _enrich(r)
     raise HTTPException(status_code=404, detail="Violation not found")
 

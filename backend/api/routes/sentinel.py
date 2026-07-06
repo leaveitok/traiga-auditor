@@ -29,8 +29,9 @@ from typing import Any, Dict, List, Literal, Optional
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from core.access import resolve_principal
 from core.auth import get_current_user, is_admin
-from core.dependencies import get_sentinel_repository, limiter
+from core.dependencies import get_repository, get_sentinel_repository, limiter
 from core.repositories.sentinel_repository import SentinelRepository
 
 router = APIRouter(prefix="/sentinel", tags=["sentinel"])
@@ -55,6 +56,15 @@ def require_device_token(x_sentinel_token: Optional[str] = Header(default=None))
 
 
 # ── Read auth (admin or security role) ────────────────────────────────────────
+def _scope_events(rows: List[Dict[str, Any]], principal) -> List[Dict[str, Any]]:
+    """Filter Sentinel rows to the principal's cities. Platform admins see all;
+    rows without a city tag are platform-admin-only (fail-secure)."""
+    if principal.all_cities:
+        return rows
+    allowed = principal.cities
+    return [r for r in rows if r.get("city") and r.get("city") in allowed]
+
+
 def _require_security(user: Dict[str, Any]) -> None:
     if is_admin(user.get("email", "")) or user.get("role") == "security":
         return
@@ -106,6 +116,11 @@ class _Envelope(BaseModel):
     user_id: str
     extension_version: str
     ruleset_version: str
+    # Optional tenant tag: the MDM-managed extension config stamps the device's
+    # city so DLP telemetry can be scoped to that municipality. Absent until the
+    # extension is configured to send it -> such events are platform-admin-only
+    # (fail-secure for employee-monitoring data).
+    city: Optional[str] = None
 
 
 class ViolationPacket(_Envelope):
@@ -147,6 +162,7 @@ def ingest(
             "policies_loaded": packet.policies_loaded,
             "last_scan_utc": packet.last_scan_utc or "",
             "status": packet.status,
+            "city": packet.city or "",
         })
     else:
         repo.store_event({
@@ -161,6 +177,7 @@ def ingest(
             "site_id": packet.app.site_id,
             "origin": packet.app.origin,
             "trigger": packet.trigger,
+            "city": packet.city or "",
             "payload_class": packet.payload_class,
             "file_ext": packet.file_meta.extension if packet.file_meta else "",
             "file_size_bytes": packet.file_meta.size_bytes if packet.file_meta else "",
@@ -178,9 +195,12 @@ def list_events(
     limit: int = 200,
     user: dict = Depends(get_current_user),
     repo: SentinelRepository = Depends(get_sentinel_repository),
+    gov_repo=Depends(get_repository),
 ):
-    _require_security(user)
-    rows = repo.get_events(policy_id=policy_id, user_id=user_id, limit=min(limit, 1000))
+    principal = resolve_principal(user, gov_repo)
+    rows = _scope_events(
+        repo.get_events(policy_id=policy_id, user_id=user_id, limit=min(limit, 1000)),
+        principal)
     for r in rows:
         try:
             r["detections"] = json.loads(r.get("detections_json", "[]"))
@@ -194,9 +214,10 @@ def list_events(
 def summary(
     user: dict = Depends(get_current_user),
     repo: SentinelRepository = Depends(get_sentinel_repository),
+    gov_repo=Depends(get_repository),
 ):
-    _require_security(user)
-    events = repo.get_events(limit=1000)
+    principal = resolve_principal(user, gov_repo)
+    events = _scope_events(repo.get_events(limit=1000), principal)
     by_policy: Dict[str, int] = {}
     by_site: Dict[str, int] = {}
     blocked = 0
@@ -212,7 +233,7 @@ def summary(
         by_site[site] = by_site.get(site, 0) + 1
         if e.get("action_taken") == "blocked":
             blocked += 1
-    hb = _device_status(repo)
+    hb = _scope_events(_device_status(repo), principal)
     return {
         "total_events": len(events),
         "blocked": blocked,
@@ -245,6 +266,7 @@ def _device_status(repo: SentinelRepository) -> List[Dict[str, Any]]:
         out.append({
             "device_id": d,
             "user_id": h.get("user_id", ""),
+            "city": h.get("city", ""),
             "last_heartbeat_utc": h.get("timestamp_utc", ""),
             "age_seconds": int(age_s) if age_s is not None else None,
             "extension_version": h.get("extension_version", ""),
@@ -260,6 +282,7 @@ def _device_status(repo: SentinelRepository) -> List[Dict[str, Any]]:
 def device_status(
     user: dict = Depends(get_current_user),
     repo: SentinelRepository = Depends(get_sentinel_repository),
+    gov_repo=Depends(get_repository),
 ):
-    _require_security(user)
-    return _device_status(repo)
+    principal = resolve_principal(user, gov_repo)
+    return _scope_events(_device_status(repo), principal)

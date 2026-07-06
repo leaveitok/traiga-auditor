@@ -11,6 +11,7 @@ from typing import Any, Dict, List
 
 from fastapi import APIRouter, Depends, HTTPException
 
+from core.access import filter_rows, resolve_principal
 from core.auth import get_current_user, is_admin
 from core.dependencies import get_repository
 from core.governance_service import GovernanceRepository
@@ -29,15 +30,43 @@ def _enrich(row: Dict[str, Any]) -> Dict[str, Any]:
 
 
 @router.get("")
-def get_scorecard(repo: GovernanceRepository = Depends(get_repository)):
-    # TODO: scope to requesting user's jurisdiction (auth placeholder)
-    return [_enrich(r) for r in repo.get_scorecard()]
+def get_scorecard(
+    user: dict = Depends(get_current_user),
+    repo: GovernanceRepository = Depends(get_repository),
+):
+    principal = resolve_principal(user, repo)
+    rows = filter_rows(repo.get_scorecard(), principal)
+    return [_enrich(r) for r in rows]
+
+
+def _summarize(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def _score(v):
+        try:
+            return int(float(str(v))) if v not in (None, "", "None", "NaN") else None
+        except (ValueError, TypeError):
+            return None
+    scores = [x for x in (_score(r.get("compliance_score")) for r in rows) if x is not None]
+    def _n(st): return sum(1 for r in rows if r.get("traiga_status") == st)
+    return {
+        "total_cities": len(rows), "compliant": _n("compliant"),
+        "in_cure": _n("in_cure"), "non_compliant": _n("non_compliant"),
+        "expired": _n("expired"), "not_assessed": _n("not_assessed"),
+        "no_ai_detected": _n("no_ai_detected"), "scan_failed": _n("scan_failed"),
+        "average_compliance_score": round(sum(scores) / len(scores), 1) if scores else None,
+    }
 
 
 @router.get("/summary")
-def get_summary(repo: GovernanceRepository = Depends(get_repository)):
-    # TODO: scope to requesting user's jurisdiction (auth placeholder)
-    return repo.get_scorecard_summary()
+def get_summary(
+    user: dict = Depends(get_current_user),
+    repo: GovernanceRepository = Depends(get_repository),
+):
+    principal = resolve_principal(user, repo)
+    # Platform admin: use the repo's native (all-city) summary. Scoped users:
+    # compute over only their visible rows so KPIs match what they can see.
+    if principal.all_cities:
+        return repo.get_scorecard_summary()
+    return _summarize(filter_rows(repo.get_scorecard(), principal))
 
 
 @router.delete("/{city_name}")

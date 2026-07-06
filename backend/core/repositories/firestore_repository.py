@@ -46,6 +46,7 @@ COLL_SCORECARD  = "scorecard"
 COLL_VIOLATIONS = "violations"
 COLL_AUDIT_LOG  = "audit_log"
 COLL_USERS      = "users"
+COLL_AGENCIES   = "agencies"
 
 # google-cloud-firestore's Query.DESCENDING is literally this string; using the
 # literal keeps every method testable against a fake client without the SDK.
@@ -258,18 +259,52 @@ class FirestoreRepository:
         snap = self._db.collection(COLL_USERS).document(_doc_id(email.lower())).get()
         return snap.to_dict() if snap.exists else None
 
-    def upsert_user(self, email: str, role: str, city: Optional[str]) -> None:
-        # TODO: enforce admin-only write permission (auth placeholder)
+    def upsert_user(self, email: str, role: str, city: Optional[str] = None,
+                    agency_id: Optional[str] = None,
+                    cities: Optional[List[str]] = None) -> None:
         ref = self._db.collection(COLL_USERS).document(_doc_id(email.lower()))
         snap = ref.get()
         created = (snap.to_dict() or {}).get("created_utc", "") if snap.exists else ""
+        city_list = list(cities) if cities is not None else ([city] if city else [])
         ref.set(self._stringify({
             "email":       email,
             "role":        role,
-            "city":        city or "",
+            "agency_id":   agency_id or "",
+            "cities":      json.dumps(city_list),
+            "city":        (city_list[0] if city_list else ""),   # legacy mirror
             "created_utc": created or _now_iso(),
         }))
 
     def get_users(self) -> List[Dict[str, Any]]:
-        # TODO: enforce admin-only read permission (auth placeholder)
         return self._read_all(COLL_USERS)
+
+    def delete_user(self, email: str) -> bool:
+        ref = self._db.collection(COLL_USERS).document(_doc_id(email.lower()))
+        if not ref.get().exists:
+            return False
+        ref.delete()
+        return True
+
+    # ── Agencies ──────────────────────────────────────────────────────────────
+
+    def get_agencies(self) -> List[Dict[str, Any]]:
+        return self._read_all(COLL_AGENCIES)
+
+    def get_agency(self, agency_id: str) -> Optional[Dict[str, Any]]:
+        snap = self._db.collection(COLL_AGENCIES).document(_doc_id(agency_id)).get()
+        return snap.to_dict() if snap.exists else None
+
+    def upsert_agency(self, agency_id: Optional[str], name: str,
+                      granted_cities: List[str]) -> Dict[str, Any]:
+        aid = agency_id or str(uuid.uuid4())[:8]
+        ref = self._db.collection(COLL_AGENCIES).document(_doc_id(aid))
+        snap = ref.get()
+        created = (snap.to_dict() or {}).get("created_utc", "") if snap.exists else ""
+        doc = {
+            "id":             aid,
+            "name":           name,
+            "granted_cities": json.dumps(list(granted_cities)),
+            "created_utc":    created or _now_iso(),
+        }
+        ref.set(self._stringify(doc))
+        return {**doc, "granted_cities": list(granted_cities)}

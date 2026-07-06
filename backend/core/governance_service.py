@@ -171,16 +171,36 @@ class GovernanceRepository(Protocol):
         """
         ...
 
-    def upsert_user(self, email: str, role: str, city: Optional[str]) -> None:
+    def upsert_user(self, email: str, role: str, city: Optional[str] = None,
+                    agency_id: Optional[str] = None,
+                    cities: Optional[List[str]] = None) -> None:
         """
-        Create or update a user's role and city assignment.
-        TODO: enforce admin-only write permission (auth placeholder).
+        Create or update a user. role is platform_admin|agency_admin|viewer.
+        `cities` is the viewer's granted city list (stored as JSON); `city`
+        is retained for backward compatibility (mirrors cities[0]).
+        Authorization is enforced by the route via core.access, not here.
         """
         ...
 
     def get_users(self) -> List[Dict[str, Any]]:
-        """
-        Return all provisioned users.
-        TODO: enforce admin-only read permission (auth placeholder).
-        """
+        """Return all provisioned users."""
+        ...
+
+    def delete_user(self, email: str) -> bool:
+        """Remove a user. Returns True if a record was deleted."""
+        ...
+
+    # ── Agencies (multi-tenant) ───────────────────────────────────────────────
+
+    def get_agencies(self) -> List[Dict[str, Any]]:
+        """Return all agencies (tenant orgs), each with granted_cities."""
+        ...
+
+    def get_agency(self, agency_id: str) -> Optional[Dict[str, Any]]:
+        """Return a single agency by id, or None."""
+        ...
+
+    def upsert_agency(self, agency_id: Optional[str], name: str,
+                      granted_cities: List[str]) -> Dict[str, Any]:
+        """Create (agency_id None) or update an agency's name + city grant."""
         ...

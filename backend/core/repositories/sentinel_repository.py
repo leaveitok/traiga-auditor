@@ -33,12 +33,12 @@ EVENT_HEADERS = [
     "browser_name", "browser_version", "extension_version", "ruleset_version",
     "site_id", "origin", "trigger", "payload_class",
     "file_ext", "file_size_bytes", "file_scannable",
-    "detections_json", "action_taken",
+    "detections_json", "action_taken", "city",
 ]
 HEARTBEAT_HEADERS = [
     "event_id", "timestamp_utc", "received_utc", "device_id", "user_id",
     "extension_version", "ruleset_version", "policies_loaded",
-    "last_scan_utc", "status",
+    "last_scan_utc", "status", "city",
 ]
 
 # Belt-and-suspenders: no stored field may carry these key fragments.
