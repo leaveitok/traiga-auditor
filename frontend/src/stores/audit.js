@@ -47,6 +47,9 @@ export const useAuditStore = defineStore('audit', () => {
       _startPolling()
     } catch (e) {
       errorMsg.value = e.response?.data?.detail || e.message
+      // Surface the failure: the status chip only renders when status is not
+      // 'idle', so leaving it idle made trigger failures silently invisible.
+      status.value = 'error'
     }
   }
 

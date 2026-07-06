@@ -38,6 +38,7 @@ _audit_state: Dict[str, Any] = {
     "observed_failures": 0,
     "open_violations":   0,
     "error":             None,
+    "progress":          None,
 }
 
 DEMO_FIXTURES: Dict[str, Dict[str, Any]] = {
@@ -244,8 +245,10 @@ async def trigger_audit(
             })
     except Exception as exc:
         print(f"[activity] WARN: could not log audit_triggered: {exc}")
+    # .get() — never KeyError even if a future field is added to the model
+    # before it exists in _audit_state (fail-secure: respond, don't 500).
     return AuditRunResponse(status="started", **{
-        k: _audit_state[k] for k in AuditRunResponse.model_fields if k != "status"
+        k: _audit_state.get(k) for k in AuditRunResponse.model_fields if k != "status"
     })
 
 
