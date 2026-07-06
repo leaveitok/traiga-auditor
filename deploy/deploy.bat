@@ -93,12 +93,20 @@ REM -- Step 5: Build and deploy frontend ---------------------------------------
 echo [5/5] Building and deploying frontend...
 
 cd /d "%FRONTEND_DIR%"
-call npm ci --silent
-if %errorlevel% neq 0 goto error
+REM Build with existing node_modules first. Avoid `npm ci` here: on Windows it
+REM triggers the npm optional-dependency (rollup) bug (#4828) and the build dies.
+call npm run build
+if %errorlevel%==0 goto frontend_deploy
 
+echo   Build failed - applying clean-reinstall fix for the npm/rollup bug...
+if exist package-lock.json del /f /q package-lock.json
+if exist node_modules rmdir /s /q node_modules
+call npm install
+if %errorlevel% neq 0 goto error
 call npm run build
 if %errorlevel% neq 0 goto error
 
+:frontend_deploy
 cd /d "%ROOT_DIR%"
 call firebase deploy --only hosting --project=%PROJECT_ID%
 if %errorlevel% neq 0 goto error
