@@ -30,13 +30,16 @@ echo.
 
 REM -- Step 0: Set GCP project --------------------------------------------------
 echo [0/5] Setting GCP project...
-gcloud config set project %PROJECT_ID%
+REM `call` is REQUIRED before every gcloud invocation: gcloud is gcloud.cmd (a
+REM batch script). Without call, control transfers and NEVER returns — the
+REM rest of this script silently never runs (bit us 2026-07-06).
+call gcloud config set project %PROJECT_ID%
 REM gcloud config set returns exit code 1 on SDK/Python warnings even on success; reset before continuing
 ver > nul
 
 REM -- Step 1: Enable APIs ------------------------------------------------------
 echo [1/5] Enabling required GCP APIs...
-gcloud services enable run.googleapis.com artifactregistry.googleapis.com secretmanager.googleapis.com cloudbuild.googleapis.com --quiet
+call gcloud services enable run.googleapis.com artifactregistry.googleapis.com secretmanager.googleapis.com cloudbuild.googleapis.com --quiet
 if %errorlevel% neq 0 goto error
 
 REM -- Step 2: Upload service account to Secret Manager ------------------------
@@ -47,31 +50,31 @@ if not exist "%SA_FILE%" (
     goto error
 )
 
-gcloud secrets describe %SECRET_NAME% --project=%PROJECT_ID% >nul 2>&1
+call gcloud secrets describe %SECRET_NAME% --project=%PROJECT_ID% >nul 2>&1
 if %errorlevel% neq 0 (
     echo   Creating secret: %SECRET_NAME%
-    gcloud secrets create %SECRET_NAME% --replication-policy=automatic --project=%PROJECT_ID%
+    call gcloud secrets create %SECRET_NAME% --replication-policy=automatic --project=%PROJECT_ID%
 )
 
-gcloud secrets versions add %SECRET_NAME% --data-file="%SA_FILE%" --project=%PROJECT_ID%
+call gcloud secrets versions add %SECRET_NAME% --data-file="%SA_FILE%" --project=%PROJECT_ID%
 if %errorlevel% neq 0 goto error
 echo   Secret uploaded OK.
 
 REM Grant Cloud Run service account access to the secret
 for /f "tokens=*" %%i in ('gcloud projects describe %PROJECT_ID% --format=value(projectNumber)') do set PROJECT_NUMBER=%%i
 set CR_SA=%PROJECT_NUMBER%-compute@developer.gserviceaccount.com
-gcloud secrets add-iam-policy-binding %SECRET_NAME% --member=serviceAccount:%CR_SA% --role=roles/secretmanager.secretAccessor --project=%PROJECT_ID% --quiet
+call gcloud secrets add-iam-policy-binding %SECRET_NAME% --member=serviceAccount:%CR_SA% --role=roles/secretmanager.secretAccessor --project=%PROJECT_ID% --quiet
 
 REM -- Step 3: Build Docker image -----------------------------------------------
 echo [3/5] Building Docker image via Cloud Build...
 
-gcloud artifacts repositories describe %IMAGE_REPO% --location=%REGION% --project=%PROJECT_ID% >nul 2>&1
+call gcloud artifacts repositories describe %IMAGE_REPO% --location=%REGION% --project=%PROJECT_ID% >nul 2>&1
 if %errorlevel% neq 0 (
     echo   Creating Artifact Registry repo: %IMAGE_REPO%
-    gcloud artifacts repositories create %IMAGE_REPO% --repository-format=docker --location=%REGION% --project=%PROJECT_ID% --quiet
+    call gcloud artifacts repositories create %IMAGE_REPO% --repository-format=docker --location=%REGION% --project=%PROJECT_ID% --quiet
 )
 
-gcloud builds submit "%BACKEND_DIR%" --tag=%IMAGE_URI% --project=%PROJECT_ID% --timeout=20m
+call gcloud builds submit "%BACKEND_DIR%" --tag=%IMAGE_URI% --project=%PROJECT_ID% --timeout=20m
 if %errorlevel% neq 0 goto error
 echo   Image built and pushed OK.
 
@@ -83,10 +86,10 @@ if not exist "%ENV_FILE%" (
     goto error
 )
 
-gcloud run deploy %SERVICE_NAME% --image=%IMAGE_URI% --region=%REGION% --platform=managed --no-allow-unauthenticated --env-vars-file="%ENV_FILE%" --set-secrets=/secrets/service_account.json=%SECRET_NAME%:latest --memory=2Gi --cpu=1 --min-instances=0 --max-instances=3 --timeout=300 --concurrency=80 --project=%PROJECT_ID% --quiet
+call gcloud run deploy %SERVICE_NAME% --image=%IMAGE_URI% --region=%REGION% --platform=managed --no-allow-unauthenticated --env-vars-file="%ENV_FILE%" --set-secrets=/secrets/service_account.json=%SECRET_NAME%:latest --memory=2Gi --cpu=1 --min-instances=0 --max-instances=3 --timeout=300 --concurrency=80 --project=%PROJECT_ID% --quiet
 if %errorlevel% neq 0 goto error
 
-gcloud run services add-iam-policy-binding %SERVICE_NAME% --region=%REGION% --member=allUsers --role=roles/run.invoker --project=%PROJECT_ID% --quiet
+call gcloud run services add-iam-policy-binding %SERVICE_NAME% --region=%REGION% --member=allUsers --role=roles/run.invoker --project=%PROJECT_ID% --quiet
 echo   Cloud Run deploy OK.
 
 REM -- Step 5: Build and deploy frontend ----------------------------------------
