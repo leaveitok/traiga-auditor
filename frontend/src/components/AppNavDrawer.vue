@@ -57,8 +57,10 @@
             {{ auth.displayName }}
           </v-list-item-title>
           <v-list-item-subtitle>
-            <v-chip size="x-small" :color="auth.isAdmin ? 'primary' : 'warning'" label>
-              {{ auth.isAdmin ? 'Admin' : auth.city || 'City User' }}
+            <v-chip size="x-small"
+                    :color="auth.isPlatformAdmin ? 'primary' : (auth.isAgencyAdmin ? 'indigo' : 'blue-grey')"
+                    label>
+              {{ roleLabel }}
             </v-chip>
           </v-list-item-subtitle>
           <template #append>
@@ -86,22 +88,26 @@ const router = useRouter()
 const drawer = ref(true)
 const rail   = ref(false)
 
-const adminNavItems = [
-  { to: '/dashboard',  icon: 'mdi-view-dashboard',    title: 'Dashboard'        },
-  { to: '/targets',    icon: 'mdi-city',               title: 'Target Registry'  },
-  { to: '/violations', icon: 'mdi-alert-circle',       title: 'Violations'       },
-  { to: '/sentinel',   icon: 'mdi-shield-lock',        title: 'Sentinel (DLP)'   },
-  { to: '/logs',       icon: 'mdi-text-box-outline',   title: 'Audit Log'        },
-  { to: '/settings',   icon: 'mdi-cog',                title: 'Settings'         },
+const baseItems = [
+  { to: '/dashboard',  icon: 'mdi-view-dashboard',  title: 'Dashboard'      },
+  { to: '/violations', icon: 'mdi-alert-circle',    title: 'Violations'     },
+  { to: '/sentinel',   icon: 'mdi-shield-lock',     title: 'Sentinel (DLP)' },
 ]
-
-const cityNavItems = [
-  { to: '/portal',     icon: 'mdi-city-variant',       title: 'My City'          },
-  { to: '/violations', icon: 'mdi-alert-circle',       title: 'My Violations'    },
-  { to: '/settings',   icon: 'mdi-cog',                title: 'Settings'         },
+const manageItems = [
+  { to: '/targets',    icon: 'mdi-city',              title: 'Target Registry' },
+  { to: '/logs',       icon: 'mdi-text-box-outline',  title: 'Audit Log'       },
+  { to: '/admin',      icon: 'mdi-account-cog',       title: 'Administration'  },
 ]
+const settingsItem = { to: '/settings', icon: 'mdi-cog', title: 'Settings' }
 
-const navItems = computed(() => auth.isAdmin ? adminNavItems : cityNavItems)
+const navItems = computed(() => auth.canManage
+  ? [...baseItems, ...manageItems, settingsItem]
+  : [...baseItems, settingsItem])
+
+const roleLabel = computed(() => ({
+  platform_admin: 'Platform Admin', admin: 'Platform Admin',
+  agency_admin: 'Agency Admin', viewer: 'Viewer', city: 'Viewer',
+}[auth.role] || 'Viewer'))
 
 async function signOut() {
   await auth.logout()

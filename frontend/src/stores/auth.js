@@ -17,12 +17,19 @@ import { firebaseAuth, googleProvider } from '../firebase'
 import { setAuthToken, clearAuthToken } from '../services/tokenStore'
 
 export const useAuthStore = defineStore('auth', () => {
-  const user    = ref(null)   // Firebase User object
-  const role    = ref(null)   // 'admin' | 'city' | null
-  const city    = ref(null)   // assigned city for city-scoped users
-  const loading = ref(true)   // true until onAuthStateChanged fires once
+  const user      = ref(null)   // Firebase User object
+  const role      = ref(null)   // 'platform_admin' | 'agency_admin' | 'viewer' | null
+  const city      = ref(null)   // legacy single city (first of cities)
+  const cities    = ref([])     // granted cities for scoped users
+  const agencyId  = ref(null)   // tenant agency
+  const loading   = ref(true)   // true until onAuthStateChanged fires once
 
-  const isAdmin         = computed(() => role.value === 'admin')
+  const isPlatformAdmin = computed(() =>
+    role.value === 'platform_admin' || role.value === 'admin')   // 'admin' = legacy
+  const isAgencyAdmin   = computed(() => role.value === 'agency_admin')
+  const canManage       = computed(() => isPlatformAdmin.value || isAgencyAdmin.value)
+  // Legacy alias kept for existing route guards / templates.
+  const isAdmin         = computed(() => canManage.value)
   const isAuthenticated = computed(() => !!user.value)
   const displayName     = computed(() => user.value?.displayName || user.value?.email || '')
   const photoURL        = computed(() => user.value?.photoURL || null)
@@ -40,8 +47,10 @@ export const useAuthStore = defineStore('auth', () => {
   async function logout() {
     await signOut(firebaseAuth)
     user.value  = null
-    role.value  = null
-    city.value  = null
+    role.value    = null
+    city.value    = null
+    cities.value  = []
+    agencyId.value = null
     clearAuthToken()
   }
 
@@ -62,8 +71,10 @@ export const useAuthStore = defineStore('auth', () => {
       })
       if (resp.ok) {
         const data = await resp.json()
-        role.value = data.role
-        city.value = data.city || null
+        role.value   = data.role
+        cities.value = data.cities || []
+        agencyId.value = data.agency_id || null
+        city.value   = data.city || (data.cities && data.cities[0]) || null
       } else {
         const body = await resp.json().catch(() => ({ detail: resp.statusText }))
         console.warn('[auth] /api/auth/me returned', resp.status, body)
@@ -95,9 +106,11 @@ export const useAuthStore = defineStore('auth', () => {
         setAuthToken(idToken)
         await _fetchProfile(idToken)
       } else {
-        user.value  = null
-        role.value  = null
-        city.value  = null
+        user.value   = null
+        role.value   = null
+        city.value   = null
+        cities.value = []
+        agencyId.value = null
         clearAuthToken()
       }
       loading.value = false
@@ -106,9 +119,10 @@ export const useAuthStore = defineStore('auth', () => {
 
   return {
     // State
-    user, role, city, loading,
+    user, role, city, cities, agencyId, loading,
     // Computed
-    isAdmin, isAuthenticated, displayName, photoURL,
+    isAdmin, isPlatformAdmin, isAgencyAdmin, canManage,
+    isAuthenticated, displayName, photoURL,
     // Actions
     loginWithGoogle, logout, refreshToken, init,
   }

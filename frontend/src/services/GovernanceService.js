@@ -97,11 +97,20 @@ const getViolation = (id) => http.get(`/violations/${id}`).then(r => r.data)
  * @param {boolean} [demo=false]
  * @returns {Promise<import('./types').AuditRunState>}
  */
-const triggerAudit = (demo = false, cityFilter = null) => {
+const triggerAudit = (demo = false, cityFilter = null, cities = null) => {
   const params = new URLSearchParams({ demo })
-  if (cityFilter) params.set('city_filter', cityFilter)
+  if (cities && cities.length) params.set('cities', cities.join(','))
+  else if (cityFilter) params.set('city_filter', cityFilter)
   return http.post(`/audit/run?${params}`).then(r => r.data)
 }
+
+// ── Admin: users & agencies ──────────────────────────────────────────────────
+const getMe        = ()       => http.get('/auth/me').then(r => r.data)
+const getUsers     = ()       => http.get('/auth/users').then(r => r.data)
+const upsertUser   = (u)      => http.post('/auth/users', u).then(r => r.data)
+const deleteUser   = (email)  => http.delete(`/auth/users/${encodeURIComponent(email)}`).then(r => r.data)
+const getAgencies  = ()       => http.get('/agencies').then(r => r.data)
+const upsertAgency = (a)      => http.post('/agencies', a).then(r => r.data)
 
 /**
  * Poll the status of the current or last audit run.
@@ -232,6 +241,13 @@ export const GovernanceService = {
   triggerAudit,
   getAuditStatus,
   getScheduleStatus,
+  // Admin (users & agencies)
+  getMe,
+  getUsers,
+  upsertUser,
+  deleteUser,
+  getAgencies,
+  upsertAgency,
   // Logs
   getAuditLog,
   // Deep Scan

@@ -40,9 +40,9 @@ export const useAuditStore = defineStore('audit', () => {
   /**
    * @param {boolean} [demo=false]
    */
-  async function trigger(demo = false, cityFilter = null) {
+  async function trigger(demo = false, cityFilter = null, cities = null) {
     try {
-      await GovernanceService.triggerAudit(demo, cityFilter)
+      await GovernanceService.triggerAudit(demo, cityFilter, cities)
       status.value = 'running'
       _startPolling()
     } catch (e) {

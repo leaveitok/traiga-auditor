@@ -53,9 +53,19 @@
           <template v-if="auth.isAdmin && !effectiveCity">
             <p class="mb-3">Choose run mode:</p>
             <v-radio-group v-model="demoMode" inline>
-              <v-radio label="Live — crawl all active targets" :value="false" />
+              <v-radio label="Live — crawl selected targets" :value="false" />
               <v-radio label="Demo — offline fixtures (no network)" :value="true" />
             </v-radio-group>
+            <v-select
+              v-if="!demoMode"
+              v-model="selectedCities"
+              :items="cityOptions"
+              label="Cities to audit"
+              multiple chips closable-chips clearable
+              variant="outlined" density="comfortable"
+              prepend-inner-icon="mdi-city"
+              hint="Leave empty to audit all your cities" persistent-hint
+            />
           </template>
           <template v-else-if="auth.isAdmin && effectiveCity">
             <v-radio-group v-model="demoMode" inline>
@@ -84,6 +94,7 @@
 import { ref, computed, watch, onUnmounted } from 'vue'
 import { useAuditStore } from '../stores/audit'
 import { useAuthStore }  from '../stores/auth'
+import { useScorecardStore } from '../stores/scorecard'
 
 const props = defineProps({
   /** When set, locks the audit to this specific city (admin drilling into a city page). */
@@ -94,8 +105,19 @@ const emit = defineEmits(['audit-complete'])
 
 const auditStore = useAuditStore()
 const auth       = useAuthStore()
+const scorecard  = useScorecardStore()
 const dialog     = ref(false)
 const demoMode   = ref(false)
+const selectedCities = ref([])
+
+// Cities the caller may audit: platform admin -> all scorecard cities;
+// scoped users -> their granted cities.
+const cityOptions = computed(() => {
+  if (auth.isPlatformAdmin) {
+    return [...new Set(scorecard.rows.map(r => r.city))].sort()
+  }
+  return [...(auth.cities || [])].sort()
+})
 
 // The city that will be scanned: prop override > city-scoped user > null (all cities)
 const effectiveCity = computed(() =>
@@ -174,6 +196,9 @@ watch(() => auditStore.status, (s, prev) => {
 
 async function startAudit() {
   dialog.value = false
-  await auditStore.trigger(demoMode.value, effectiveCity.value)
+  const cities = (!effectiveCity.value && selectedCities.value.length)
+    ? selectedCities.value : null
+  await auditStore.trigger(demoMode.value, effectiveCity.value, cities)
+  selectedCities.value = []
 }
 </script>

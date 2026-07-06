@@ -16,13 +16,13 @@ const routes = [
     path: '/dashboard',
     name: 'Dashboard',
     component: () => import('../views/DashboardView.vue'),
-    meta: { title: 'Dashboard', icon: 'mdi-view-dashboard', requiresAdmin: true },
+    meta: { title: 'Dashboard', icon: 'mdi-view-dashboard', requiresAuth: true },
   },
   {
     path: '/targets',
     name: 'Targets',
     component: () => import('../views/TargetsView.vue'),
-    meta: { title: 'Target Registry', icon: 'mdi-city', requiresAdmin: true },
+    meta: { title: 'Target Registry', icon: 'mdi-city', requiresManage: true },
   },
   {
     path: '/violations',
@@ -34,13 +34,19 @@ const routes = [
     path: '/sentinel',
     name: 'Sentinel',
     component: () => import('../views/SentinelView.vue'),
-    meta: { title: 'Sentinel — Internal AI DLP', icon: 'mdi-shield-lock', requiresAdmin: true },
+    meta: { title: 'Sentinel — Internal AI DLP', icon: 'mdi-shield-lock', requiresAuth: true },
   },
   {
     path: '/logs',
     name: 'AuditLog',
     component: () => import('../views/AuditLogView.vue'),
-    meta: { title: 'Audit Log', icon: 'mdi-text-box-outline', requiresAdmin: true },
+    meta: { title: 'Audit Log', icon: 'mdi-text-box-outline', requiresAuth: true },
+  },
+  {
+    path: '/admin',
+    name: 'Admin',
+    component: () => import('../views/AdminConsoleView.vue'),
+    meta: { title: 'Administration', icon: 'mdi-account-cog', requiresManage: true },
   },
   {
     path: '/city/:cityName',
@@ -69,8 +75,8 @@ const router = createRouter({
 
 router.afterEach((to) => {
   document.title = to.meta.title
-    ? `${to.meta.title} — AI Transparency Auditor`
-    : 'AI Transparency Auditor'
+    ? `${to.meta.title} — TRAIGA Auditor`
+    : 'TRAIGA Auditor'
 })
 
 // ── Auth guard ────────────────────────────────────────────────────────────────
@@ -96,14 +102,14 @@ router.beforeEach(async (to) => {
     return { path: '/login' }
   }
 
-  // Already logged in and trying to hit login → redirect home
+  // Already logged in and trying to hit login → dashboard (scoped per role)
   if (to.path === '/login') {
-    return auth.isAdmin ? '/dashboard' : '/portal'
+    return '/dashboard'
   }
 
-  // Admin-only route accessed by city user → send to portal
-  if (to.meta.requiresAdmin && !auth.isAdmin) {
-    return { path: '/portal' }
+  // Management-only route accessed by a viewer → back to dashboard
+  if ((to.meta.requiresManage || to.meta.requiresAdmin) && !auth.canManage) {
+    return { path: '/dashboard' }
   }
 
   return true
