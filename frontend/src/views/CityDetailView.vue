@@ -28,8 +28,19 @@
           </v-card-subtitle>
           <template #append>
             <div class="text-right">
-              <div class="text-h3 font-weight-bold">{{ cityRow.compliance_score }}</div>
-              <div class="text-caption text-medium-emphasis">Compliance Score</div>
+              <!-- A failed or never-run scan has NO score: showing the default
+                   100 next to "Scan Failed" reads as a clean bill of health
+                   (observed with Fort Worth 2026-07-07). -->
+              <template v-if="cityRow.traiga_status === 'scan_failed' || cityRow.traiga_status === 'not_assessed'">
+                <div class="text-h3 font-weight-bold text-medium-emphasis">—</div>
+                <div class="text-caption text-medium-emphasis">
+                  {{ cityRow.traiga_status === 'scan_failed' ? 'Not scored — scan failed' : 'Not scored — not assessed' }}
+                </div>
+              </template>
+              <template v-else>
+                <div class="text-h3 font-weight-bold">{{ cityRow.compliance_score }}</div>
+                <div class="text-caption text-medium-emphasis">Compliance Score</div>
+              </template>
             </div>
           </template>
         </v-card-item>

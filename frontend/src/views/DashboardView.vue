@@ -92,7 +92,11 @@
         </template>
 
         <template #item.compliance_score="{ item }">
-          <v-chip :color="bandColor(item.band)" label size="small" class="font-weight-bold">
+          <!-- No score for unscanned/failed cities — a default 100 next to
+               Scan Failed reads as a clean bill of health. -->
+          <span v-if="item.traiga_status === 'scan_failed' || item.traiga_status === 'not_assessed'"
+                class="text-medium-emphasis">—</span>
+          <v-chip v-else :color="bandColor(item.band)" label size="small" class="font-weight-bold">
             {{ item.compliance_score }}
           </v-chip>
         </template>

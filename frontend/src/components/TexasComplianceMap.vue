@@ -14,7 +14,9 @@
         <!-- city pins -->
         <g v-for="p in pins" :key="p.city" style="cursor:pointer"
            @click="$router.push(`/city/${encodeURIComponent(p.city)}`)">
-          <circle :cx="p.x" :cy="p.y" r="9" :fill="p.color" fill-opacity="0.25">
+          <circle :cx="p.x" :cy="p.y" r="9" :fill="p.color" fill-opacity="0.25"
+                  :stroke="p.failed ? p.color : 'none'" stroke-width="1.5"
+                  :stroke-dasharray="p.failed ? '3,2' : null">
             <title>{{ p.city }} — {{ p.statusLabel }}</title>
           </circle>
           <circle :cx="p.x" :cy="p.y" r="4.5" :fill="p.color" stroke="white" stroke-width="1.2">
@@ -91,16 +93,30 @@ const TX_CITIES = {
   'abilene': [-99.733, 32.448],     'tyler': [-95.301, 32.351],
   'wichita falls': [-98.493, 33.913], 'beaumont': [-94.101, 30.080],
   'killeen': [-97.727, 31.117],
+  // DFW sweep-1 cohort additions (2026-07-07)
+  'grand prairie': [-96.998, 32.746], 'allen': [-96.671, 33.103],
+  'mesquite': [-96.599, 32.767],    'euless': [-97.082, 32.837],
+  'bedford': [-97.143, 32.844],     'hurst': [-97.170, 32.823],
+  'cedar hill': [-96.956, 32.588],  'desoto': [-96.857, 32.590],
+  'duncanville': [-96.908, 32.652], 'lancaster': [-96.756, 32.592],
+  'rowlett': [-96.564, 32.903],     'wylie': [-96.539, 33.015],
+  'keller': [-97.252, 32.935],      'coppell': [-96.990, 32.954],
+  'north richland hills': [-97.229, 32.834], 'mansfield': [-97.142, 32.563],
+  'farmers branch': [-96.896, 32.926], 'little elm': [-96.938, 33.163],
 }
 
+// scan_failed must NEVER look like not_assessed: a failed scan is an
+// unanswered question (WAF block / crawl error), not an untouched city.
+// Purple + dashed ring makes it visually impossible to read as "fine"
+// (observed 2026-07-07: Fort Worth scan_failed was mistaken for clean).
 const STATUS = {
   compliant:      { color: '#2E7D32', label: 'Compliant' },
   in_cure:        { color: '#FB8C00', label: 'In Cure' },
   non_compliant:  { color: '#E53935', label: 'Non-Compliant' },
   expired:        { color: '#B71C1C', label: 'Expired' },
   no_ai_detected: { color: '#00897B', label: 'No AI Detected' },
-  scan_failed:    { color: '#757575', label: 'Scan Failed' },
-  not_assessed:   { color: '#9E9E9E', label: 'Not Assessed' },
+  scan_failed:    { color: '#7B1FA2', label: 'Scan Failed', failed: true },
+  not_assessed:   { color: '#BDBDBD', label: 'Not Assessed' },
 }
 
 const norm = (city) => String(city || '').toLowerCase()
@@ -112,7 +128,7 @@ const pins = computed(() => props.rows.flatMap((r) => {
   const s = STATUS[r.traiga_status] || STATUS.not_assessed
   return [{
     city: r.city, x: X(coords[0]), y: Y(coords[1]),
-    color: s.color, statusLabel: s.label,
+    color: s.color, statusLabel: s.label, failed: !!s.failed,
   }]
 }))
 
