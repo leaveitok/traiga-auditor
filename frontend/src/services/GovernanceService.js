@@ -14,6 +14,8 @@
  */
 
 import axios from 'axios'
+import { getIdToken } from 'firebase/auth'
+import { firebaseAuth } from '../firebase'
 import { authToken } from './tokenStore'
 
 const http = axios.create({
@@ -22,12 +24,53 @@ const http = axios.create({
   headers: { 'Content-Type': 'application/json' },
 })
 
-// Attach Firebase ID token to every request when available
-http.interceptors.request.use((config) => {
+// Attach a FRESH Firebase ID token to every request.
+//
+// getIdToken() without forceRefresh returns the SDK's cached token and
+// transparently refreshes it when near expiry (Firebase tokens live 60 min).
+// The old approach captured the token ONCE at login into tokenStore and never
+// refreshed — any session older than an hour started 401ing until a manual
+// page reload. tokenStore is kept only as a fallback for the brief window
+// before firebaseAuth.currentUser hydrates on page load.
+http.interceptors.request.use(async (config) => {
+  const fbUser = firebaseAuth.currentUser
+  if (fbUser) {
+    try {
+      config.headers.Authorization = `Bearer ${await getIdToken(fbUser)}`
+      return config
+    } catch (err) {
+      console.warn('[api] getIdToken failed, falling back to cached token:', err?.code || err)
+    }
+  }
   if (authToken) {
     config.headers.Authorization = `Bearer ${authToken}`
   }
   return config
+})
+
+// One-shot 401 recovery: force-refresh the token and retry the request once.
+// Catches clock-skew and just-expired edge cases without user-visible logout.
+// Every 401 is logged with timing so intermittent auth failures (e.g. the
+// "expires after ~5 min" report of 2026-07-07) leave diagnosable evidence
+// in the browser console instead of a mystery.
+http.interceptors.response.use(undefined, async (error) => {
+  const cfg = error.config || {}
+  const status = error.response?.status
+  if (status === 401) {
+    console.warn(`[api] 401 on ${cfg.method?.toUpperCase()} ${cfg.url} at ${new Date().toISOString()}`,
+      { retried: !!cfg._retriedAfter401, detail: error.response?.data?.detail })
+  }
+  if (status === 401 && !cfg._retriedAfter401 && firebaseAuth.currentUser) {
+    cfg._retriedAfter401 = true
+    try {
+      const fresh = await getIdToken(firebaseAuth.currentUser, /* forceRefresh */ true)
+      cfg.headers.Authorization = `Bearer ${fresh}`
+      return http.request(cfg)
+    } catch (err) {
+      console.warn('[api] forced token refresh failed:', err?.code || err)
+    }
+  }
+  return Promise.reject(error)
 })
 
 // ─────────────────────────────────────────────────────────────────────────────

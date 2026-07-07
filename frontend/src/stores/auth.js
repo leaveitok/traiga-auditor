@@ -10,7 +10,7 @@ import { ref, computed } from 'vue'
 import {
   signInWithPopup,
   signOut,
-  onAuthStateChanged,
+  onIdTokenChanged,
   getIdToken,
 } from 'firebase/auth'
 import { firebaseAuth, googleProvider } from '../firebase'
@@ -97,15 +97,27 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  /** Called once from main.js — subscribes to Firebase auth state. */
+  /**
+   * Called once from main.js — subscribes to Firebase auth state.
+   *
+   * onIdTokenChanged (not onAuthStateChanged): fires on sign-in/out AND every
+   * time the SDK auto-refreshes the ID token (~hourly), keeping the tokenStore
+   * fallback current. The profile fetch only runs when the *user* changes,
+   * not on every token rotation.
+   */
   function init() {
-    onAuthStateChanged(firebaseAuth, async (firebaseUser) => {
+    let lastUid = null
+    onIdTokenChanged(firebaseAuth, async (firebaseUser) => {
       if (firebaseUser) {
         user.value    = firebaseUser
         const idToken = await getIdToken(firebaseUser)
         setAuthToken(idToken)
-        await _fetchProfile(idToken)
+        if (firebaseUser.uid !== lastUid) {
+          lastUid = firebaseUser.uid
+          await _fetchProfile(idToken)
+        }
       } else {
+        lastUid = null
         user.value   = null
         role.value   = null
         city.value   = null
