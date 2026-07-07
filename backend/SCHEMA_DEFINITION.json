@@ -66,7 +66,7 @@
             "type": "text_marker_regex",
             "pattern": "webchat[\\-_]ui\\.citibot\\.(io|net)",
             "weight": 0.7,
-            "note": "Matches webchat-ui.citibot.net — confirmed embed subdomain for Lewisville deployment."
+            "note": "Matches webchat-ui.citibot.net \u2014 confirmed embed subdomain for Lewisville deployment."
           },
           {
             "type": "text_marker_regex",
@@ -238,6 +238,49 @@
             "type": "js_global_symbol",
             "pattern": "claude_agent|claudeAgent|ClaudeChat",
             "weight": 0.6
+          }
+        ]
+      },
+      {
+        "vendor_id": "elevenlabs_convai",
+        "display_name": "ElevenLabs Conversational AI (ConvAI widget)",
+        "category": "gov_ai_chatbot_llm",
+        "asset_types": [
+          "chatbot",
+          "virtual_assistant",
+          "voice_agent"
+        ],
+        "verification_status": "verified_observed",
+        "note": "Observed live on www.gptx.org (Grand Prairie) 2026-07-07: <elevenlabs-convai agent-id='agent_...'> custom element rendered in shadow DOM (no iframe), loader script https://unpkg.com/@elevenlabs/convai-widget-embed, runtime calls api.us.elevenlabs.io. Deployed by integrator WhitegloveAI (city announcement 2026-05-04). Opening widget shows T&C consent naming 'this AI agent'. Detection relies on host element tag + loader URL in rendered HTML; script host is generic unpkg.com so do NOT fingerprint unpkg.",
+        "indicators": [
+          {
+            "type": "text_marker_regex",
+            "pattern": "elevenlabs-convai",
+            "weight": 0.7,
+            "note": "Custom element tag in rendered HTML. Fires alone (>= 0.6 threshold)."
+          },
+          {
+            "type": "text_marker_regex",
+            "pattern": "convai-widget-embed|@elevenlabs/",
+            "weight": 0.5,
+            "note": "unpkg loader script URL fragment in HTML."
+          },
+          {
+            "type": "network_request_regex",
+            "pattern": "elevenlabs\\.io",
+            "weight": 0.6,
+            "note": "Runtime API host api.us.elevenlabs.io."
+          },
+          {
+            "type": "script_host_regex",
+            "pattern": "(^|\\.)elevenlabs\\.io",
+            "weight": 0.5
+          },
+          {
+            "type": "dom_selector",
+            "pattern": "elevenlabs-convai, [agent-id]",
+            "weight": 0.3,
+            "note": "agent-id attribute on host element."
           }
         ]
       },
