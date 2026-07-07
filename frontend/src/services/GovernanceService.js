@@ -97,6 +97,18 @@ const createTarget = (payload) => http.post('/targets', payload).then(r => r.dat
  */
 const deleteTarget = (id) => http.delete(`/targets/${id}`)
 
+/**
+ * Bulk-import targets (platform_admin only; 403 otherwise).
+ * Rows are validated/deduped server-side; import never scans automatically.
+ * @param {Array<{city: string, domain: string, url?: string, jurisdiction?: string,
+ *         tags?: string[], cloudflare_protected?: boolean}>} rows
+ * @returns {Promise<{added: number, added_cities: string[],
+ *          skipped: Array<{row: number, city: string, reason: string}>,
+ *          total_submitted: number}>}
+ */
+const bulkImportTargets = (rows) =>
+  http.post('/targets/bulk', { rows }, { timeout: 300000 }).then(r => r.data)
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Compliance Scorecard
 // ─────────────────────────────────────────────────────────────────────────────
@@ -288,6 +300,7 @@ export const GovernanceService = {
   getTargets,
   createTarget,
   deleteTarget,
+  bulkImportTargets,
   // Scorecard
   getScorecard,
   getScorecardSummary,

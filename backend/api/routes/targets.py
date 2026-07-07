@@ -6,11 +6,13 @@ Storage implementation is configured once in core/dependencies.py.
 """
 from __future__ import annotations
 
-from typing import List
+import re
+from typing import Any, Dict, List
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
+from core.access import resolve_principal
 from core.auth import get_current_user
 from core.dependencies import get_repository
 from core.governance_service import GovernanceRepository
@@ -83,6 +85,136 @@ def create_target(
         "cloudflare_protected": body.cloudflare_protected,
     })
     return created
+
+
+class BulkTargetRow(BaseModel):
+    city: str
+    domain: str
+    url: str = ""
+    jurisdiction: str = "TX"
+    tags: List[str] = []
+    cloudflare_protected: bool = False
+
+
+class BulkImportRequest(BaseModel):
+    rows: List[BulkTargetRow]
+
+
+_MAX_BULK_ROWS = 2000  # TAGITM full list is ~1,200; hard cap guards abuse
+
+
+def _norm_domain(raw: str) -> str:
+    """Normalize a domain for dedupe: strip scheme, path, port, www., case."""
+    d = (raw or "").strip().lower()
+    d = re.sub(r"^https?://", "", d)
+    d = d.split("/")[0].split(":")[0]
+    return re.sub(r"^www\.", "", d)
+
+
+@router.post("/bulk", status_code=201)
+def bulk_import_targets(
+    body: BulkImportRequest,
+    repo: GovernanceRepository = Depends(get_repository),
+    user: dict = Depends(get_current_user),
+):
+    """
+    Bulk-import audit targets (platform_admin ONLY).
+
+    Agencies own their cities one at a time; only the platform operator has a
+    legitimate reason to load a membership list (e.g. TAGITM ~1,200 cities).
+    Imported targets are created as not_assessed and are NOT scanned
+    automatically — scanning stays a deliberate action for proxy-cost control.
+
+    Per-row failures never abort the batch: each row is validated and deduped
+    independently and reported back in `skipped` with a reason.
+    """
+    principal = resolve_principal(user, repo)
+    if not principal.is_platform_admin:
+        raise HTTPException(status_code=403,
+                            detail="Bulk import is restricted to platform administrators")
+    if not body.rows:
+        raise HTTPException(status_code=400, detail="No rows submitted")
+    if len(body.rows) > _MAX_BULK_ROWS:
+        raise HTTPException(status_code=400,
+                            detail=f"Too many rows ({len(body.rows)}); max {_MAX_BULK_ROWS} per import")
+
+    existing = repo.get_targets()
+    seen_cities  = {str(t.get("city", "")).strip().lower() for t in existing}
+    seen_domains = {_norm_domain(str(t.get("domain", ""))) for t in existing}
+
+    added: List[str] = []
+    skipped: List[Dict[str, Any]] = []
+    placeholder_rows: List[Dict[str, Any]] = []
+
+    for i, row in enumerate(body.rows):
+        line = i + 1
+        city   = row.city.strip()
+        domain = _norm_domain(row.domain)
+        if not city or not domain or "." not in domain:
+            skipped.append({"row": line, "city": city or "(blank)",
+                            "reason": "missing or invalid city/domain"})
+            continue
+        if city.lower() in seen_cities:
+            skipped.append({"row": line, "city": city, "reason": "duplicate city"})
+            continue
+        if domain in seen_domains:
+            skipped.append({"row": line, "city": city,
+                            "reason": f"duplicate domain ({domain})"})
+            continue
+
+        url = row.url.strip() or f"https://{domain}"
+        try:
+            repo.add_target(
+                city=city,
+                jurisdiction=row.jurisdiction.strip() or "TX",
+                domain=domain,
+                url=url,
+                tags=row.tags,
+                cloudflare_protected=row.cloudflare_protected,
+            )
+        except Exception as exc:
+            skipped.append({"row": line, "city": city,
+                            "reason": f"storage error: {type(exc).__name__}"})
+            continue
+
+        seen_cities.add(city.lower())
+        seen_domains.add(domain)
+        added.append(city)
+        placeholder_rows.append({
+            "city":               city,
+            "jurisdiction":       row.jurisdiction.strip() or "TX",
+            "domain":             domain,
+            "ai_assets_detected": [],
+            "traiga_status":      "not_assessed",
+            "open_violations":    [],
+            "min_days_remaining": "",
+            "compliance_score":   "",
+            "band":               "",
+            "last_scanned_utc":   "",
+        })
+
+    # Instant dashboard visibility (same pattern as single create): imported
+    # cities appear as not_assessed rows until their first scan. Non-fatal.
+    if placeholder_rows:
+        try:
+            repo.write_scorecard_rows(placeholder_rows)
+        except Exception as exc:
+            print(f"[targets] WARN: bulk placeholder scorecard rows failed: "
+                  f"{type(exc).__name__}: {exc}")
+
+    _log_activity(repo, "targets_bulk_imported", {
+        "actor": user.get("email", "unknown"),
+        "summary": f"Bulk import: {len(added)} added, {len(skipped)} skipped "
+                   f"of {len(body.rows)} submitted",
+        "added_count": len(added),
+        "skipped_count": len(skipped),
+    })
+    return {
+        "added": len(added),
+        "added_cities": added,
+        "skipped": skipped,
+        "total_submitted": len(body.rows),
+    }
 
 
 @router.delete("/{target_id}", status_code=204)

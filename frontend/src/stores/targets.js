@@ -44,5 +44,17 @@ export const useTargetsStore = defineStore('targets', () => {
     items.value = items.value.filter(t => t.id !== id)
   }
 
-  return { items, loading, error, fetchTargets, addTarget, removeTarget }
+  /**
+   * Bulk-import parsed CSV rows (platform_admin only).
+   * Refreshes the registry afterwards so new rows appear immediately.
+   * @param {Array<object>} rows
+   * @returns {Promise<{added: number, added_cities: string[], skipped: Array, total_submitted: number}>}
+   */
+  async function bulkImport(rows) {
+    const result = await GovernanceService.bulkImportTargets(rows)
+    await fetchTargets()
+    return result
+  }
+
+  return { items, loading, error, fetchTargets, addTarget, removeTarget, bulkImport }
 })

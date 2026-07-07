@@ -7,9 +7,20 @@
           Municipal websites queued for compliance auditing
         </div>
       </div>
-      <v-btn color="primary" prepend-icon="mdi-plus" @click="addDialog = true">
-        Add Target
-      </v-btn>
+      <div class="d-flex ga-2">
+        <v-btn
+          v-if="auth.isPlatformAdmin"
+          color="secondary"
+          variant="tonal"
+          prepend-icon="mdi-upload-multiple"
+          @click="bulkDialog = true"
+        >
+          Bulk Import
+        </v-btn>
+        <v-btn color="primary" prepend-icon="mdi-plus" @click="addDialog = true">
+          Add Target
+        </v-btn>
+      </div>
     </div>
 
     <v-alert v-if="store.error" type="error" class="mb-4">{{ store.error }}</v-alert>
@@ -49,6 +60,9 @@
     <!-- Add City Dialog (reusable component) -->
     <AddCityDialog v-model="addDialog" />
 
+    <!-- Bulk CSV Import (platform_admin only; server enforces too) -->
+    <BulkImportDialog v-if="auth.isPlatformAdmin" v-model="bulkDialog" />
+
     <!-- Delete confirmation -->
     <v-dialog v-model="deleteDialog" max-width="400">
       <v-card>
@@ -70,9 +84,12 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useTargetsStore } from '../stores/targets'
+import { useAuthStore } from '../stores/auth'
 import AddCityDialog from '../components/AddCityDialog.vue'
+import BulkImportDialog from '../components/BulkImportDialog.vue'
 
 const store = useTargetsStore()
+const auth  = useAuthStore()
 
 const headers = [
   { title: 'City',         key: 'city',                  sortable: true  },
@@ -86,6 +103,7 @@ const headers = [
 ]
 
 const addDialog    = ref(false)
+const bulkDialog   = ref(false)
 const deleteDialog = ref(false)
 const deleteTarget = ref(null)
 const deleting     = ref(false)

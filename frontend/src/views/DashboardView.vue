@@ -63,7 +63,7 @@
         <TexasComplianceMap :rows="store.rows" />
       </v-col>
       <v-col cols="12" md="5">
-        <TrendChart />
+        <CureCountdownPanel />
       </v-col>
     </v-row>
 
@@ -188,7 +188,7 @@ import ComplianceStatusChip from '../components/ComplianceStatusChip.vue'
 import CurePeriodGauge from '../components/CurePeriodGauge.vue'
 import AddCityDialog from '../components/AddCityDialog.vue'
 import TexasComplianceMap from '../components/TexasComplianceMap.vue'
-import TrendChart from '../components/TrendChart.vue'
+import CureCountdownPanel from '../components/CureCountdownPanel.vue'
 import { useReportsStore } from '../stores/reports'
 
 const store      = useScorecardStore()
