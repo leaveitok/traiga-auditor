@@ -45,6 +45,18 @@ export const useTargetsStore = defineStore('targets', () => {
   }
 
   /**
+   * Update scan settings (cloudflare flag, tags, url) on a target.
+   * @param {string} id
+   * @param {{cloudflare_protected?: boolean, tags?: string[], url?: string}} patch
+   */
+  async function updateTarget(id, patch) {
+    const result = await GovernanceService.updateTarget(id, patch)
+    const t = items.value.find(x => x.id === id)
+    if (t) Object.assign(t, patch)
+    return result
+  }
+
+  /**
    * Bulk-import parsed CSV rows (platform_admin only).
    * Refreshes the registry afterwards so new rows appear immediately.
    * @param {Array<object>} rows
@@ -56,5 +68,5 @@ export const useTargetsStore = defineStore('targets', () => {
     return result
   }
 
-  return { items, loading, error, fetchTargets, addTarget, removeTarget, bulkImport }
+  return { items, loading, error, fetchTargets, addTarget, removeTarget, updateTarget, bulkImport }
 })

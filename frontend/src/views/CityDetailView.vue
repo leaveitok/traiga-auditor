@@ -87,6 +87,37 @@
                   AI Use Policy
                 </v-btn>
               </template>
+
+              <!-- Scan Settings (platform admin): edit target flags post-creation.
+                   Primary use: mark a WAF-blocked city cloudflare_protected so
+                   nightly bulk runs skip it and Deep Scan results survive. -->
+              <v-menu v-if="auth.isPlatformAdmin && targetRow" :close-on-content-click="false">
+                <template #activator="{ props }">
+                  <v-btn v-bind="props" variant="tonal" icon="mdi-cog-outline"
+                         size="small" title="Scan Settings" />
+                </template>
+                <v-card min-width="340" class="pa-2">
+                  <v-card-title class="text-subtitle-2">Scan Settings</v-card-title>
+                  <v-card-text class="pt-0">
+                    <v-switch
+                      :model-value="cfProtected"
+                      color="warning"
+                      density="compact"
+                      hide-details
+                      :loading="savingSettings"
+                      label="WAF / Cloudflare-protected site"
+                      @update:model-value="saveCfFlag"
+                    />
+                    <div class="text-caption text-medium-emphasis mt-1">
+                      Excluded from scheduled bulk scans; assess via Deep Scan or
+                      on-demand re-audit. Prevents automated failures from
+                      overwriting verified Deep Scan results.
+                    </div>
+                    <v-alert v-if="settingsError" type="error" density="compact"
+                             variant="tonal" class="mt-2">{{ settingsError }}</v-alert>
+                  </v-card-text>
+                </v-card>
+              </v-menu>
             </div>
           </div>
         </v-card-text>
@@ -326,14 +357,47 @@ import AuditRunButton from '../components/AuditRunButton.vue'
 import AiInventoryPanel from '../components/AiInventoryPanel.vue'
 import { useReportsStore } from '../stores/reports'
 import { useRemediationStore } from '../stores/remediation'
+import { useTargetsStore } from '../stores/targets'
+import { useAuthStore } from '../stores/auth'
 
 const route    = useRoute()
 const scStore  = useScorecardStore()
 const vStore   = useViolationsStore()
 const rStore   = useReportsStore()
 const remStore = useRemediationStore()
+const tStore   = useTargetsStore()
+const auth     = useAuthStore()
 const loading  = ref(true)
 const snackbar = reactive({ show: false, text: '', color: 'success' })
+
+// ── Scan Settings (platform admin) ──────────────────────────────────────────
+const savingSettings = ref(false)
+const settingsError  = ref('')
+
+/** Registry target backing this city (matched by city name, case-insensitive). */
+const targetRow = computed(() =>
+  tStore.items.find(t => String(t.city).toLowerCase() === String(cityName.value).toLowerCase()) || null)
+
+const cfProtected = computed(() => {
+  const v = targetRow.value?.cloudflare_protected
+  return v === true || v === 'true'
+})
+
+async function saveCfFlag(val) {
+  if (!targetRow.value) return
+  savingSettings.value = true
+  settingsError.value = ''
+  try {
+    await tStore.updateTarget(targetRow.value.id, { cloudflare_protected: !!val })
+    snackbar.text = `${cityName.value} marked ${val ? 'WAF-protected — excluded from bulk scans' : 'normal — included in bulk scans'}`
+    snackbar.color = 'success'
+    snackbar.show = true
+  } catch (e) {
+    settingsError.value = e.response?.data?.detail || e.message
+  } finally {
+    savingSettings.value = false
+  }
+}
 
 /** Tracks spinner state without a local ref — store owns this. */
 const generatingReport = computed(() => rStore.isGenerating(cityName.value))
@@ -346,7 +410,7 @@ async function refresh() {
 
 const deepScanPrompt = computed(() => {
   const domain = cityRow.value?.domain || ''
-  return `Please deep scan ${cityName.value} for TRAIGA AI compliance.\n\nDomain: ${domain}\n\nUse Claude in Chrome to:\n1. Navigate to ${domain || 'the city domain'}\n2. Extract all script sources, iframe origins, cookie names, visible AI disclosure text, and network requests\n3. POST the results to http://localhost:8000/api/audit/chrome-capture with persist=true, city="${cityName.value}", jurisdiction="TX"\n\nThen let me know the results.`
+  return `Please deep scan ${cityName.value} for TRAIGA AI compliance.\n\nDomain: ${domain}\n\nUse Claude in Chrome to:\n1. Navigate to ${domain || 'the city domain'}\n2. Extract all script sources, iframe origins, shadow-DOM widgets, visible AI disclosure text, and network request hosts\n3. POST the results to ${window.location.origin}/api/audit/chrome-capture with persist=true, city="${cityName.value}", jurisdiction="TX", domain="${domain}" (authenticate with my dashboard session)\n\nThen let me know the results, and remind me to mark the city WAF-protected in Scan Settings so the nightly scan doesn't overwrite the result.`
 })
 
 async function copyPrompt() {
@@ -459,7 +523,7 @@ const assetIcon = (asset) => {
 onMounted(async () => {
   // Always fetch fresh — data may have changed via Deep Scan or re-audit
   // since the store was last populated. Backend TTL cache keeps Sheets calls cheap.
-  await Promise.all([scStore.fetchScorecard(), vStore.fetchViolations()])
+  await Promise.all([scStore.fetchScorecard(), vStore.fetchViolations(), tStore.fetchTargets()])
   loading.value = false
 })
 </script>

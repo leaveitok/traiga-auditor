@@ -43,9 +43,17 @@
           </v-icon>
         </template>
         <template #item.cloudflare_protected="{ item }">
-          <v-icon v-if="item.cloudflare_protected === true || item.cloudflare_protected === 'true'"
-                  color="warning" size="small">mdi-shield-lock-outline</v-icon>
-          <span v-else class="text-medium-emphasis text-caption">—</span>
+          <!-- Platform admins can toggle the WAF flag inline; others see status only -->
+          <v-btn v-if="auth.isPlatformAdmin"
+                 :icon="isCf(item) ? 'mdi-shield-lock-outline' : 'mdi-shield-outline'"
+                 :color="isCf(item) ? 'warning' : 'default'"
+                 variant="text" size="small"
+                 :title="isCf(item) ? 'WAF-protected — excluded from bulk scans (click to clear)' : 'Mark WAF-protected (exclude from bulk scans)'"
+                 @click="toggleCf(item)" />
+          <template v-else>
+            <v-icon v-if="isCf(item)" color="warning" size="small">mdi-shield-lock-outline</v-icon>
+            <span v-else class="text-medium-emphasis text-caption">—</span>
+          </template>
         </template>
         <template #item.domain="{ item }">
           <a :href="item.domain" target="_blank" class="text-primary">{{ item.domain }}</a>
@@ -110,6 +118,19 @@ const deleting     = ref(false)
 
 const parseTags = (raw) => {
   try { return JSON.parse(raw) } catch { return raw?.split(',').map(t => t.trim()).filter(Boolean) || [] }
+}
+
+const isCf = (item) =>
+  item.cloudflare_protected === true || item.cloudflare_protected === 'true'
+
+async function toggleCf(item) {
+  const next = !isCf(item)
+  try {
+    await store.updateTarget(item.id, { cloudflare_protected: next })
+    item.cloudflare_protected = next
+  } catch (e) {
+    store.error = e.response?.data?.detail || e.message
+  }
 }
 
 function confirmDelete(item) {

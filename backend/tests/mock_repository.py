@@ -86,6 +86,18 @@ class MockGovernanceRepository:
                 return True
         return False
 
+    def update_target(self, target_id: str, fields: dict) -> bool:
+        for t in self._targets:
+            if t.get("id") == target_id:
+                if "cloudflare_protected" in fields:
+                    t["cloudflare_protected"] = bool(fields["cloudflare_protected"])
+                if "tags" in fields:
+                    t["tags"] = list(fields["tags"])
+                if "url" in fields and str(fields["url"]).strip():
+                    t["url"] = str(fields["url"]).strip()
+                return True
+        return False
+
     # ── Scorecard ─────────────────────────────────────────────────────────────
 
     def get_scorecard(self) -> List[Dict[str, Any]]:

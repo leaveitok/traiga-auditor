@@ -69,6 +69,15 @@ class GovernanceRepository(Protocol):
         """
         ...
 
+    def update_target(self, target_id: str, fields: Dict[str, Any]) -> bool:
+        """
+        Update mutable scan settings on an existing target.
+        Supported keys: cloudflare_protected (bool), tags (List[str]), url (str).
+        Returns True if found and updated, False if not found.
+        Route layer enforces platform_admin before calling.
+        """
+        ...
+
     # ── Compliance Scorecard ─────────────────────────────────────────────────
 
     def get_scorecard(self) -> List[Dict[str, Any]]:

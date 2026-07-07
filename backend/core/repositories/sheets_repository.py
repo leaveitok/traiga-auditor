@@ -302,6 +302,43 @@ class SheetsRepository:
                     return True
         return False
 
+    def update_target(self, target_id: str, fields: Dict[str, Any]) -> bool:
+        """Update mutable scan settings; per-column writes, same pattern as deactivate."""
+        self._invalidate(config.SHEET_TARGETS)
+        result = self._execute(self._sheet.values().get(
+            spreadsheetId=config.SPREADSHEET_ID,
+            range=self._range(config.SHEET_TARGETS),
+        ))
+        rows = result.get("values", [])
+        if not rows:
+            return False
+        headers = rows[0]
+        id_col = headers.index("id") if "id" in headers else -1
+        # column name -> string value (Sheets contract: everything is a string)
+        col_values: Dict[str, str] = {}
+        if "cloudflare_protected" in fields:
+            col_values["cloudflare_protected"] = str(bool(fields["cloudflare_protected"])).lower()
+        if "tags" in fields:
+            col_values["tags"] = json.dumps(list(fields["tags"]))
+        if "url" in fields and str(fields["url"]).strip():
+            col_values["url"] = str(fields["url"]).strip()
+        if not col_values:
+            return True
+        for i, row in enumerate(rows[1:], start=2):
+            if id_col >= 0 and len(row) > id_col and row[id_col] == target_id:
+                for col_name, value in col_values.items():
+                    if col_name not in headers:
+                        continue
+                    col_letter = chr(ord("A") + headers.index(col_name))
+                    self._execute(self._sheet.values().update(
+                        spreadsheetId=config.SPREADSHEET_ID,
+                        range=self._range(config.SHEET_TARGETS, f"{col_letter}{i}"),
+                        valueInputOption="RAW",
+                        body={"values": [[value]]},
+                    ))
+                return True
+        return False
+
     def get_scorecard(self) -> List[Dict[str, Any]]:
         # TODO: scope to requesting user's jurisdiction (auth placeholder)
         return self._cached_read(config.SHEET_SCORECARD)

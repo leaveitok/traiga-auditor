@@ -145,6 +145,24 @@ class FirestoreRepository:
         ref.update({"active": "false"})
         return True
 
+    def update_target(self, target_id: str, fields: Dict[str, Any]) -> bool:
+        """Update mutable scan settings. All values stored as strings (Sheets contract)."""
+        ref = self._db.collection(COLL_TARGETS).document(_doc_id(target_id))
+        snap = ref.get()
+        if not snap.exists:
+            return False
+        update: Dict[str, Any] = {}
+        if "cloudflare_protected" in fields:
+            update["cloudflare_protected"] = str(bool(fields["cloudflare_protected"])).lower()
+        if "tags" in fields:
+            update["tags"] = json.dumps(list(fields["tags"]))
+        if "url" in fields and str(fields["url"]).strip():
+            update["url"] = str(fields["url"]).strip()
+        if not update:
+            return True  # nothing to change is not an error
+        ref.update(update)
+        return True
+
     def get_scorecard(self) -> List[Dict[str, Any]]:
         # TODO: scope to requesting user's jurisdiction (auth placeholder)
         return self._read_all(COLL_SCORECARD)

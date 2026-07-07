@@ -109,6 +109,14 @@ const deleteTarget = (id) => http.delete(`/targets/${id}`)
 const bulkImportTargets = (rows) =>
   http.post('/targets/bulk', { rows }, { timeout: 300000 }).then(r => r.data)
 
+/**
+ * Update scan settings on a target (platform_admin only; 403 otherwise).
+ * @param {string} id
+ * @param {{cloudflare_protected?: boolean, tags?: string[], url?: string}} patch
+ */
+const updateTarget = (id, patch) =>
+  http.patch(`/targets/${encodeURIComponent(id)}`, patch).then(r => r.data)
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Compliance Scorecard
 // ─────────────────────────────────────────────────────────────────────────────
@@ -301,6 +309,7 @@ export const GovernanceService = {
   createTarget,
   deleteTarget,
   bulkImportTargets,
+  updateTarget,
   // Scorecard
   getScorecard,
   getScorecardSummary,

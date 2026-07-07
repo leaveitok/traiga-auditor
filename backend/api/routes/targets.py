@@ -7,7 +7,7 @@ Storage implementation is configured once in core/dependencies.py.
 from __future__ import annotations
 
 import re
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -215,6 +215,52 @@ def bulk_import_targets(
         "skipped": skipped,
         "total_submitted": len(body.rows),
     }
+
+
+class TargetUpdate(BaseModel):
+    """Partial update of mutable scan settings. Omitted fields are unchanged."""
+    cloudflare_protected: Optional[bool] = None
+    tags: Optional[List[str]] = None
+    url: Optional[str] = None
+
+
+@router.patch("/{target_id}")
+def update_target(
+    target_id: str,
+    body: TargetUpdate,
+    repo: GovernanceRepository = Depends(get_repository),
+    user: dict = Depends(get_current_user),
+):
+    """
+    Edit scan settings on an existing target (platform_admin ONLY).
+
+    Primary use: flag a city cloudflare_protected=true after a WAF-blocked
+    scan, so the nightly scheduler excludes it from bulk runs and its
+    Deep Scan result is not overwritten by the next automated failure.
+    """
+    principal = resolve_principal(user, repo)
+    if not principal.is_platform_admin:
+        raise HTTPException(status_code=403,
+                            detail="Target settings are restricted to platform administrators")
+    fields: Dict[str, Any] = {}
+    if body.cloudflare_protected is not None:
+        fields["cloudflare_protected"] = body.cloudflare_protected
+    if body.tags is not None:
+        fields["tags"] = body.tags
+    if body.url is not None:
+        fields["url"] = body.url
+    if not fields:
+        raise HTTPException(status_code=400, detail="No fields to update")
+    ok = repo.update_target(target_id, fields)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Target not found")
+    _log_activity(repo, "target_updated", {
+        "actor": user.get("email", "unknown"),
+        "summary": f"Updated target {target_id}: {', '.join(fields)}",
+        "target_id": target_id,
+        "fields": {k: str(v) for k, v in fields.items()},
+    })
+    return {"id": target_id, "updated": sorted(fields)}
 
 
 @router.delete("/{target_id}", status_code=204)
