@@ -48,6 +48,7 @@ COLL_AUDIT_LOG  = "audit_log"
 COLL_USERS      = "users"
 COLL_AGENCIES   = "agencies"
 COLL_AI_ASSETS  = "ai_assets"
+COLL_SAFE_HARBOR = "safe_harbor"
 
 # google-cloud-firestore's Query.DESCENDING is literally this string; using the
 # literal keeps every method testable against a fake client without the SDK.
@@ -162,6 +163,23 @@ class FirestoreRepository:
             return True  # nothing to change is not an error
         ref.update(update)
         return True
+
+    # ── Safe Harbor (Municipal AI Profile attestations) ─────────────────────
+
+    def get_safe_harbor(self, city: str) -> List[Dict[str, Any]]:
+        rows = self._read_all(COLL_SAFE_HARBOR)
+        return [r for r in rows
+                if str(r.get("city", "")).lower() == city.lower()]
+
+    def upsert_safe_harbor(self, record: Dict[str, Any]) -> Dict[str, Any]:
+        city = str(record.get("city", "")).strip()
+        control_id = str(record.get("control_id", "")).strip()
+        if not city or not control_id:
+            raise ValueError("city and control_id are required")
+        doc_key = _doc_id(f"{city}|{control_id}")
+        self._db.collection(COLL_SAFE_HARBOR).document(doc_key).set(
+            self._stringify(record))
+        return record
 
     def get_scorecard(self) -> List[Dict[str, Any]]:
         # TODO: scope to requesting user's jurisdiction (auth placeholder)

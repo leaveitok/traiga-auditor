@@ -536,5 +536,150 @@
       "by": "min_days_remaining",
       "order": "asc"
     }
+  },
+  "Safe_Harbor_Module": {
+    "module_description": "Municipal AI Profile v1.0 \u2014 a right-sized profile of the NIST AI Risk Management Framework (AI RMF 1.0 core functions + Generative AI Profile, NIST AI 600-1) for Texas municipalities. Powers the TRAIGA safe-harbor readiness checklist and the Alignment Statement generator.",
+    "legal_basis": {
+      "citation": "Tex. Bus. & Com. Code Sec. 552.105(c)-(e) (HB 149 enrolled)",
+      "verified": "2026-07-07 against enrolled HB 149 text, capitol.texas.gov/tlodocs/89R/billtext/html/HB00149F.htm",
+      "mechanism": "552.105(c): rebuttable presumption of reasonable care. 552.105(e): no liability where the defendant discovered the violation through (B) testing, including adversarial testing, or (D) an internal review process substantially complying with the most recent NIST 'Artificial Intelligence Risk Management Framework: Generative Artificial Intelligence Profile' or another nationally or internationally recognized AI risk management framework.",
+      "product_theory": "The external scanner IS 552.105(e)(B) testing; the profile checklist + scan cadence + cure loop IS the (e)(D) internal review process. Evidence is machine-verified where possible, attested otherwise.",
+      "disclaimer": "Engineering artifact, not legal advice. Alignment Statements require counsel review before use."
+    },
+    "profile_name": "Municipal AI Profile",
+    "profile_version": "1.0",
+    "readiness_bands": {
+      "ready": 0.85,
+      "partial": 0.5
+    },
+    "controls": [
+      {
+        "control_id": "SH-GOV-01",
+        "function": "govern",
+        "title": "Accountable AI official designated",
+        "plain": "One named person owns AI governance for the city.",
+        "nist_ref": "AI RMF GOVERN 2.1",
+        "evidence": "attested",
+        "attest_hint": "Name the role (e.g., CIO) in the notes; update when the role changes."
+      },
+      {
+        "control_id": "SH-GOV-02",
+        "function": "govern",
+        "title": "AI use policy adopted",
+        "plain": "The city has a written AI use policy in force.",
+        "nist_ref": "AI RMF GOVERN 1.2",
+        "evidence": "attested",
+        "attest_hint": "Generate a draft with the AI Use Policy button, then attest adoption with date/authority."
+      },
+      {
+        "control_id": "SH-GOV-03",
+        "function": "govern",
+        "title": "Staff acceptable-use rules communicated",
+        "plain": "Employees know what AI tools they may and may not use.",
+        "nist_ref": "AI RMF GOVERN 4.1",
+        "evidence": "attested",
+        "attest_hint": "Reference the training/communication date and channel."
+      },
+      {
+        "control_id": "SH-GOV-04",
+        "function": "govern",
+        "title": "Governance decisions leave an audit trail",
+        "plain": "Actions in the registry are logged: who did what, when.",
+        "nist_ref": "AI RMF GOVERN 1.5",
+        "evidence": "machine",
+        "evaluator": "audit_trail_active"
+      },
+      {
+        "control_id": "SH-MAP-01",
+        "function": "map",
+        "title": "AI inventory exists and is current",
+        "plain": "The city keeps a live list of its AI systems.",
+        "nist_ref": "AI RMF MAP 1.1",
+        "evidence": "machine",
+        "evaluator": "inventory_current"
+      },
+      {
+        "control_id": "SH-MAP-02",
+        "function": "map",
+        "title": "Each AI system has documented purpose and owner",
+        "plain": "Every AI system on the list says what it's for and who owns it.",
+        "nist_ref": "AI RMF MAP 1.6",
+        "evidence": "machine",
+        "evaluator": "attestation_coverage"
+      },
+      {
+        "control_id": "SH-MAP-03",
+        "function": "map",
+        "title": "Public-facing AI is actively discovered",
+        "plain": "The city's website is scanned for AI it may not know it has, including vendor-embedded tools.",
+        "nist_ref": "AI RMF MAP 4.1 (third-party)",
+        "evidence": "machine",
+        "evaluator": "city_assessed"
+      },
+      {
+        "control_id": "SH-MEA-01",
+        "function": "measure",
+        "title": "Disclosure compliance is tested against HB 149",
+        "plain": "Every public AI is checked for the state-required 'you are talking to an AI' notice.",
+        "nist_ref": "GAI Profile MS-2.5 / AI RMF MEASURE 2.5",
+        "evidence": "machine",
+        "evaluator": "disclosure_tested"
+      },
+      {
+        "control_id": "SH-MEA-02",
+        "function": "measure",
+        "title": "Monitoring runs on a recurring cadence",
+        "plain": "Checks happen automatically on a schedule, not once a year.",
+        "nist_ref": "AI RMF MEASURE 1.1",
+        "evidence": "machine",
+        "evaluator": "monitoring_cadence"
+      },
+      {
+        "control_id": "SH-MEA-03",
+        "function": "measure",
+        "title": "Employee AI usage has visibility",
+        "plain": "The city can see when staff use AI tools with city data (Sentinel), or has a stated interim process.",
+        "nist_ref": "GAI Profile GV-6.2 / MEASURE 2.10",
+        "evidence": "hybrid",
+        "evaluator": "sentinel_active",
+        "attest_hint": "If Sentinel is not yet deployed, attest the interim process (e.g., policy + spot checks)."
+      },
+      {
+        "control_id": "SH-MAN-01",
+        "function": "manage",
+        "title": "Findings are tracked with statutory cure deadlines",
+        "plain": "Every problem found gets a 60-day legal clock and is tracked to closure.",
+        "nist_ref": "AI RMF MANAGE 1.3",
+        "evidence": "machine",
+        "evaluator": "cure_tracking"
+      },
+      {
+        "control_id": "SH-MAN-02",
+        "function": "manage",
+        "title": "Remediation completes within the cure window",
+        "plain": "Problems get fixed before the legal deadline expires.",
+        "nist_ref": "AI RMF MANAGE 2.2",
+        "evidence": "machine",
+        "evaluator": "remediation_current"
+      },
+      {
+        "control_id": "SH-MAN-03",
+        "function": "manage",
+        "title": "AI incident and complaint intake exists",
+        "plain": "Residents and staff have a way to report AI problems, and reports get handled.",
+        "nist_ref": "GAI Profile MG-4.1",
+        "evidence": "attested",
+        "attest_hint": "Reference the intake channel (311, web form, email) and the owning department."
+      },
+      {
+        "control_id": "SH-MAN-04",
+        "function": "manage",
+        "title": "Vendor AI is reviewed before and during use",
+        "plain": "AI bought from vendors gets a look-over: what data it touches and what the contract says.",
+        "nist_ref": "AI RMF MANAGE 3.1",
+        "evidence": "attested",
+        "attest_hint": "Reference the procurement review step or contract clause used."
+      }
+    ]
   }
 }

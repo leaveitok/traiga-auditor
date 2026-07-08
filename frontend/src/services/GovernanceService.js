@@ -241,6 +241,26 @@ const downloadReport = (city) =>
   }).then(r => r.data)
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Safe Harbor (Municipal AI Profile — Tex. Bus. & Com. Code § 552.105)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Readiness checklist + function scores for a city. */
+const getSafeHarbor = (city) =>
+  http.get(`/safeharbor/${encodeURIComponent(city)}`).then(r => r.data)
+
+/** Attest or clear a control (platform_admin / agency_admin for the city). */
+const attestSafeHarbor = (city, controlId, status = 'attested', notes = '') =>
+  http.post(`/safeharbor/${encodeURIComponent(city)}/attest`,
+            { control_id: controlId, status, notes }).then(r => r.data)
+
+/** Download the NIST AI RMF Alignment Statement (.docx) as a Blob. */
+const downloadAlignmentStatement = (city) =>
+  http.get(`/safeharbor/${encodeURIComponent(city)}/statement`, {
+    responseType: 'blob',
+    timeout: 120000,
+  }).then(r => r.data)
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Scheduler Status
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -337,6 +357,10 @@ export const GovernanceService = {
   submitDeepScan,
   // Reports
   downloadReport,
+  // Safe Harbor
+  getSafeHarbor,
+  attestSafeHarbor,
+  downloadAlignmentStatement,
   // Remediation
   downloadPolicy,
   // Sentinel (internal DLP)

@@ -39,7 +39,7 @@ from core import config
 from core.dependencies import get_repository, limiter
 from api.routes import (health, targets, audit, scorecard, violations, logs,
                         reports, auth_routes, remediation, sentinel, agencies,
-                        inventory)
+                        inventory, safeharbor)
 
 
 # ── Lifespan handler (replaces deprecated @app.on_event) ─────────────────────
@@ -115,7 +115,8 @@ app.add_middleware(SlowAPIMiddleware)
 for router in [health.router, targets.router, audit.router,
                scorecard.router, violations.router, logs.router,
                reports.router, auth_routes.router, remediation.router,
-               sentinel.router, agencies.router, inventory.router]:
+               sentinel.router, agencies.router, inventory.router,
+               safeharbor.router]:
     app.include_router(router, prefix="/api")
 
 

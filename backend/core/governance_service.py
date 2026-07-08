@@ -78,6 +78,16 @@ class GovernanceRepository(Protocol):
         """
         ...
 
+    # ── Safe Harbor (Municipal AI Profile attestations) ──────────────────────
+
+    def get_safe_harbor(self, city: str) -> List[Dict[str, Any]]:
+        """All safe-harbor attestation records for a city (one per control)."""
+        ...
+
+    def upsert_safe_harbor(self, record: Dict[str, Any]) -> Dict[str, Any]:
+        """Write an attestation record keyed by (city, control_id)."""
+        ...
+
     # ── Compliance Scorecard ─────────────────────────────────────────────────
 
     def get_scorecard(self) -> List[Dict[str, Any]]:

@@ -339,6 +339,25 @@ class SheetsRepository:
                 return True
         return False
 
+    # ── Safe Harbor (Municipal AI Profile attestations) ─────────────────────
+
+    def get_safe_harbor(self, city: str) -> List[Dict[str, Any]]:
+        rows = self._cached_read("SafeHarbor", ttl=60)
+        return [r for r in rows
+                if str(r.get("city", "")).lower() == city.lower()]
+
+    def upsert_safe_harbor(self, record: Dict[str, Any]) -> Dict[str, Any]:
+        city = str(record.get("city", "")).strip()
+        control_id = str(record.get("control_id", "")).strip()
+        if not city or not control_id:
+            raise ValueError("city and control_id are required")
+        self._invalidate("SafeHarbor")
+        key = f"{city}|{control_id}"
+        self._upsert_by_key("SafeHarbor", "record_key", key,
+                            {"record_key": key,
+                             **{k: str(v) for k, v in record.items()}})
+        return record
+
     def get_scorecard(self) -> List[Dict[str, Any]]:
         # TODO: scope to requesting user's jurisdiction (auth placeholder)
         return self._cached_read(config.SHEET_SCORECARD)

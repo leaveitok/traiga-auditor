@@ -240,6 +240,9 @@
           <!-- AI Use-Case Inventory (this city) -->
           <div class="mt-4">
             <AiInventoryPanel :city="cityName" />
+
+            <!-- TRAIGA Safe Harbor readiness (Municipal AI Profile / NIST AI RMF) -->
+            <SafeHarborPanel :city="cityName" />
           </div>
 
         </v-col>
@@ -355,6 +358,7 @@ import ComplianceStatusChip from '../components/ComplianceStatusChip.vue'
 import CurePeriodGauge from '../components/CurePeriodGauge.vue'
 import AuditRunButton from '../components/AuditRunButton.vue'
 import AiInventoryPanel from '../components/AiInventoryPanel.vue'
+import SafeHarborPanel from '../components/SafeHarborPanel.vue'
 import { useReportsStore } from '../stores/reports'
 import { useRemediationStore } from '../stores/remediation'
 import { useTargetsStore } from '../stores/targets'

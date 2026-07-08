@@ -209,6 +209,23 @@ class MockGovernanceRepository:
         self._agencies.append(row)
         return row
 
+    # ── Safe Harbor (Municipal AI Profile attestations) ───────────────────────
+
+    def get_safe_harbor(self, city: str) -> List[Dict[str, Any]]:
+        return [r for r in getattr(self, "_safe_harbor", [])
+                if str(r.get("city", "")).lower() == city.lower()]
+
+    def upsert_safe_harbor(self, record: Dict[str, Any]) -> Dict[str, Any]:
+        if not record.get("city") or not record.get("control_id"):
+            raise ValueError("city and control_id are required")
+        if not hasattr(self, "_safe_harbor"):
+            self._safe_harbor = []
+        key = (record["city"].lower(), record["control_id"])
+        self._safe_harbor = [r for r in self._safe_harbor
+                             if (r["city"].lower(), r["control_id"]) != key]
+        self._safe_harbor.append(dict(record))
+        return record
+
     # ── AI Use-Case Inventory ─────────────────────────────────────────────────
 
     def get_ai_assets(self, city: Optional[str] = None) -> List[Dict[str, Any]]:
