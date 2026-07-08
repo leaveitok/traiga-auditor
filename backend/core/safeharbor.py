@@ -92,6 +92,12 @@ def _monitoring_cadence(ctx: Dict[str, Any]) -> Optional[bool]:
 
 
 def _sentinel_active(ctx: Dict[str, Any]) -> Optional[bool]:
+    # Sentinel-fed usage assets in the registry prove employee-AI visibility
+    # (inside-out discovery synced within the last 30 days).
+    for a in ctx.get("assets") or []:
+        if str(a.get("provenance", "")) == "discovered_sentinel" \
+                and _within(a.get("last_observed_utc"), 30):
+            return True
     devices = ctx.get("sentinel_devices")
     if devices is None:
         return None            # cannot determine -> attestation fallback

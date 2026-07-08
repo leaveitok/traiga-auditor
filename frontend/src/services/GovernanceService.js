@@ -181,6 +181,10 @@ const declareAsset = (payload) =>
 const updateAsset = (assetKey, patch) =>
   http.patch(`/inventory/${encodeURIComponent(assetKey)}`, patch).then(r => r.data)
 
+/** Merge Sentinel staff-usage telemetry into the registry (platform_admin). */
+const syncSentinelUsage = () =>
+  http.post('/inventory/sync-sentinel', {}, { timeout: 120000 }).then(r => r.data)
+
 // ── Admin: users & agencies ──────────────────────────────────────────────────
 const getMe        = ()       => http.get('/auth/me').then(r => r.data)
 const getUsers     = ()       => http.get('/auth/users').then(r => r.data)
@@ -362,6 +366,7 @@ export const GovernanceService = {
   getInventory,
   declareAsset,
   updateAsset,
+  syncSentinelUsage,
   // Admin (users & agencies)
   getMe,
   getUsers,

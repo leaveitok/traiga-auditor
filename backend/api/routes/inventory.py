@@ -21,8 +21,9 @@ from pydantic import BaseModel
 
 from core.access import Principal, filter_rows, resolve_principal
 from core.auth import get_current_user
-from core.dependencies import get_repository
+from core.dependencies import get_repository, get_sentinel_repository
 from core.governance_service import GovernanceRepository
+from core.sentinel_feed import sync_to_inventory
 
 router = APIRouter(prefix="/inventory", tags=["inventory"])
 
@@ -126,6 +127,36 @@ def list_inventory(
     rows = filter_rows(repo.get_ai_assets(city=city), principal)
     open_idx = _open_violation_index(repo)
     return [_enrich(r, open_idx) for r in rows]
+
+
+@router.post("/sync-sentinel")
+def sync_sentinel_usage(
+    user: dict = Depends(get_current_user),
+    repo: GovernanceRepository = Depends(get_repository),
+    sentinel_repo=Depends(get_sentinel_repository),
+):
+    """
+    Inside-out discovery: pull Sentinel DLP telemetry and merge staff AI-usage
+    assets (provenance=discovered_sentinel) into the registry. platform_admin
+    only — telemetry spans the whole fleet. Untagged events are skipped
+    fail-secure, never guessed into a city.
+    """
+    principal = resolve_principal(user, repo)
+    if not principal.is_platform_admin:
+        raise HTTPException(status_code=403,
+                            detail="Sentinel sync is restricted to platform administrators")
+    result = sync_to_inventory(repo, sentinel_repo)
+    try:
+        repo.append_audit_log(event="sentinel_usage_synced", city_count=len(result["cities"]),
+                              failures=len(result["errors"]), details={
+            "actor": user.get("email", "unknown"),
+            "summary": f"Sentinel usage sync: {result['synced']} assets across "
+                       f"{len(result['cities'])} cities; "
+                       f"{result['skipped_untagged_events']} untagged events skipped",
+        })
+    except Exception as exc:
+        print(f"[inventory] WARN: audit log failed: {type(exc).__name__}: {exc}")
+    return result
 
 
 class DeclareAsset(BaseModel):

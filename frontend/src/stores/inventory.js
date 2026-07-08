@@ -50,9 +50,14 @@ export const useInventoryStore = defineStore('inventory', () => {
     return saved
   }
 
+  /** Merge Sentinel staff-usage telemetry into the registry (platform admin). */
+  async function syncSentinel() {
+    return GovernanceService.syncSentinelUsage()
+  }
+
   return {
     assets, loading, error,
     needsAttestation, attested, undisclosed, active,
-    fetchInventory, declare, update,
+    fetchInventory, declare, update, syncSentinel,
   }
 })

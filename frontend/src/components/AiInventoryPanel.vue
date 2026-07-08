@@ -58,6 +58,15 @@
           </v-btn>
           <v-btn v-if="canWrite" color="primary" prepend-icon="mdi-plus"
                  @click="openDeclare">Declare AI System</v-btn>
+          <!-- Inside-out discovery: merge Sentinel staff-usage telemetry into the registry -->
+          <v-tooltip v-if="auth.isPlatformAdmin" location="bottom" max-width="320"
+                     text="Pull Sentinel browser-DLP telemetry and add staff AI usage (ChatGPT, Claude, Gemini...) to the registry as discovered assets.">
+            <template #activator="{ props: tp }">
+              <v-btn v-bind="tp" variant="tonal" color="deep-purple" size="small"
+                     prepend-icon="mdi-monitor-eye" :loading="syncing"
+                     @click="syncSentinel">Sync Staff Usage</v-btn>
+            </template>
+          </v-tooltip>
           <v-btn icon="mdi-refresh" variant="text" :loading="store.loading" @click="refresh" />
         </div>
       </v-card-title>
@@ -87,15 +96,12 @@
         </template>
 
         <template #item.provenance="{ item }">
-          <v-tooltip :text="item.provenance === 'discovered_scan'
-            ? 'Found automatically by the compliance scanner' : 'Declared by your team'">
+          <v-tooltip :text="provenanceTip(item.provenance)">
             <template #activator="{ props }">
               <v-chip v-bind="props" size="small" variant="tonal" label
-                      :color="item.provenance === 'discovered_scan' ? 'indigo' : 'teal'">
-                <v-icon start size="14">
-                  {{ item.provenance === 'discovered_scan' ? 'mdi-radar' : 'mdi-account-edit' }}
-                </v-icon>
-                {{ item.provenance === 'discovered_scan' ? 'Discovered' : 'Declared' }}
+                      :color="provenanceColor(item.provenance)">
+                <v-icon start size="14">{{ provenanceIcon(item.provenance) }}</v-icon>
+                {{ provenanceLabel(item.provenance) }}
               </v-chip>
             </template>
           </v-tooltip>
@@ -364,6 +370,41 @@ async function downloadPack() {
     toast(e.response?.data?.detail || e.message, 'error')
   } finally {
     downloadingPack.value = false
+  }
+}
+
+// ── Provenance display (three discovery channels) ───────────────────────────
+const provenanceLabel = (p) => ({
+  discovered_scan: 'Discovered', discovered_sentinel: 'Staff usage', declared: 'Declared',
+}[p] || 'Declared')
+const provenanceColor = (p) => ({
+  discovered_scan: 'indigo', discovered_sentinel: 'deep-purple', declared: 'teal',
+}[p] || 'teal')
+const provenanceIcon = (p) => ({
+  discovered_scan: 'mdi-radar', discovered_sentinel: 'mdi-monitor-eye', declared: 'mdi-account-edit',
+}[p] || 'mdi-account-edit')
+const provenanceTip = (p) => ({
+  discovered_scan: 'Found automatically by the compliance scanner (public website)',
+  discovered_sentinel: 'Observed by Sentinel browser DLP: staff using this AI tool on city devices',
+  declared: 'Declared by your team',
+}[p] || 'Declared by your team')
+
+// ── Sentinel usage sync (platform admin) ────────────────────────────────────
+const syncing = ref(false)
+
+async function syncSentinel() {
+  syncing.value = true
+  try {
+    const r = await store.syncSentinel()
+    toast(`Staff usage synced: ${r.synced} assets across ${r.cities.length} `
+      + `cit${r.cities.length === 1 ? 'y' : 'ies'}`
+      + (r.skipped_untagged_events ? ` (${r.skipped_untagged_events} untagged events skipped)` : ''))
+    refresh()
+    if (props.city) cid.fetchReadiness(props.city)
+  } catch (e) {
+    toast(e.response?.data?.detail || e.message, 'error')
+  } finally {
+    syncing.value = false
   }
 }
 
