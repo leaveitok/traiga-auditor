@@ -40,6 +40,22 @@
           <v-select v-if="!city && cityOptions.length > 1" v-model="cityFilter"
                     :items="['All cities', ...cityOptions]" density="compact"
                     variant="outlined" hide-details style="min-width: 200px" />
+          <!-- AG demand readiness — Tex. Bus. & Com. Code § 552.103(b) -->
+          <v-tooltip v-if="city && cidCity" location="bottom" max-width="340"
+                     text="Readiness to answer an Attorney General Civil Investigative Demand: the 8 categories of § 552.103(b), per AI system. Gaps are editable on each asset.">
+            <template #activator="{ props: tp }">
+              <v-chip v-bind="tp" size="small" label variant="tonal"
+                      :color="cidCity.city_ready ? 'success' : 'warning'">
+                <v-icon start size="14">mdi-file-question-outline</v-icon>
+                CID {{ cidCity.ready_count }}/{{ cidCity.asset_count }}
+              </v-chip>
+            </template>
+          </v-tooltip>
+          <v-btn v-if="city" color="primary" variant="tonal" size="small"
+                 prepend-icon="mdi-file-send-outline"
+                 :loading="downloadingPack" @click="downloadPack">
+            AG Response Pack
+          </v-btn>
           <v-btn v-if="canWrite" color="primary" prepend-icon="mdi-plus"
                  @click="openDeclare">Declare AI System</v-btn>
           <v-btn icon="mdi-refresh" variant="text" :loading="store.loading" @click="refresh" />
@@ -57,6 +73,17 @@
           <div class="text-caption text-medium-emphasis">
             {{ (item.asset_types || []).map(t => String(t).replace(/_/g, ' ')).join(', ') || 'AI system' }}
           </div>
+          <v-tooltip v-if="cidFor(item)" location="bottom" max-width="320"
+                     :text="cidFor(item).ready
+                       ? 'All 8 AG-demand items answerable for this system'
+                       : `AG-demand gaps: ${cidFor(item).gaps.join(', ')} — click the pencil to complete`">
+            <template #activator="{ props: tp }">
+              <v-chip v-bind="tp" size="x-small" label variant="tonal" class="mt-1"
+                      :color="cidFor(item).ready ? 'success' : 'warning'">
+                CID {{ cidFor(item).answered }}/{{ cidFor(item).total }}
+              </v-chip>
+            </template>
+          </v-tooltip>
         </template>
 
         <template #item.provenance="{ item }">
@@ -206,6 +233,35 @@
                     label="Data it may touch" multiple chips closable-chips
                     variant="outlined" density="comfortable"
                     hint="Used for risk weighting — pick all that apply" persistent-hint />
+
+          <!-- AG demand answers (§ 552.103(b)) — what the AG can ask about this system -->
+          <v-expansion-panels class="mt-3" variant="accordion">
+            <v-expansion-panel>
+              <v-expansion-panel-title class="text-body-2">
+                <v-icon start size="18" color="primary">mdi-file-question-outline</v-icon>
+                AG demand answers (§ 552.103(b))
+              </v-expansion-panel-title>
+              <v-expansion-panel-text>
+                <p class="text-caption text-medium-emphasis mb-2">
+                  If the Attorney General investigates, these are the questions the law lets them ask.
+                  Vendor-run systems auto-answer the training-data item with a vendor referral —
+                  fill it in only if you know more. An honest "none" is a complete answer; a blank is not.
+                </p>
+                <v-textarea v-model="attestForm.cid_training_data" rows="2" class="mb-1"
+                            label="Training data (b2) — leave blank for vendor systems"
+                            variant="outlined" density="compact" />
+                <v-textarea v-model="attestForm.cid_outputs" rows="2" class="mb-1"
+                            label="Outputs (b4) — auto-answered for chatbots; override here"
+                            variant="outlined" density="compact" />
+                <v-textarea v-model="attestForm.cid_metrics" rows="2" class="mb-1"
+                            label="Performance metrics (b5) — e.g. 'none maintained by city; vendor reports monthly'"
+                            variant="outlined" density="compact" />
+                <v-textarea v-model="attestForm.cid_limitations" rows="2"
+                            label="Known limitations (b6) — e.g. languages, topics it must not advise on"
+                            variant="outlined" density="compact" />
+              </v-expansion-panel-text>
+            </v-expansion-panel>
+          </v-expansion-panels>
         </v-card-text>
         <v-card-actions>
           <v-spacer />
@@ -276,6 +332,7 @@
 import { ref, computed, onMounted, reactive } from 'vue'
 import { useInventoryStore } from '../stores/inventory'
 import { useAuthStore } from '../stores/auth'
+import { useCidStore } from '../stores/cid'
 
 const props = defineProps({
   /** When set, the panel is locked to one city (CityDetailView embed). */
@@ -284,6 +341,31 @@ const props = defineProps({
 
 const store = useInventoryStore()
 const auth  = useAuthStore()
+const cid   = useCidStore()
+
+// ── CID (AG demand) readiness — city-scoped panels only ─────────────────────
+const downloadingPack = ref(false)
+
+const cidCity = computed(() => (props.city ? cid.byCity[props.city] || null : null))
+
+const cidByKey = computed(() => {
+  const map = {}
+  for (const a of cidCity.value?.assets || []) map[a.asset_key] = a
+  return map
+})
+
+const cidFor = (item) => cidByKey.value[item.asset_key] || null
+
+async function downloadPack() {
+  downloadingPack.value = true
+  try {
+    await cid.downloadPackage(props.city)
+  } catch (e) {
+    toast(e.response?.data?.detail || e.message, 'error')
+  } finally {
+    downloadingPack.value = false
+  }
+}
 
 const cityFilter    = ref('All cities')
 const saving        = ref(false)
@@ -359,6 +441,10 @@ function openAttest(item) {
     department:       item.department || '',
     purpose:          item.purpose || '',
     data_categories:  [...(item.data_categories || [])],
+    cid_training_data: item.cid_training_data || '',
+    cid_outputs:       item.cid_outputs || '',
+    cid_metrics:       item.cid_metrics || '',
+    cid_limitations:   item.cid_limitations || '',
   }
   attestDialog.value = true
 }
@@ -374,12 +460,17 @@ async function saveAttest() {
       department:       f.department,
       purpose:          f.purpose,
       data_categories:  f.data_categories,
+      cid_training_data: f.cid_training_data,
+      cid_outputs:       f.cid_outputs,
+      cid_metrics:       f.cid_metrics,
+      cid_limitations:   f.cid_limitations,
       // Discovered records get attested on save; already-attested just edit.
       ...(f.lifecycle_status === 'discovered' ? { lifecycle_status: 'attested' } : {}),
     })
     toast(f.lifecycle_status === 'discovered'
       ? `${f.display_name} attested` : `${f.display_name} updated`)
     attestDialog.value = false
+    if (props.city) cid.fetchReadiness(props.city)   // re-derive AG readiness
   } catch (e) { toast(e.response?.data?.detail || e.message, 'error') }
   finally { saving.value = false }
 }
@@ -425,5 +516,8 @@ function toast(text, color = 'success') {
   snackbar.text = text; snackbar.color = color; snackbar.show = true
 }
 
-onMounted(refresh)
+onMounted(() => {
+  refresh()
+  if (props.city) cid.fetchReadiness(props.city)
+})
 </script>

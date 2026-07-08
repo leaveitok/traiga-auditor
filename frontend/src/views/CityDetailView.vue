@@ -167,11 +167,18 @@
 
           <!-- Violations -->
           <v-card>
-            <v-card-title prepend-icon="mdi-alert-circle">
+            <v-card-title prepend-icon="mdi-alert-circle" class="d-flex align-center flex-wrap">
               Violations &amp; Cure Period
               <v-chip class="ml-2" size="x-small" color="error" label>
                 {{ violations.length }}
               </v-chip>
+              <v-spacer />
+              <!-- § 552.104(b)(2) written cure statement — only meaningful once something is cured -->
+              <v-btn v-if="hasCured" size="small" color="teal" variant="tonal"
+                     prepend-icon="mdi-file-check-outline"
+                     :loading="downloadingCure" @click="downloadCure">
+                Cure Statement
+              </v-btn>
             </v-card-title>
 
             <div v-if="violations.length === 0" class="pa-4 text-medium-emphasis">
@@ -359,6 +366,7 @@ import CurePeriodGauge from '../components/CurePeriodGauge.vue'
 import AuditRunButton from '../components/AuditRunButton.vue'
 import AiInventoryPanel from '../components/AiInventoryPanel.vue'
 import SafeHarborPanel from '../components/SafeHarborPanel.vue'
+import { useCidStore } from '../stores/cid'
 import { useReportsStore } from '../stores/reports'
 import { useRemediationStore } from '../stores/remediation'
 import { useTargetsStore } from '../stores/targets'
@@ -470,6 +478,26 @@ const assets = computed(() => {
 const violations = computed(() =>
   vStore.items.filter(v => v.city === cityName.value && v.status !== 'cured')
 )
+
+// ── § 552.104(b)(2) Cure Statement ───────────────────────────────────────────
+const cidStore = useCidStore()
+const downloadingCure = ref(false)
+
+const hasCured = computed(() =>
+  vStore.items.some(v => v.city === cityName.value && v.status === 'cured'))
+
+async function downloadCure() {
+  downloadingCure.value = true
+  try {
+    await cidStore.downloadCureStatement(cityName.value)
+  } catch (e) {
+    snackbar.text = e.response?.data?.detail || e.message
+    snackbar.color = 'error'
+    snackbar.show = true
+  } finally {
+    downloadingCure.value = false
+  }
+}
 
 const minDays = computed(() => {
   const days = violations.value

@@ -27,10 +27,14 @@ from core.governance_service import GovernanceRepository
 router = APIRouter(prefix="/inventory", tags=["inventory"])
 
 # Fields a human may write via declare/patch. Everything else is machine-owned.
+# The four cid_* fields answer Tex. Bus. & Com. Code 552.103(b)(2)/(4)/(5)/(6)
+# (training data, outputs, performance metrics, known limitations) for the
+# AG Civil Investigative Demand response package.
 _HUMAN_FIELDS = {
     "display_name", "asset_types_json", "owner_email", "owner_name",
     "attestation_note", "department", "purpose", "data_categories_json",
     "lifecycle_status",
+    "cid_training_data", "cid_outputs", "cid_metrics", "cid_limitations",
 }
 _VALID_LIFECYCLE = {"discovered", "attested", "retired"}
 _REVIEW_CADENCE_DAYS = 365
@@ -195,6 +199,11 @@ class PatchAsset(BaseModel):
     data_categories:  Optional[List[str]] = None
     attestation_note: Optional[str] = None
     lifecycle_status: Optional[str] = None   # attest / retire
+    # CID answers — Tex. Bus. & Com. Code 552.103(b)(2)/(4)/(5)/(6)
+    cid_training_data: Optional[str] = None
+    cid_outputs:       Optional[str] = None
+    cid_metrics:       Optional[str] = None
+    cid_limitations:   Optional[str] = None
 
 
 @router.patch("/{asset_key}")
@@ -231,6 +240,10 @@ def patch_asset(
     if body.purpose is not None:          patch["purpose"] = body.purpose
     if body.data_categories is not None:  patch["data_categories_json"] = json.dumps(body.data_categories)
     if body.attestation_note is not None: patch["attestation_note"] = body.attestation_note
+    if body.cid_training_data is not None: patch["cid_training_data"] = body.cid_training_data
+    if body.cid_outputs is not None:       patch["cid_outputs"] = body.cid_outputs
+    if body.cid_metrics is not None:       patch["cid_metrics"] = body.cid_metrics
+    if body.cid_limitations is not None:   patch["cid_limitations"] = body.cid_limitations
 
     event = None
     if body.lifecycle_status and body.lifecycle_status != existing.get("lifecycle_status"):

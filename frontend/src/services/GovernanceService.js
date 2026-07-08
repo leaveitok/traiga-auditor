@@ -261,6 +261,24 @@ const downloadAlignmentStatement = (city) =>
   }).then(r => r.data)
 
 // ─────────────────────────────────────────────────────────────────────────────
+// CID — AG Civil Investigative Demand (Tex. Bus. & Com. Code § 552.103-.104)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Per-asset, per-item 552.103(b) readiness for a city. */
+const getCidReadiness = (city) =>
+  http.get(`/cid/${encodeURIComponent(city)}/readiness`).then(r => r.data)
+
+/** AG Response Package (.docx) as a Blob. */
+const downloadCidPackage = (city) =>
+  http.get(`/cid/${encodeURIComponent(city)}/package`,
+           { responseType: 'blob', timeout: 120000 }).then(r => r.data)
+
+/** § 552.104(b)(2) Cure Statement (.docx) as a Blob. 404 if nothing cured. */
+const downloadCureStatement = (city) =>
+  http.get(`/cid/${encodeURIComponent(city)}/cure-statement`,
+           { responseType: 'blob', timeout: 120000 }).then(r => r.data)
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Scheduler Status
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -361,6 +379,10 @@ export const GovernanceService = {
   getSafeHarbor,
   attestSafeHarbor,
   downloadAlignmentStatement,
+  // CID
+  getCidReadiness,
+  downloadCidPackage,
+  downloadCureStatement,
   // Remediation
   downloadPolicy,
   // Sentinel (internal DLP)
