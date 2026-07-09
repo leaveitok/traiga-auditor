@@ -31,6 +31,7 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 from core import config
+from core import run_state as _rs
 
 # TTL for read cache in seconds. Keeps the Sheets quota well under the
 # 60 reads/min/user limit while the dashboard polls aggressively.
@@ -132,6 +133,9 @@ class SheetsRepository:
         self._cache: Dict[str, Tuple[float, Any]] = {}
         # httplib2 is not thread-safe — serialize all Sheets API calls
         self._api_lock = threading.RLock()
+        # Durable run state — see get_run_state() for the rollback-path rationale.
+        self._run_state: Dict[str, Dict[str, Any]] = {}
+        self._run_state_lock = threading.RLock()
 
     # ── Internal helpers ──────────────────────────────────────────────────────
 
@@ -558,6 +562,40 @@ class SheetsRepository:
         self._upsert_by_key("AIAssets", "asset_key", key,
                             {k: str(v) for k, v in merged.items()})
         return merged
+
+    # ── Durable run state ─────────────────────────────────────────────────────
+    # ROLLBACK-PATH COMPROMISE: Sheets is the emergency rollback backend
+    # (GOVERNANCE_STORE=sheets) and runs effectively single-node in that mode,
+    # so run state is held in process memory here rather than in a Sheet tab.
+    # Persisting per-city progress heartbeats to Sheets would hammer the
+    # 60 writes/min/user quota that the read cache exists to protect. The
+    # cross-instance guarantee this method class is designed for is provided by
+    # the Firestore backend (production); on Sheets the module-global weakness
+    # is unchanged from before this work but bounded to the rollback window.
+    # Next Steps for Scale: if Sheets ever runs multi-instance, back this with a
+    # dedicated single-row tab or a Firestore run_state doc regardless of
+    # GOVERNANCE_STORE.
+
+    def get_run_state(self, key: str) -> Dict[str, Any]:
+        with self._run_state_lock:
+            return dict(self._run_state.get(key, {}))
+
+    def save_run_state(self, key: str, state: Dict[str, Any]) -> None:
+        # TODO: enforce system-level write only (auth placeholder)
+        with self._run_state_lock:
+            self._run_state[key] = dict(state)
+
+    def claim_run_slot(self, key: str, now_utc: str, total: int,
+                       stale_after_seconds: int) -> Optional[Dict[str, Any]]:
+        # TODO: enforce system-level write only (auth placeholder)
+        # Single-node read-modify-write under a lock (see class note above).
+        with self._run_state_lock:
+            existing = self._run_state.get(key, {})
+            if not _rs.slot_available(existing, now_utc, stale_after_seconds):
+                return None
+            new_state = _rs.running_state(now_utc, total)
+            self._run_state[key] = new_state
+            return dict(new_state)
 
     def _read_all_raw_dicts(self, tab: str) -> List[Dict[str, Any]]:
         """Uncached dict read (upsert must merge against fresh data)."""

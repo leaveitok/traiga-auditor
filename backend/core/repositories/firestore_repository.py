@@ -33,6 +33,7 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from core import config
+from core import run_state as _rs
 
 try:
     from google.cloud import firestore  # type: ignore
@@ -49,6 +50,12 @@ COLL_USERS      = "users"
 COLL_AGENCIES   = "agencies"
 COLL_AI_ASSETS  = "ai_assets"
 COLL_SAFE_HARBOR = "safe_harbor"
+# Cross-instance run state (audit progress, scheduler history). Doc id = key.
+# Stored with NATIVE types (bool/int/nested map) — this control document is
+# read only by audit.py / scheduler.py as a plain dict, never by the
+# string-contract scorecard/violations readers, so the "everything is a string"
+# rule does not apply here.
+COLL_RUN_STATE  = "run_state"
 
 # google-cloud-firestore's Query.DESCENDING is literally this string; using the
 # literal keeps every method testable against a fake client without the SDK.
@@ -365,3 +372,41 @@ class FirestoreRepository:
         merged = {**existing, **{k: v for k, v in asset.items() if v is not None}}
         ref.set(self._stringify(merged))
         return merged
+
+    # ── Durable run state (cross-instance; native types, not stringified) ─────
+
+    def get_run_state(self, key: str) -> Dict[str, Any]:
+        snap = self._db.collection(COLL_RUN_STATE).document(_doc_id(key)).get()
+        return snap.to_dict() if snap.exists else {}
+
+    def save_run_state(self, key: str, state: Dict[str, Any]) -> None:
+        # TODO: enforce system-level write only (auth placeholder)
+        self._db.collection(COLL_RUN_STATE).document(_doc_id(key)).set(dict(state))
+
+    def claim_run_slot(
+        self,
+        key: str,
+        now_utc: str,
+        total: int,
+        stale_after_seconds: int,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Atomic claim via a Firestore transaction so two instances can never
+        both win the slot. The decision (available vs. held-and-fresh) is the
+        shared, unit-tested core.run_state.slot_available; the transaction only
+        provides atomicity around read→decide→write.
+        TODO: enforce system-level write only (auth placeholder).
+        """
+        ref = self._db.collection(COLL_RUN_STATE).document(_doc_id(key))
+
+        @firestore.transactional  # type: ignore[misc]
+        def _claim(transaction: Any) -> Optional[Dict[str, Any]]:
+            snap = ref.get(transaction=transaction)
+            existing = snap.to_dict() if snap.exists else {}
+            if not _rs.slot_available(existing, now_utc, stale_after_seconds):
+                return None
+            new_state = _rs.running_state(now_utc, total)
+            transaction.set(ref, new_state)
+            return new_state
+
+        return _claim(self._db.transaction())

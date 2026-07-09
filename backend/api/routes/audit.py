@@ -20,6 +20,8 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from pydantic import BaseModel
 
+from core import config
+from core import run_state as _rs
 from core.access import resolve_principal, scope_requested_cities
 from core.auth import get_current_user, is_admin
 from core.dependencies import get_repository, limiter
@@ -29,17 +31,12 @@ from core.scheduler import get_scheduler_state
 router = APIRouter(prefix="/audit", tags=["audit"])
 
 
-# ── In-memory run state (single-node; sufficient for beta) ───────────────────
-_audit_state: Dict[str, Any] = {
-    "status":            "idle",
-    "started_utc":       None,
-    "finished_utc":      None,
-    "city_count":        0,
-    "observed_failures": 0,
-    "open_violations":   0,
-    "error":             None,
-    "progress":          None,
-}
+# ── Durable, cross-instance run state ────────────────────────────────────────
+# Run status/progress lives in the datastore (via the repository), NOT in a
+# module global, so every Cloud Run instance agrees on it. See core/run_state.py
+# for the full rationale (multi-instance status drift, the per-process 409 race,
+# fresh-instance 500s, and the session-affinity auth symptom this removes).
+# The default idle template comes from _rs.default_audit_state().
 
 DEMO_FIXTURES: Dict[str, Dict[str, Any]] = {
     "https://demo-compliant.example.gov/": {
@@ -125,21 +122,33 @@ async def _run_audit_task(
     repo: GovernanceRepository,
 ) -> None:
     """
-    Background wrapper: sets _audit_state, delegates to engine.pipeline.run_full_audit,
-    then records completion or error.  All internal detail stays server-side.
+    Background wrapper: writes durable run state through the repository,
+    delegates to engine.pipeline.run_full_audit, then records completion or
+    error. Every write refreshes heartbeat_utc so the run's lease stays alive
+    while it is making progress. All internal detail stays server-side.
+
+    The slot has already been claimed (status='running') by the trigger; this
+    task keeps started_utc consistent with that claim.
     """
-    global _audit_state
-    _audit_state["status"]       = "running"
-    _audit_state["started_utc"]  = datetime.now(timezone.utc).isoformat()
-    _audit_state["finished_utc"] = None
-    _audit_state["error"]        = None
-    _audit_state["progress"]     = {"current_city": "", "completed": 0,
-                                    "total": len(targets)}
+    total   = len(targets)
+    base    = repo.get_run_state(_rs.AUDIT_KEY) or {}
+    started = base.get("started_utc") or _rs.now_iso()
+
+    def _write_running(progress: Optional[Dict[str, Any]]) -> None:
+        state = _rs.default_audit_state()
+        state.update({
+            "status":        "running",
+            "started_utc":   started,
+            "heartbeat_utc": _rs.now_iso(),   # heartbeat keeps the lease fresh
+            "progress":      progress,
+        })
+        repo.save_run_state(_rs.AUDIT_KEY, state)
 
     def _on_progress(p: Dict[str, Any]) -> None:
-        # Called from the executor thread; plain dict assignment is atomic
-        # enough for a monotonic status readout.
-        _audit_state["progress"] = p
+        # Called from the executor thread; the Firestore client is thread-safe.
+        _write_running(p)
+
+    _write_running({"current_city": "", "completed": 0, "total": total})
 
     try:
         from engine.pipeline import run_full_audit
@@ -149,19 +158,28 @@ async def _run_audit_task(
             None, lambda: run_full_audit(targets, repo, fixtures,
                                          progress_cb=_on_progress)
         )
-        _audit_state.update({
-            "status":       "completed",
-            "finished_utc": datetime.now(timezone.utc).isoformat(),
+        repo.save_run_state(_rs.AUDIT_KEY, {
+            **_rs.default_audit_state(),
+            "status":        "completed",
+            "started_utc":   started,
+            "finished_utc":  _rs.now_iso(),
+            "heartbeat_utc": _rs.now_iso(),
+            "progress":      {"current_city": "", "completed": total, "total": total},
             **result,
         })
     except Exception as exc:
         ref = str(uuid.uuid4())[:8]
         tb  = _tb.format_exc()
         print(f"[audit_task] ERROR [{ref}] {type(exc).__name__}: {exc}\n{tb}")
-        _audit_state["status"]          = "error"
-        _audit_state["error"]           = f"Audit pipeline error. Reference ID: {ref}"
-        _audit_state["last_traceback"]  = f"[{ref}] {type(exc).__name__}: {exc}\n{tb}"
-        _audit_state["finished_utc"]    = datetime.now(timezone.utc).isoformat()
+        repo.save_run_state(_rs.AUDIT_KEY, {
+            **_rs.default_audit_state(),
+            "status":         "error",
+            "started_utc":    started,
+            "finished_utc":   _rs.now_iso(),
+            "heartbeat_utc":  _rs.now_iso(),
+            "error":          f"Audit pipeline error. Reference ID: {ref}",
+            "last_traceback": f"[{ref}] {type(exc).__name__}: {exc}\n{tb}",
+        })
 
 
 @router.post("/run", response_model=AuditRunResponse)
@@ -175,9 +193,10 @@ async def trigger_audit(
     user: dict = Depends(get_current_user),
     repo: GovernanceRepository = Depends(get_repository),
 ):
-    if _audit_state["status"] == "running":
-        raise HTTPException(status_code=409, detail="Audit already running")
-
+    # NOTE: the "already running" guard is enforced atomically below via
+    # repo.claim_run_slot() once the target list is known — it is cross-instance
+    # (a Firestore transaction), unlike the old per-process check that let two
+    # Cloud Run instances start concurrent audits.
     principal = resolve_principal(user, repo)
     if not principal.can_trigger_audit():
         raise HTTPException(
@@ -230,6 +249,18 @@ async def trigger_audit(
         if not targets:
             raise HTTPException(status_code=400, detail="No active targets found for this city")
 
+    # Atomic, cross-instance claim of the single audit slot. Returns None if a
+    # fresh run already holds it (409); a run whose heartbeat has gone stale for
+    # AUDIT_LEASE_STALE_SECONDS is presumed dead and can be superseded.
+    claimed = repo.claim_run_slot(
+        _rs.AUDIT_KEY,
+        now_utc=_rs.now_iso(),
+        total=len(targets),
+        stale_after_seconds=config.AUDIT_LEASE_STALE_SECONDS,
+    )
+    if claimed is None:
+        raise HTTPException(status_code=409, detail="Audit already running")
+
     background_tasks.add_task(_run_audit_task, targets, demo, repo)
     try:
         repo.append_audit_log(
@@ -245,29 +276,36 @@ async def trigger_audit(
             })
     except Exception as exc:
         print(f"[activity] WARN: could not log audit_triggered: {exc}")
-    # .get() — never KeyError even if a future field is added to the model
-    # before it exists in _audit_state (fail-secure: respond, don't 500).
+    # Respond from the freshly-claimed state. status="started" mirrors the old
+    # contract (the dashboard then polls GET /run for live progress).
     return AuditRunResponse(status="started", **{
-        k: _audit_state.get(k) for k in AuditRunResponse.model_fields if k != "status"
+        k: claimed.get(k) for k in AuditRunResponse.model_fields if k != "status"
     })
 
 
 @router.get("/run", response_model=AuditRunResponse)
-def get_audit_status():
-    return AuditRunResponse(**_audit_state)
+def get_audit_status(repo: GovernanceRepository = Depends(get_repository)):
+    # Read the shared run state so any instance reports the same status/progress.
+    state = {**_rs.default_audit_state(), **repo.get_run_state(_rs.AUDIT_KEY)}
+    # Select only model fields — heartbeat_utc/last_traceback are internal.
+    return AuditRunResponse(**{k: state.get(k) for k in AuditRunResponse.model_fields})
 
 
 @router.get("/trace")
-def get_audit_trace(user: dict = Depends(get_current_user)):
+def get_audit_trace(
+    user: dict = Depends(get_current_user),
+    repo: GovernanceRepository = Depends(get_repository),
+):
     """Admin-only: return the raw traceback from the last failed audit run."""
     if not is_admin(user["email"]):
         raise HTTPException(status_code=403, detail="Admin only")
+    state = repo.get_run_state(_rs.AUDIT_KEY)
     return {
-        "status":         _audit_state.get("status"),
-        "error":          _audit_state.get("error"),
-        "last_traceback": _audit_state.get("last_traceback"),
-        "started_utc":    _audit_state.get("started_utc"),
-        "finished_utc":   _audit_state.get("finished_utc"),
+        "status":         state.get("status"),
+        "error":          state.get("error"),
+        "last_traceback": state.get("last_traceback"),
+        "started_utc":    state.get("started_utc"),
+        "finished_utc":   state.get("finished_utc"),
     }
 
 
@@ -441,7 +479,15 @@ def chrome_capture(
         # Log full detail server-side only — never expose internal state to client
         ref = str(uuid.uuid4())[:8]
         print(f"[chrome_capture] ERROR [{ref}] {type(exc).__name__}: {exc}\n{_tb.format_exc()}")
-        _audit_state["last_traceback"] = f"[chrome_capture:{ref}] {type(exc).__name__}: {exc}\n{_tb.format_exc()}"
+        # Store under a separate key so a Deep Scan error never clobbers the
+        # live audit run-state document.
+        try:
+            repo.save_run_state("chrome_capture", {
+                "last_traceback": f"[chrome_capture:{ref}] {type(exc).__name__}: {exc}\n{_tb.format_exc()}",
+                "finished_utc":   _rs.now_iso(),
+            })
+        except Exception:
+            pass
         raise HTTPException(
             status_code=500,
             detail=f"An internal error occurred. Reference ID: {ref}",

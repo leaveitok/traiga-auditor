@@ -140,10 +140,52 @@ def test_ingest_accepts_heartbeat(sclient, sentinel_repo):
     assert len(sentinel_repo.heartbeats) == 1
 
 
-# ── Read RBAC ─────────────────────────────────────────────────────────────────
-def test_city_user_cannot_read_sentinel(city_sclient):
-    for path in ("/api/sentinel/events", "/api/sentinel/summary", "/api/sentinel/devices"):
-        assert city_sclient.get(path).status_code == 403, path
+# ── Read RBAC (agency-scoped, not a hard wall) ───────────────────────────────
+def test_agency_user_sees_only_their_own_cities(sentinel_repo, monkeypatch):
+    """Sentinel reads are agency-scoped: the platform admin sees every city's
+    DLP events; an agency viewer granted 'Test City' sees ONLY that city's
+    events, never another city's. (Supersedes the old hard admin/security-only
+    wall — see the agency multi-tenant model in core/access.py.)
+
+    Single TestClient context throughout; the admin read uses the synthetic
+    admin (no get_current_user override) exactly like test_admin_reads_*.
+    try/finally guarantees overrides never leak into the next test.
+    """
+    monkeypatch.setenv("SENTINEL_INGEST_TOKENS", TOKEN)
+    from tests.mock_repository import MockGovernanceRepository
+    from core.dependencies import get_repository
+
+    gov = MockGovernanceRepository(users=[{
+        "email": "staff@testcity.gov", "role": "viewer",
+        "cities": ["Test City"], "city": "Test City",
+    }])
+    app.dependency_overrides[get_sentinel_repository] = lambda: sentinel_repo
+    app.dependency_overrides[get_repository] = lambda: gov
+    try:
+        with TestClient(app) as c:
+            # Ingest one event tagged to each city (device-token auth path).
+            assert c.post("/api/sentinel/ingest",
+                          json=_violation_packet(event_id="ev-testcity-01", city="Test City"),
+                          headers={"X-Sentinel-Token": TOKEN}).status_code == 202
+            assert c.post("/api/sentinel/ingest",
+                          json=_violation_packet(event_id="ev-othercity-01", city="Other City"),
+                          headers={"X-Sentinel-Token": TOKEN}).status_code == 202
+
+            # Platform admin (synthetic, no override — all_cities) sees BOTH.
+            admin_rows = c.get("/api/sentinel/events")
+            assert admin_rows.status_code == 200
+            assert {r.get("city") for r in admin_rows.json()} == {"Test City", "Other City"}
+
+            # Agency viewer scoped to "Test City" sees ONLY that city's events.
+            app.dependency_overrides[get_current_user] = lambda: {
+                "uid": "city-1", "email": "staff@testcity.gov",
+                "role": "viewer", "city": "Test City",
+            }
+            scoped = c.get("/api/sentinel/events")
+            assert scoped.status_code == 200
+            assert {r.get("city") for r in scoped.json()} == {"Test City"}
+    finally:
+        app.dependency_overrides.clear()
 
 
 def test_admin_reads_events_and_summary(sclient):

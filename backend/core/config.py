@@ -42,6 +42,13 @@ SCHEMA_FILE = PROJECT_DIR / "SCHEMA_DEFINITION.json"
 CURE_PERIOD_DAYS: int = 60
 SCAN_CADENCE_HOURS: int = 24
 
+# Durable audit-run lease (cross-instance run state). A running scan refreshes
+# its heartbeat after every city; if the heartbeat goes stale for longer than
+# this, the holder's instance is presumed dead and a new run may steal the
+# slot. Set generously so a slow WAF/proxy city is never mistaken for a crash;
+# override via env for tuning without a code change.
+AUDIT_LEASE_STALE_SECONDS: int = int(os.environ.get("AUDIT_LEASE_STALE_SECONDS", "900"))
+
 # Number of consecutive scans that must find NO violation before it is
 # auto-cured.  Prevents a single headless-crawler false negative from
 # wiping a legitimate open violation off the board.  Set to 2 so the

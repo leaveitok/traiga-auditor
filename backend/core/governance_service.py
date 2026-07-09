@@ -181,6 +181,50 @@ class GovernanceRepository(Protocol):
         """
         ...
 
+    # ── Durable run state (audit + scheduler; cross-instance) ─────────────────
+
+    def get_run_state(self, key: str) -> Dict[str, Any]:
+        """
+        Return the durable run-state document for `key` (e.g. "audit" or
+        "scheduler"), or an empty dict if none has been written yet.
+
+        This is the shared replacement for per-process module globals: every
+        Cloud Run instance reads the same document, so audit status/progress is
+        consistent no matter which instance serves the request. Callers apply
+        their own default template to an empty result.
+        TODO: enforce system-level read only where appropriate (auth placeholder).
+        """
+        ...
+
+    def save_run_state(self, key: str, state: Dict[str, Any]) -> None:
+        """
+        Upsert (full-replace) the durable run-state document for `key`.
+        Used for progress heartbeats and terminal (completed/error) states.
+        TODO: enforce system-level write only — no user calls this directly.
+        """
+        ...
+
+    def claim_run_slot(
+        self,
+        key: str,
+        now_utc: str,
+        total: int,
+        stale_after_seconds: int,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Atomically claim the single-run slot for `key`.
+
+        Returns the new 'running' state dict if the slot was claimed; returns
+        None if another run currently holds a fresh lease (caller responds 409).
+        A running holder whose heartbeat is older than `stale_after_seconds` is
+        presumed dead and may be stolen — see core.run_state.slot_available.
+
+        MUST be atomic across instances (Firestore transaction). The Sheets and
+        Mock backends are single-node and use a plain read-modify-write.
+        TODO: enforce system-level write only (auth placeholder).
+        """
+        ...
+
     # ── User Management ───────────────────────────────────────────────────────
 
     def get_user(self, email: str) -> Optional[Dict[str, Any]]:

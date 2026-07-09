@@ -18,6 +18,8 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 
+from core import run_state as _rs
+
 
 class MockGovernanceRepository:
     """
@@ -45,6 +47,7 @@ class MockGovernanceRepository:
         self._users      = list(users      or [])
         self._agencies   = list(agencies   or [])
         self._ai_assets  = list(ai_assets  or [])
+        self._run_state: Dict[str, Dict[str, Any]] = {}
 
     # ── Schema ────────────────────────────────────────────────────────────────
 
@@ -177,13 +180,25 @@ class MockGovernanceRepository:
     def get_user(self, email: str) -> Optional[Dict[str, Any]]:
         return next((u for u in self._users if u.get("email") == email), None)
 
-    def upsert_user(self, email: str, role: str, city: Optional[str]) -> None:
+    def upsert_user(self, email: str, role: str, city: Optional[str] = None,
+                    agency_id: Optional[str] = None,
+                    cities: Optional[List[str]] = None) -> None:
+        # Signature mirrors the GovernanceRepository Protocol (multi-tenant:
+        # cities list + agency_id; `city` retained as a legacy single-value
+        # mirror = cities[0]). Prior drift here caused a TypeError on agency_id.
+        city_list = list(cities) if cities is not None else ([city] if city else [])
+        record = {
+            "email":     email,
+            "role":      role,
+            "agency_id": agency_id or "",
+            "cities":    city_list,
+            "city":      (city_list[0] if city_list else None),  # legacy mirror
+        }
         for u in self._users:
             if u.get("email") == email:
-                u["role"] = role
-                u["city"] = city
+                u.update(record)
                 return
-        self._users.append({"email": email, "role": role, "city": city})
+        self._users.append(record)
 
     def get_users(self) -> List[Dict[str, Any]]:
         return list(self._users)
@@ -225,6 +240,23 @@ class MockGovernanceRepository:
                              if (r["city"].lower(), r["control_id"]) != key]
         self._safe_harbor.append(dict(record))
         return record
+
+    # ── Durable run state (cross-instance in production; in-memory here) ──────
+
+    def get_run_state(self, key: str) -> Dict[str, Any]:
+        return dict(self._run_state.get(key, {}))
+
+    def save_run_state(self, key: str, state: Dict[str, Any]) -> None:
+        self._run_state[key] = dict(state)
+
+    def claim_run_slot(self, key: str, now_utc: str, total: int,
+                       stale_after_seconds: int) -> Optional[Dict[str, Any]]:
+        existing = self._run_state.get(key, {})
+        if not _rs.slot_available(existing, now_utc, stale_after_seconds):
+            return None
+        new_state = _rs.running_state(now_utc, total)
+        self._run_state[key] = new_state
+        return dict(new_state)
 
     # ── AI Use-Case Inventory ─────────────────────────────────────────────────
 

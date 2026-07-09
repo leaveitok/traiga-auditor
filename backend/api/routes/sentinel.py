@@ -15,8 +15,10 @@ Two trust domains, two auth mechanisms — never mixed:
 
   READ    (GET /sentinel/...)
       Caller: humans on the dashboard.
-      Auth:   Firebase user with admin or 'security' role. City-scoped external
-              users NEVER see internal DLP data (RBAC wall inside one platform).
+      Auth:   Firebase user, AGENCY-SCOPED. A platform admin sees all DLP data;
+              an agency admin/viewer sees only their own cities' events/devices
+              (via _scope_events on the principal's city grant). Rows without a
+              city tag are platform-admin-only (fail-secure for employee data).
 """
 from __future__ import annotations
 
@@ -30,7 +32,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from core.access import resolve_principal
-from core.auth import get_current_user, is_admin
+from core.auth import get_current_user
 from core.dependencies import get_repository, get_sentinel_repository, limiter
 from core.repositories.sentinel_repository import SentinelRepository
 
@@ -55,20 +57,19 @@ def require_device_token(x_sentinel_token: Optional[str] = Header(default=None))
     return x_sentinel_token
 
 
-# ── Read auth (admin or security role) ────────────────────────────────────────
+# ── Read auth (agency-scoped) ─────────────────────────────────────────────────
 def _scope_events(rows: List[Dict[str, Any]], principal) -> List[Dict[str, Any]]:
     """Filter Sentinel rows to the principal's cities. Platform admins see all;
-    rows without a city tag are platform-admin-only (fail-secure)."""
+    an agency admin/viewer sees only their granted cities; rows without a city
+    tag are platform-admin-only (fail-secure for employee-monitoring data).
+
+    This IS the Sentinel read wall — every read route resolves a Principal and
+    passes its rows through here. There is no separate role gate: an agency user
+    with no city grant simply sees nothing."""
     if principal.all_cities:
         return rows
     allowed = principal.cities
     return [r for r in rows if r.get("city") and r.get("city") in allowed]
-
-
-def _require_security(user: Dict[str, Any]) -> None:
-    if is_admin(user.get("email", "")) or user.get("role") == "security":
-        return
-    raise HTTPException(status_code=403, detail="Sentinel data requires admin or security role")
 
 
 # ── Packet models (mirror webextension/schema/violation-packet.schema.json) ──
