@@ -31,7 +31,7 @@ procurement = _load("d_procurement", "engine/collectors/procurement.py")
 merge = _load("d_merge", "core/discovery/merge.py")
 
 SCHEMA = {
-    "AI_Tool_Catalog": {"tools": [
+    "AI_Tool_Catalog": {"ai_keywords": ["ai", "artificial intelligence", "machine learning", "chatbot", "copilot", "predictive analytics"], "tools": [
         {"tool_id": "openai_chatgpt", "display_name": "ChatGPT (OpenAI)", "aliases": {
             "sentinel_site_ids": ["chatgpt", "openai"],
             "oauth_app_ids": ["app-openai-123"],
@@ -39,7 +39,8 @@ SCHEMA = {
             "procurement_names": ["openai", "chatgpt enterprise"]}},
         {"tool_id": "microsoft_copilot", "display_name": "Microsoft Copilot", "aliases": {
             "sentinel_site_ids": ["copilot"], "domains": ["copilot.microsoft.com"],
-            "procurement_names": ["microsoft copilot", "m365 copilot"]}},
+            "procurement_names": ["microsoft copilot", "m365 copilot"],
+            "product_names": ["copilot"]}},
         {"tool_id": "otter_ai", "display_name": "Otter.ai", "aliases": {
             "domains": ["otter.ai"], "procurement_names": ["otter", "otter.ai"]}},
     ]},
@@ -152,6 +153,45 @@ def test_merge_unions_sources_and_preserves_human_fields():
     proc_src = next(s for s in json.loads(row["discovery_sources_json"])
                     if s["provenance"] == "discovered_procurement")
     assert proc_src["evidence"]["contract_id"] == "C-42"
+
+
+# ── 4. product-name matching + AI-keyword candidate screen ───────────────────
+def test_product_field_disambiguates_multiproduct_vendor():
+    # Vendor "Microsoft" alone is ambiguous (Office vs Copilot); the PRODUCT resolves it.
+    rows = [{"vendor": "Microsoft", "product": "Copilot", "city": "Lewisville"}]
+    res = procurement.normalize(rows, INDEX)
+    assert len(res["assets"]) == 1
+    a = res["assets"][0]
+    assert a["tool_id"] == "microsoft_copilot"
+    assert a["asset_types"] == ["procured_ai"]
+    assert a["evidence"]["product_raw"] == "Copilot"
+
+
+def test_ai_keyword_catches_unknown_vendor_as_candidate():
+    # AI sold under a NON-AI company name, no catalog match -> surfaced for review.
+    rows = [{"vendor": "Tyler Technologies", "product": "AI permitting assistant",
+             "city": "Lewisville", "contract_id": "C-100"}]
+    res = procurement.normalize(rows, INDEX)
+    assert res["skipped"] == 0            # NOT dropped
+    assert res["source_meta"]["candidates"] == 1
+    a = res["assets"][0]
+    assert a["asset_types"] == ["procured_ai_candidate"]
+    assert a["tool_id"].startswith("unknown:ai:")
+    assert a["evidence"]["match_type"] == "ai_keyword"
+    assert a["evidence"]["matched_keyword"] in ("ai", "artificial intelligence")
+
+
+def test_non_ai_line_item_still_skipped():
+    rows = [{"vendor": "Acme Plumbing", "product": "backflow valve repair", "city": "Lewisville"}]
+    res = procurement.normalize(rows, INDEX)
+    assert res["assets"] == [] and res["skipped"] == 1
+
+
+def test_keyword_boundary_no_false_positive():
+    # "maintenance" contains "ai" as a substring but not as a word -> no candidate.
+    rows = [{"vendor": "Acme HVAC", "product": "quarterly maintenance contract", "city": "Lewisville"}]
+    res = procurement.normalize(rows, INDEX)
+    assert res["assets"] == [] and res["skipped"] == 1
 
 
 if __name__ == "__main__":

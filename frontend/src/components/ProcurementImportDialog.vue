@@ -14,11 +14,13 @@
         <!-- Step 1: file selection -->
         <template v-if="phase === 'select'">
           <p class="text-body-2 mb-3">
-            Upload a vendor / spend / contract CSV with a <code>vendor</code> column
-            (optional: <code>city, contract_id, amount, term, department</code>).
-            Each vendor is matched against the AI tool catalog; confident matches are
-            added to the AI Inventory as <strong>procured AI</strong>. Non-AI vendors
-            are skipped. Nothing is scanned; no financial totals are stored.
+            Upload a vendor / spend / contract CSV with a <code>vendor</code> and/or
+            <code>product</code> column (optional: <code>city, contract_id, amount, term, department</code>).
+            Both the vendor and the product/line-item are matched against the AI tool
+            catalog; a line item that names AI (e.g. "AI permitting assistant") is
+            flagged for review even from an unknown vendor. Confident matches are added
+            to the AI Inventory as <strong>procured AI</strong>; non-AI rows are skipped.
+            Nothing is scanned; no financial totals are stored.
           </p>
           <v-text-field
             v-model="defaultCityInput"
@@ -69,6 +71,7 @@
           <v-alert type="success" variant="tonal" class="mb-3">
             Matched <strong>{{ result.matched }}</strong> AI vendor{{ result.matched === 1 ? '' : 's' }}
             of {{ result.rows }} rows; <strong>{{ result.written }}</strong> added/updated in the inventory.
+            <span v-if="result.candidates"> <strong>{{ result.candidates }}</strong> possible-AI line item{{ result.candidates === 1 ? '' : 's' }} flagged for review.</span>
             <span v-if="result.skipped"> {{ result.skipped }} row{{ result.skipped === 1 ? '' : 's' }} skipped (not AI or missing fields).</span>
           </v-alert>
           <template v-if="result.cities?.length">
@@ -143,6 +146,7 @@ const result          = ref({})
 const previewHeaders = [
   { title: '#',        key: '_line',       sortable: false },
   { title: 'Vendor',   key: 'vendor',      sortable: false },
+  { title: 'Product',  key: 'product',     sortable: false },
   { title: 'City',     key: 'city',        sortable: false },
   { title: 'Contract', key: 'contract_id', sortable: false },
   { title: 'Status',   key: '_status',     sortable: false },
@@ -192,20 +196,23 @@ async function onFile(f) {
   const header = raw[0].map(h => h.trim().toLowerCase())
   const col = (name) => header.indexOf(name)
   // Accept vendor | supplier | vendor_name for the vendor column.
-  const vendorCol = ['vendor', 'supplier', 'vendor_name'].map(col).find(i => i !== -1)
-  if (vendorCol === undefined || vendorCol === -1) {
-    parseError.value = 'Header row must include a "vendor" (or "supplier") column'
+  const vendorCol  = ['vendor', 'supplier', 'vendor_name', 'company', 'payee'].map(col).find(i => i !== -1)
+  const productCol = ['product', 'description', 'line_item', 'service', 'item', 'purpose'].map(col).find(i => i !== -1)
+  if (vendorCol === undefined && productCol === undefined) {
+    parseError.value = 'Header row must include a "vendor" (or "product"/"description") column'
     return
   }
   const fallbackCity = (defaultCityInput.value || props.defaultCity || '').trim()
 
   parsedRows.value = raw.slice(1).map((cells, i) => {
     const get = (name) => (col(name) === -1 ? '' : (cells[col(name)] || '').trim())
-    const vendor = (cells[vendorCol] || '').trim()
-    const city   = get('city') || fallbackCity
+    const vendor  = vendorCol  !== undefined ? (cells[vendorCol]  || '').trim() : ''
+    const product = productCol !== undefined ? (cells[productCol] || '').trim() : ''
+    const city    = get('city') || fallbackCity
     const rowObj = {
       _line: i + 2,
       vendor,
+      product,
       city,
       contract_id: get('contract_id') || get('contract'),
       amount:      get('amount'),
@@ -213,7 +220,7 @@ async function onFile(f) {
       department:  get('department') || get('dept'),
       _error: '',
     }
-    if (!vendor) rowObj._error = 'missing vendor'
+    if (!vendor && !product) rowObj._error = 'missing vendor/product'
     else if (!city) rowObj._error = 'no city (add a city column or set a default city)'
     return rowObj
   })
@@ -240,10 +247,12 @@ async function doImport() {
 }
 
 function downloadTemplate() {
-  const csv = 'vendor,city,contract_id,amount,term,department\n'
-    + 'OpenAI,City of Lewisville,C-2026-014,,annual,IT\n'
-    + 'Otter.ai,City of Lewisville,C-2026-051,,annual,Clerk\n'
-    + 'Acme Plumbing,City of Lewisville,C-2026-077,,,Facilities\n'
+  const csv = 'vendor,product,city,contract_id,amount,term,department\n'
+    + 'OpenAI,ChatGPT Enterprise,City of Lewisville,C-2026-014,,annual,IT\n'
+    + 'Microsoft,Copilot,City of Lewisville,C-2026-022,,annual,IT\n'
+    + 'Tyler Technologies,AI permitting assistant,City of Lewisville,C-2026-039,,annual,Development\n'
+    + 'Otter.ai,,City of Lewisville,C-2026-051,,annual,Clerk\n'
+    + 'Acme Plumbing,backflow valve repair,City of Lewisville,C-2026-077,,,Facilities\n'
   const a = document.createElement('a')
   a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }))
   a.download = 'procurement_import_template.csv'

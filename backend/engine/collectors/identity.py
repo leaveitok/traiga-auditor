@@ -19,7 +19,11 @@ import re
 from typing import Any, Dict, List, Tuple
 
 # The alias buckets a tool can declare, one per discovery channel.
-ALIAS_CHANNELS = ("sentinel_site_ids", "oauth_app_ids", "domains", "procurement_names")
+# procurement_names = how the VENDOR/company appears on a contract;
+# product_names     = how the PRODUCT/line-item appears (disambiguates multi-product
+#                     vendors, e.g. "Microsoft" -> Office vs "Copilot" -> AI).
+ALIAS_CHANNELS = ("sentinel_site_ids", "oauth_app_ids", "domains",
+                  "procurement_names", "product_names")
 
 
 def _norm(s: Any) -> str:
@@ -51,7 +55,9 @@ def build_tool_index(schema: Dict[str, Any]) -> Dict[str, Any]:
         for ch in ALIAS_CHANNELS:
             for a in (aliases.get(ch) or []):
                 by_alias[ch].setdefault(_norm(a), tool_id)
-                if ch == "procurement_names":
+                # Both the vendor name and the product name are match candidates
+                # for procurement/agenda text (which mixes company + line-item).
+                if ch in ("procurement_names", "product_names"):
                     proc_candidates.append((_norm(a), tool_id))
 
     # 1) Canonical SaaS/AI tool catalog.
@@ -62,8 +68,12 @@ def build_tool_index(schema: Dict[str, Any]) -> Dict[str, Any]:
     for v in ((schema.get("AI_Vendor_Fingerprints") or {}).get("vendors") or []):
         _register(v.get("vendor_id", ""), v.get("display_name", ""), v.get("aliases") or {})
 
+    ai_keywords = [_norm(k) for k in
+                   ((schema.get("AI_Tool_Catalog") or {}).get("ai_keywords") or []) if _norm(k)]
+
     return {"by_alias": by_alias, "by_name": by_name,
-            "procurement_candidates": proc_candidates}
+            "procurement_candidates": proc_candidates,
+            "ai_keywords": ai_keywords}
 
 
 def resolve_tool_id(channel: str, raw_id: Any, index: Dict[str, Any]) -> str:

@@ -70,5 +70,6 @@ def run_procurement_discovery(
     return {
         **merged,
         "matched": result["source_meta"]["matched"],
+        "candidates": result["source_meta"].get("candidates", 0),
         "rows": result["source_meta"]["rows"],
     }

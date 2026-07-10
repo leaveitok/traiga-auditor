@@ -23,10 +23,18 @@ router = APIRouter(prefix="/discovery", tags=["discovery"])
 
 
 class ProcurementRow(BaseModel):
-    # Accept the common column names; the normalizer reads vendor/vendor_name/supplier.
+    # Accept the common column names. The normalizer matches the PRODUCT/line-item
+    # as well as the vendor, and runs an AI-keyword screen over both.
     vendor:      Optional[str] = None
     vendor_name: Optional[str] = None
     supplier:    Optional[str] = None
+    company:     Optional[str] = None
+    product:     Optional[str] = None
+    description: Optional[str] = None
+    line_item:   Optional[str] = None
+    service:     Optional[str] = None
+    item:        Optional[str] = None
+    purpose:     Optional[str] = None
     city:        Optional[str] = None
     contract_id: Optional[str] = None
     amount:      Optional[str] = None
@@ -41,12 +49,13 @@ class ProcurementRequest(BaseModel):
 
 
 class DiscoveryRunResponse(BaseModel):
-    written: int
-    matched: int
-    skipped: int
-    rows:    int
-    cities:  List[str]
-    errors:  List[str]
+    written:    int
+    matched:    int             # confident catalog matches
+    candidates: int = 0         # AI-keyword hits flagged for human review
+    skipped:    int
+    rows:       int
+    cities:     List[str]
+    errors:     List[str]
 
 
 @router.post("/procurement", response_model=DiscoveryRunResponse)
@@ -93,6 +102,7 @@ def run_procurement(
     )
     return DiscoveryRunResponse(
         written=result["written"], matched=result["matched"],
+        candidates=result.get("candidates", 0),
         skipped=result["skipped"], rows=result["rows"],
         cities=result["cities"], errors=result["errors"],
     )

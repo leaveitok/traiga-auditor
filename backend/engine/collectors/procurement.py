@@ -1,26 +1,42 @@
 """
 procurement.py — procurement/contract discovery normalizer (PURE; no I/O).
 
-Turns rows from an uploaded vendor master / AP spend / contract register into
-DiscoveredAsset dicts, matched against the tool catalog. A procured AI vendor is
-a strong "should be in the inventory" signal that no website scan or browser
-watch can see. Also seeds the vendor-risk module.
+Turns rows from an uploaded vendor master / AP spend / contract register (or, in
+future, extracted council-agenda contract-award items) into DiscoveredAsset
+dicts, matched against the tool catalog.
 
-Matching: token-set overlap against the catalog's procurement_names aliases +
-display names (exact alias = full confidence). A confidence FLOOR prevents junk
-matches; rows with no confident AI match are counted as `skipped` — SURFACED,
-never guessed into a tool (fail-secure).
+WHY BOTH VENDOR AND PRODUCT: the AI signal often lives in the product/line-item,
+not the company name. "OpenAI" (vendor == product) is easy; but "Tyler
+Technologies — AI permitting assistant" or "Microsoft — Copilot" need the PRODUCT
+field. So we match against vendor AND product text, and if neither resolves to a
+catalog tool we run an AI-KEYWORD SCREEN over the combined text: a line item that
+says "AI assistant" surfaces as a CANDIDATE (unknown tool, flagged for human
+review) rather than being dropped — fail-secure, and the whole point of the
+channel is catching AI you don't yet have a fingerprint for.
 
-Consumes the index from engine.collectors.identity.build_tool_index — no import
-of it here, so this stays trivially unit-testable in isolation.
+Consumes the index from engine.collectors.identity.build_tool_index. No import of
+it here, so this stays trivially unit-testable in isolation.
 """
 from __future__ import annotations
 
 import re
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 PROVENANCE = "discovered_procurement"
 DEFAULT_MIN_CONFIDENCE = 0.5
+
+VENDOR_FIELDS  = ("vendor", "supplier", "vendor_name", "company", "payee")
+PRODUCT_FIELDS = ("product", "description", "line_item", "service", "item", "purpose")
+
+# Fallback AI-keyword list (the schema's AI_Tool_Catalog.ai_keywords overrides/extends).
+# Matched with word boundaries so "ai" is a word, not a substring of "maintenance".
+DEFAULT_AI_KEYWORDS = [
+    "ai", "artificial intelligence", "machine learning", "generative ai", "genai",
+    "large language model", "llm", "gpt", "chatbot", "virtual assistant",
+    "conversational ai", "natural language", "computer vision", "facial recognition",
+    "predictive analytics", "automated decision", "copilot", "neural network",
+    "deep learning", "cognitive services",
+]
 
 
 def _norm(s: Any) -> str:
@@ -38,9 +54,11 @@ def _token_set_ratio(a: str, b: str) -> float:
     return len(ta & tb) / len(ta | tb)
 
 
-def _match(raw_vendor: str, candidates: List) -> tuple:
+def _match(text: str, candidates: List) -> tuple:
     """Best (tool_id, confidence) over catalog candidates. Exact alias -> 1.0."""
-    raw = _norm(raw_vendor)
+    raw = _norm(text)
+    if not raw:
+        return None, 0.0
     best_id, best = None, 0.0
     for cand_name, tool_id in candidates:
         if raw == cand_name:
@@ -49,6 +67,23 @@ def _match(raw_vendor: str, candidates: List) -> tuple:
         if r > best:
             best, best_id = r, tool_id
     return best_id, round(best, 3)
+
+
+def _first(row: Dict[str, Any], names) -> str:
+    for n in names:
+        v = row.get(n)
+        if v not in (None, ""):
+            return str(v).strip()
+    return ""
+
+
+def _keyword_hit(text: str, keywords: List[str]) -> Optional[str]:
+    """Return the first AI keyword present (word-boundary match), else None."""
+    hay = _norm(text)
+    for kw in keywords:
+        if kw and re.search(r"\b" + re.escape(kw) + r"\b", hay):
+            return kw
+    return None
 
 
 def normalize(
@@ -60,40 +95,72 @@ def normalize(
     min_confidence: float = DEFAULT_MIN_CONFIDENCE,
 ) -> Dict[str, Any]:
     """
-    rows: parsed file rows (dicts). The route/orchestrator handles file parsing;
-    this function is pure. Returns a DiscoveryResult dict.
+    rows: parsed file/agenda rows (dicts). Pure — the orchestrator handles I/O.
+    Returns a DiscoveryResult dict; source_meta carries matched vs candidate counts.
     """
     candidates = index.get("procurement_candidates", [])
+    keywords = index.get("ai_keywords") or DEFAULT_AI_KEYWORDS
     assets: List[Dict[str, Any]] = []
     skipped = 0
+
     for row in rows:
-        raw_vendor = (row.get(vendor_field) or row.get("vendor_name")
-                      or row.get("supplier") or "").strip()
+        vendor_text  = (row.get(vendor_field) or _first(row, VENDOR_FIELDS) or "").strip()
+        product_text = _first(row, PRODUCT_FIELDS)
         city = (row.get(city_field) or default_city or "").strip()
-        if not raw_vendor or not city:
+        if not (vendor_text or product_text) or not city:
             skipped += 1
             continue
-        tool_id, conf = _match(raw_vendor, candidates)
-        if not tool_id or conf < min_confidence:
-            skipped += 1          # not a confident AI-vendor match -> surfaced as skipped
-            continue
+
+        display = product_text or vendor_text
         evidence = {k: row[k] for k in ("contract_id", "amount", "term", "department")
                     if row.get(k) not in (None, "")}
-        evidence["vendor_name_raw"] = raw_vendor
-        assets.append({
-            "tool_id":      tool_id,
-            "vendor_id":    tool_id,
-            "city":         city,
-            "display_name": raw_vendor,
-            "asset_types":  ["procured_ai"],
-            "provenance":   PROVENANCE,
-            "confidence":   conf,
-            "evidence":     evidence,
-            # NOTE: no `presence` — a contract is a procured signal, not observed
-            # live usage. Presence stays whatever an observing channel set.
-        })
+        if vendor_text:
+            evidence["vendor_name_raw"] = vendor_text
+        if product_text:
+            evidence["product_raw"] = product_text
+
+        # 1) Catalog match across BOTH the product and the vendor text; best wins.
+        best_id, best_conf = None, 0.0
+        for text in (product_text, vendor_text):
+            tid, conf = _match(text, candidates)
+            if tid and conf > best_conf:
+                best_id, best_conf = tid, conf
+
+        if best_id and best_conf >= min_confidence:
+            assets.append({
+                "tool_id":      best_id,
+                "vendor_id":    best_id,
+                "city":         city,
+                "display_name": display,
+                "asset_types":  ["procured_ai"],
+                "provenance":   PROVENANCE,
+                "confidence":   best_conf,
+                "evidence":     {**evidence, "match_type": "catalog"},
+            })
+            continue
+
+        # 2) AI-keyword screen (surface, don't drop): a line item that says "AI"
+        #    becomes a CANDIDATE for human review — even from an unknown vendor.
+        kw = _keyword_hit(f"{vendor_text} {product_text}", keywords)
+        if kw:
+            assets.append({
+                "tool_id":      f"unknown:ai:{_norm(display)[:60] or 'unnamed'}",
+                "vendor_id":    "",
+                "city":         city,
+                "display_name": display,
+                "asset_types":  ["procured_ai_candidate"],
+                "provenance":   PROVENANCE,
+                "confidence":   0.3,
+                "evidence":     {**evidence, "match_type": "ai_keyword", "matched_keyword": kw},
+            })
+            continue
+
+        skipped += 1
+
+    matched    = sum(1 for a in assets if a["asset_types"] == ["procured_ai"])
+    candidates_n = sum(1 for a in assets if a["asset_types"] == ["procured_ai_candidate"])
     return {
         "assets": assets,
         "skipped": skipped,
-        "source_meta": {"rows": len(rows), "matched": len(assets)},
+        "source_meta": {"rows": len(rows), "matched": matched, "candidates": candidates_n},
     }
