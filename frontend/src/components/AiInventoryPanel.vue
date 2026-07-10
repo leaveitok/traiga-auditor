@@ -67,6 +67,15 @@
                      @click="syncSentinel">Sync Staff Usage</v-btn>
             </template>
           </v-tooltip>
+          <!-- Procurement discovery: match an uploaded vendor/spend/contract file -->
+          <v-tooltip v-if="auth.canManage" location="bottom" max-width="320"
+                     text="Match an uploaded vendor / spend / contract file against the AI tool catalog and add procured AI to the registry.">
+            <template #activator="{ props: tp }">
+              <v-btn v-bind="tp" variant="tonal" color="teal" size="small"
+                     prepend-icon="mdi-file-document-multiple-outline"
+                     @click="procurementDialog = true">Import Procurement</v-btn>
+            </template>
+          </v-tooltip>
           <v-btn icon="mdi-refresh" variant="text" :loading="store.loading" @click="refresh" />
         </div>
       </v-card-title>
@@ -329,6 +338,10 @@
       </v-card>
     </v-dialog>
 
+    <!-- Procurement discovery import -->
+    <ProcurementImportDialog v-model="procurementDialog" :default-city="city || ''"
+                             @done="onProcurementDone" />
+
     <v-snackbar v-model="snackbar.show" :color="snackbar.color" :timeout="3500"
                 location="bottom right">{{ snackbar.text }}</v-snackbar>
   </div>
@@ -339,6 +352,7 @@ import { ref, computed, onMounted, reactive } from 'vue'
 import { useInventoryStore } from '../stores/inventory'
 import { useAuthStore } from '../stores/auth'
 import { useCidStore } from '../stores/cid'
+import ProcurementImportDialog from './ProcurementImportDialog.vue'
 
 const props = defineProps({
   /** When set, the panel is locked to one city (CityDetailView embed). */
@@ -351,6 +365,15 @@ const cid   = useCidStore()
 
 // ── CID (AG demand) readiness — city-scoped panels only ─────────────────────
 const downloadingPack = ref(false)
+
+// ── Procurement discovery import ────────────────────────────────────────────
+const procurementDialog = ref(false)
+function onProcurementDone(res) {
+  snackbar.text  = `Procurement: ${res?.matched ?? 0} AI vendor(s) matched, ${res?.written ?? 0} added/updated`
+  snackbar.color = 'success'
+  snackbar.show  = true
+  refresh()
+}
 
 const cidCity = computed(() => (props.city ? cid.byCity[props.city] || null : null))
 

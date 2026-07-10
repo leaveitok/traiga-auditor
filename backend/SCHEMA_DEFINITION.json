@@ -1,4 +1,21 @@
 {
+  "AI_Tool_Catalog": {
+    "note": "Canonical AI tool registry for cross-channel identity (procurement, OAuth, network, Sentinel). tool_id is the canonical key; aliases map each channel's raw identifier to it. oauth_app_ids are populated during the OAuth channel build. Fingerprint vendor_ids in AI_Vendor_Fingerprints are ALSO valid tool_ids. Governance-as-code: add tools here, never in code.",
+    "tools": [
+      {"tool_id": "openai_chatgpt", "display_name": "ChatGPT (OpenAI)", "category": "genai_assistant", "aliases": {"sentinel_site_ids": ["chatgpt", "openai"], "domains": ["chatgpt.com", "chat.openai.com", "openai.com", "api.openai.com"], "procurement_names": ["openai", "chatgpt", "chatgpt enterprise", "chatgpt team", "openai api"], "oauth_app_ids": []}},
+      {"tool_id": "anthropic_claude", "display_name": "Claude (Anthropic)", "category": "genai_assistant", "aliases": {"sentinel_site_ids": ["claude", "anthropic"], "domains": ["claude.ai", "anthropic.com", "api.anthropic.com"], "procurement_names": ["anthropic", "claude", "claude for work", "claude enterprise"], "oauth_app_ids": []}},
+      {"tool_id": "google_gemini", "display_name": "Google Gemini", "category": "genai_assistant", "aliases": {"sentinel_site_ids": ["gemini", "bard"], "domains": ["gemini.google.com", "bard.google.com"], "procurement_names": ["gemini", "google gemini", "duet ai", "gemini for workspace"], "oauth_app_ids": []}},
+      {"tool_id": "microsoft_copilot", "display_name": "Microsoft Copilot", "category": "genai_assistant", "aliases": {"sentinel_site_ids": ["copilot"], "domains": ["copilot.microsoft.com", "m365.cloud.microsoft"], "procurement_names": ["microsoft copilot", "m365 copilot", "copilot for microsoft 365", "copilot studio", "microsoft 365 copilot"], "oauth_app_ids": []}},
+      {"tool_id": "github_copilot", "display_name": "GitHub Copilot", "category": "code_assistant", "aliases": {"domains": ["github.com"], "procurement_names": ["github copilot"], "oauth_app_ids": []}},
+      {"tool_id": "perplexity_ai", "display_name": "Perplexity", "category": "genai_search", "aliases": {"sentinel_site_ids": ["perplexity"], "domains": ["perplexity.ai"], "procurement_names": ["perplexity"], "oauth_app_ids": []}},
+      {"tool_id": "grok_xai", "display_name": "Grok (xAI)", "category": "genai_assistant", "aliases": {"sentinel_site_ids": ["grok"], "domains": ["grok.com", "x.ai"], "procurement_names": ["grok", "xai"], "oauth_app_ids": []}},
+      {"tool_id": "otter_ai", "display_name": "Otter.ai", "category": "transcription_ai", "aliases": {"domains": ["otter.ai"], "procurement_names": ["otter", "otter.ai"], "oauth_app_ids": []}},
+      {"tool_id": "grammarly", "display_name": "Grammarly", "category": "writing_ai", "aliases": {"domains": ["grammarly.com"], "procurement_names": ["grammarly"], "oauth_app_ids": []}},
+      {"tool_id": "notion_ai", "display_name": "Notion AI", "category": "productivity_ai", "aliases": {"domains": ["notion.so", "notion.ai"], "procurement_names": ["notion ai", "notion"], "oauth_app_ids": []}},
+      {"tool_id": "zoom_ai_companion", "display_name": "Zoom AI Companion", "category": "meeting_ai", "aliases": {"domains": ["zoom.us"], "procurement_names": ["zoom ai", "zoom ai companion"], "oauth_app_ids": []}},
+      {"tool_id": "fireflies_ai", "display_name": "Fireflies.ai", "category": "transcription_ai", "aliases": {"domains": ["fireflies.ai"], "procurement_names": ["fireflies", "fireflies.ai"], "oauth_app_ids": []}}
+    ]
+  },
   "meta": {
     "schema_name": "AI_Transparency_Auditor.GovernanceAsCode",
     "schema_version": "0.1.0",

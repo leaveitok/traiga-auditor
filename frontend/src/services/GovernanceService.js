@@ -185,6 +185,25 @@ const updateAsset = (assetKey, patch) =>
 const syncSentinelUsage = () =>
   http.post('/inventory/sync-sentinel', {}, { timeout: 120000 }).then(r => r.data)
 
+// ── Discovery channels (widen the moat: new sources into the same registry) ───
+
+/**
+ * Run procurement / contract discovery: match uploaded vendor/spend rows against
+ * the AI tool catalog and merge matches into the inventory as
+ * provenance=discovered_procurement. Same registry, cure engine, and artifacts.
+ * @param {import('./types').ProcurementRow[]} rows
+ * @param {{ default_city?: string, min_confidence?: number }} [opts]
+ * @returns {Promise<import('./types').ProcurementDiscoveryResult>}
+ */
+const runProcurementDiscovery = (rows, opts = {}) =>
+  // TODO: auth token attached globally by the request interceptor
+  // TODO: server enforces RBAC (platform_admin/agency_admin) + city scoping
+  http.post('/discovery/procurement', {
+    rows,
+    default_city:   opts.default_city || null,
+    min_confidence: opts.min_confidence ?? 0.5,
+  }, { timeout: 120000 }).then(r => r.data)
+
 // ── Admin: users & agencies ──────────────────────────────────────────────────
 const getMe        = ()       => http.get('/auth/me').then(r => r.data)
 const getUsers     = ()       => http.get('/auth/users').then(r => r.data)
@@ -367,6 +386,8 @@ export const GovernanceService = {
   declareAsset,
   updateAsset,
   syncSentinelUsage,
+  // Discovery channels
+  runProcurementDiscovery,
   // Admin (users & agencies)
   getMe,
   getUsers,

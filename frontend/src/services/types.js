@@ -169,4 +169,30 @@
  * @property {string|null}    error
  */
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Discovery — Procurement channel
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * One parsed row from an uploaded vendor / spend / contract file.
+ * @typedef {Object} ProcurementRow
+ * @property {string}  vendor        - vendor / supplier name (required)
+ * @property {string}  [city]        - owning city (required unless default_city supplied)
+ * @property {string}  [contract_id]
+ * @property {string}  [amount]
+ * @property {string}  [term]
+ * @property {string}  [department]
+ */
+
+/**
+ * Result of a procurement discovery run.
+ * @typedef {Object} ProcurementDiscoveryResult
+ * @property {number}   written  - assets merged into the AI inventory
+ * @property {number}   matched  - rows confidently matched to an AI tool
+ * @property {number}   skipped  - rows with no confident AI match / missing fields
+ * @property {number}   rows     - total rows submitted
+ * @property {string[]} cities   - cities that received new/updated assets
+ * @property {string[]} errors   - per-row write errors (should be empty)
+ */
+
 export {}

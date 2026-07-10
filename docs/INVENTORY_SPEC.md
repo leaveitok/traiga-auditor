@@ -19,7 +19,9 @@ and fill in context — not to author records from memory.
 | `city` | tenancy key — RBAC scoping reuses `filter_rows` unchanged |
 | `vendor_id` / `display_name` | from fingerprint schema, or free text when declared |
 | `asset_types_json` | JSON list (chatbot, automated_intake_widget, …) |
-| `provenance` | `discovered_scan` \| `declared` (future: `discovered_sentinel`) |
+| `provenance` | primary/first source: `discovered_scan` \| `discovered_sentinel` \| `discovered_procurement` \| `declared` (future: `discovered_oauth`, `discovered_network`) |
+| `tool_id` | canonical cross-channel id (identity resolver). Registry key is `{city}::{tool_id}` so the same tool found by multiple channels is ONE row |
+| `discovery_sources_json` | machine field: append-unioned list of every channel that found this tool `[{provenance, observed_utc, evidence}]` — the "found by scan + Sentinel + procurement" evidence |
 | `lifecycle_status` | `discovered` → `attested` → `retired` |
 | `presence` | `active` \| `not_reobserved` (city crawled OK but asset absent) |
 | `first_observed_utc` / `last_observed_utc` | scan timestamps (declared: creation time) |
