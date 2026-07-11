@@ -204,6 +204,17 @@ const runProcurementDiscovery = (rows, opts = {}) =>
     min_confidence: opts.min_confidence ?? 0.5,
   }, { timeout: 120000 }).then(r => r.data)
 
+/**
+ * Run council-agenda discovery for one source (Legistar client, PDF URL, or
+ * pasted text) over a date window → discovered_agenda in the registry.
+ * Flag-gated server-side (503 if the agenda engine is disabled).
+ * @param {import('./types').AgendaDiscoveryRequest} payload
+ * @returns {Promise<import('./types').AgendaDiscoveryResult>}
+ */
+const runAgendaDiscovery = (payload) =>
+  // TODO: server enforces RBAC (platform_admin/agency_admin) + city scoping
+  http.post('/discovery/agenda', payload, { timeout: 300000 }).then(r => r.data)
+
 // ── Admin: users & agencies ──────────────────────────────────────────────────
 const getMe        = ()       => http.get('/auth/me').then(r => r.data)
 const getUsers     = ()       => http.get('/auth/users').then(r => r.data)
@@ -388,6 +399,7 @@ export const GovernanceService = {
   syncSentinelUsage,
   // Discovery channels
   runProcurementDiscovery,
+  runAgendaDiscovery,
   // Admin (users & agencies)
   getMe,
   getUsers,

@@ -18,6 +18,11 @@ COLLECTORS = {
         "module": "core.discovery.procurement_source",
         "entry": "run_procurement_discovery",
     },
+    "agenda": {
+        "provenance": "discovered_agenda",
+        "module": "core.discovery.agenda_source",
+        "entry": "run_agenda_discovery",
+    },
     # "oauth":   {...}  ← flagship, next
     # "network": {...}
 }

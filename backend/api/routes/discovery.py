@@ -106,3 +106,94 @@ def run_procurement(
         skipped=result["skipped"], rows=result["rows"],
         cities=result["cities"], errors=result["errors"],
     )
+
+
+# ── Council-agenda discovery (separate engine; flag-gated) ────────────────────
+
+class AgendaItem(BaseModel):
+    # A council-agenda contract-award item (pre-extracted, or produced by the
+    # server-side LLM extractor from raw agenda text).
+    vendor:       Optional[str] = None
+    product:      Optional[str] = None
+    service:      Optional[str] = None
+    action:       Optional[str] = None
+    amount:       Optional[str] = None
+    meeting_date: Optional[str] = None
+    item_title:   Optional[str] = None
+    source_url:   Optional[str] = None
+    file_number:  Optional[str] = None
+    contract_id:  Optional[str] = None
+
+
+class AgendaRequest(BaseModel):
+    city:            str
+    legistar_client: Optional[str] = None   # e.g. "cityoflewisville" → Legistar Web API
+    since:           Optional[str] = None    # YYYY-MM-DD (date window; default = lookback)
+    until:           Optional[str] = None
+    pdf_url:         Optional[str] = None    # agenda PDF (OnBase / CivicPlus etc.)
+    agenda_url:      Optional[str] = None
+    agenda_text:     Optional[str] = None
+    items:           Optional[List[AgendaItem]] = None
+    min_confidence:  float = 0.5
+
+
+@router.post("/agenda", response_model=DiscoveryRunResponse)
+@limiter.limit("10/minute")
+def run_agenda(
+    request: Request,
+    body: AgendaRequest,
+    user: dict = Depends(get_current_user),
+    repo: GovernanceRepository = Depends(get_repository),
+):
+    """
+    Discover AI from council-agenda contract-award items → registry as
+    provenance=discovered_agenda. Separate engine, flag-gated
+    (AGENDA_ENGINE_ENABLED). RBAC: platform/agency admin, scoped to the city.
+    """
+    # TODO: attach verified user context for multi-tenant scoping (auth placeholder)
+    principal = resolve_principal(user, repo)
+    if not (principal.is_platform_admin or principal.is_agency_admin):
+        raise HTTPException(
+            status_code=403,
+            detail="Agenda discovery requires platform_admin or agency_admin.")
+    if not principal.all_cities and not principal.can_see_city(body.city):
+        raise HTTPException(status_code=403, detail="City out of scope.")
+
+    allowed_cities = None if principal.all_cities else principal.cities
+
+    from core.discovery.agenda_source import (
+        run_agenda_discovery, run_legistar_discovery, run_pdf_discovery)
+    if body.legistar_client:
+        # End-to-end Legistar path: fetch the date window from the Web API.
+        result = run_legistar_discovery(
+            repo, body.city, body.legistar_client,
+            since=body.since, until=body.until,
+            min_confidence=body.min_confidence, allowed_cities=allowed_cities,
+            actor=user.get("email", "unknown"),
+        )
+    elif body.pdf_url:
+        # PDF agenda path (portals without an API).
+        result = run_pdf_discovery(
+            repo, body.city, body.pdf_url,
+            min_confidence=body.min_confidence, allowed_cities=allowed_cities,
+            actor=user.get("email", "unknown"),
+        )
+    else:
+        items = [i.model_dump() for i in body.items] if body.items else None
+        result = run_agenda_discovery(
+            repo, body.city,
+            items=items, agenda_text=body.agenda_text, agenda_url=body.agenda_url or "",
+            min_confidence=body.min_confidence, allowed_cities=allowed_cities,
+            actor=user.get("email", "unknown"),
+        )
+    if result.get("errors") == ["agenda_engine_disabled"]:
+        raise HTTPException(
+            status_code=503,
+            detail="Agenda engine is disabled. Set AGENDA_ENGINE_ENABLED=true to enable.")
+
+    return DiscoveryRunResponse(
+        written=result["written"], matched=result["matched"],
+        candidates=result.get("candidates", 0),
+        skipped=result["skipped"], rows=result["rows"],
+        cities=result["cities"], errors=result["errors"],
+    )

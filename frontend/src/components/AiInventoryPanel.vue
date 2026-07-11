@@ -76,6 +76,15 @@
                      @click="procurementDialog = true">Import Procurement</v-btn>
             </template>
           </v-tooltip>
+          <!-- Council-agenda discovery -->
+          <v-tooltip v-if="auth.canManage" location="bottom" max-width="320"
+                     text="Scan a city's council/EDC agendas (Legistar, PDF, or pasted text) for awarded AI contracts.">
+            <template #activator="{ props: tp }">
+              <v-btn v-bind="tp" variant="tonal" color="indigo" size="small"
+                     prepend-icon="mdi-gavel"
+                     @click="agendaDialog = true">Agendas</v-btn>
+            </template>
+          </v-tooltip>
           <v-btn icon="mdi-refresh" variant="text" :loading="store.loading" @click="refresh" />
         </div>
       </v-card-title>
@@ -341,6 +350,8 @@
     <!-- Procurement discovery import -->
     <ProcurementImportDialog v-model="procurementDialog" :default-city="city || ''"
                              @done="onProcurementDone" />
+    <AgendaDiscoveryDialog v-model="agendaDialog" :default-city="city || ''"
+                           @done="onProcurementDone" />
 
     <v-snackbar v-model="snackbar.show" :color="snackbar.color" :timeout="3500"
                 location="bottom right">{{ snackbar.text }}</v-snackbar>
@@ -353,6 +364,7 @@ import { useInventoryStore } from '../stores/inventory'
 import { useAuthStore } from '../stores/auth'
 import { useCidStore } from '../stores/cid'
 import ProcurementImportDialog from './ProcurementImportDialog.vue'
+import AgendaDiscoveryDialog from './AgendaDiscoveryDialog.vue'
 
 const props = defineProps({
   /** When set, the panel is locked to one city (CityDetailView embed). */
@@ -368,6 +380,7 @@ const downloadingPack = ref(false)
 
 // ── Procurement discovery import ────────────────────────────────────────────
 const procurementDialog = ref(false)
+const agendaDialog = ref(false)
 function onProcurementDone(res) {
   snackbar.text  = `Procurement: ${res?.matched ?? 0} AI vendor(s) matched, ${res?.written ?? 0} added/updated`
   snackbar.color = 'success'

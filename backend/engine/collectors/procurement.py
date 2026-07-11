@@ -93,10 +93,16 @@ def normalize(
     city_field: str = "city",
     default_city: str = "",
     min_confidence: float = DEFAULT_MIN_CONFIDENCE,
+    provenance: str = PROVENANCE,
+    extra_evidence_fields: tuple = (),
 ) -> Dict[str, Any]:
     """
     rows: parsed file/agenda rows (dicts). Pure — the orchestrator handles I/O.
     Returns a DiscoveryResult dict; source_meta carries matched vs candidate counts.
+
+    Reused by other channels (e.g. council-agenda award items): pass
+    provenance="discovered_agenda" and extra_evidence_fields to carry that
+    channel's evidence (meeting_date, item_title, source_url, action) through.
     """
     candidates = index.get("procurement_candidates", [])
     keywords = index.get("ai_keywords") or DEFAULT_AI_KEYWORDS
@@ -112,8 +118,8 @@ def normalize(
             continue
 
         display = product_text or vendor_text
-        evidence = {k: row[k] for k in ("contract_id", "amount", "term", "department")
-                    if row.get(k) not in (None, "")}
+        _ev_keys = ("contract_id", "amount", "term", "department") + tuple(extra_evidence_fields)
+        evidence = {k: row[k] for k in _ev_keys if row.get(k) not in (None, "")}
         if vendor_text:
             evidence["vendor_name_raw"] = vendor_text
         if product_text:
@@ -133,7 +139,7 @@ def normalize(
                 "city":         city,
                 "display_name": display,
                 "asset_types":  ["procured_ai"],
-                "provenance":   PROVENANCE,
+                "provenance":   provenance,
                 "confidence":   best_conf,
                 "evidence":     {**evidence, "match_type": "catalog"},
             })
@@ -149,7 +155,7 @@ def normalize(
                 "city":         city,
                 "display_name": display,
                 "asset_types":  ["procured_ai_candidate"],
-                "provenance":   PROVENANCE,
+                "provenance":   provenance,
                 "confidence":   0.3,
                 "evidence":     {**evidence, "match_type": "ai_keyword", "matched_keyword": kw},
             })

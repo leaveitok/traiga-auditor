@@ -77,6 +77,24 @@ USER_AGENT: str = (
 SCAN_PROXY_URL: str = os.environ.get("SCAN_PROXY_URL", "").strip()
 SCAN_PROXY_ONLY_FLAGGED: bool = os.environ.get("SCAN_PROXY_ONLY_FLAGGED", "false").lower() == "true"
 
+# ── Council-agenda discovery engine (separate engine; isolated execution) ─────
+# Flag-gated (off by default) so the LLM/PDF workload never runs against the core
+# nightly compliance scan until deliberately enabled. See docs/AGENDA_ENGINE_DESIGN.md.
+AGENDA_ENGINE_ENABLED: bool = os.environ.get("AGENDA_ENGINE_ENABLED", "false").lower() == "true"
+# How far back an initial backfill scans agendas (cost control); incremental runs
+# use the per-city last-scan date. Hard cap prevents an accidental years-deep scan.
+AGENDA_LOOKBACK_MONTHS: int = int(os.environ.get("AGENDA_LOOKBACK_MONTHS", "12"))
+AGENDA_LOOKBACK_MONTHS_MAX: int = int(os.environ.get("AGENDA_LOOKBACK_MONTHS_MAX", "36"))
+# Extractor provider (single swap point): "keyword" (no LLM, zero-dep default —
+# uses the item title so the AI-keyword screen still fires), "vertex" (Gemini on
+# Vertex AI, reuses the GCP service account, enterprise no-train), or "none".
+AGENDA_LLM_PROVIDER: str = os.environ.get("AGENDA_LLM_PROVIDER", "keyword").strip().lower()
+AGENDA_LLM_MODEL: str = os.environ.get("AGENDA_LLM_MODEL", "gemini-2.5-flash-lite").strip()
+AGENDA_LLM_LOCATION: str = os.environ.get("AGENDA_LLM_LOCATION", "us-central1").strip()
+# Demand-driven proxy (NOT coupled to the website's cloudflare_protected flag —
+# the agenda portal is usually a different third-party host). Sibling of SCAN_PROXY_*.
+AGENDA_PROXY_URL: str = os.environ.get("AGENDA_PROXY_URL", os.environ.get("SCAN_PROXY_URL", "")).strip()
+
 # ── Storage backend selection (Firestore migration, Phase 2) ─────────────────
 # "sheets" (legacy) or "firestore". Defaults to sheets so ROLLBACK IS A CONFIG
 # CHANGE: unset/flip the env var and redeploy — no code revert needed.

@@ -31,5 +31,23 @@ export const useDiscoveryStore = defineStore('discovery', () => {
     }
   }
 
-  return { running, error, runProcurement }
+  /**
+   * Run agenda discovery for one source (Legistar / PDF / pasted text).
+   * @param {import('../services/types').AgendaDiscoveryRequest} payload
+   * @returns {Promise<import('../services/types').AgendaDiscoveryResult>}
+   */
+  async function runAgenda(payload) {
+    running.value = true
+    error.value   = null
+    try {
+      return await GovernanceService.runAgendaDiscovery(payload)
+    } catch (e) {
+      error.value = e.response?.data?.detail || e.message
+      throw e
+    } finally {
+      running.value = false
+    }
+  }
+
+  return { running, error, runProcurement, runAgenda }
 })

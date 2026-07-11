@@ -189,10 +189,27 @@
  * @typedef {Object} ProcurementDiscoveryResult
  * @property {number}   written  - assets merged into the AI inventory
  * @property {number}   matched  - rows confidently matched to an AI tool
+ * @property {number}   [candidates] - AI-keyword hits flagged for human review
  * @property {number}   skipped  - rows with no confident AI match / missing fields
  * @property {number}   rows     - total rows submitted
  * @property {string[]} cities   - cities that received new/updated assets
  * @property {string[]} errors   - per-row write errors (should be empty)
+ */
+
+/**
+ * Request to run council-agenda discovery (one source per call).
+ * @typedef {Object} AgendaDiscoveryRequest
+ * @property {string}  city
+ * @property {string}  [legistar_client] - Legistar client slug (e.g. "cityoflewisville")
+ * @property {string}  [pdf_url]          - agenda PDF URL (OnBase / CivicPlus etc.)
+ * @property {string}  [agenda_text]      - pasted agenda text
+ * @property {string}  [since]            - YYYY-MM-DD (date window start)
+ * @property {string}  [until]            - YYYY-MM-DD (date window end)
+ */
+
+/**
+ * Result of an agenda discovery run (same shape as procurement).
+ * @typedef {ProcurementDiscoveryResult} AgendaDiscoveryResult
  */
 
 export {}
