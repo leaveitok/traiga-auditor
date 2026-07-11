@@ -55,6 +55,12 @@ const routes = [
     meta: { title: 'Audit Log', icon: 'mdi-text-box-outline', requiresAuth: true },
   },
   {
+    path: '/errors',
+    name: 'Errors',
+    component: () => import('../views/ErrorsView.vue'),
+    meta: { title: 'Error Log', icon: 'mdi-alert-octagon', requiresManage: true },
+  },
+  {
     path: '/admin',
     name: 'Admin',
     component: () => import('../views/AdminConsoleView.vue'),

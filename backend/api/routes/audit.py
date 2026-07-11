@@ -25,6 +25,7 @@ from core import run_state as _rs
 from core.access import resolve_principal, scope_requested_cities
 from core.auth import get_current_user, is_admin
 from core.dependencies import get_repository, limiter
+from core.error_log import record_error
 from core.governance_service import GovernanceRepository
 from core.scheduler import get_scheduler_state
 
@@ -171,6 +172,9 @@ async def _run_audit_task(
         ref = str(uuid.uuid4())[:8]
         tb  = _tb.format_exc()
         print(f"[audit_task] ERROR [{ref}] {type(exc).__name__}: {exc}\n{tb}")
+        record_error(repo, source="audit_pipeline",
+                     message=f"{type(exc).__name__}: {exc}",
+                     details={"ref": ref, "traceback": tb})
         repo.save_run_state(_rs.AUDIT_KEY, {
             **_rs.default_audit_state(),
             "status":         "error",
@@ -479,6 +483,10 @@ def chrome_capture(
         # Log full detail server-side only — never expose internal state to client
         ref = str(uuid.uuid4())[:8]
         print(f"[chrome_capture] ERROR [{ref}] {type(exc).__name__}: {exc}\n{_tb.format_exc()}")
+        record_error(repo, source="chrome_capture",
+                     message=f"{type(exc).__name__}: {exc}",
+                     city=locals().get("city"),
+                     details={"ref": ref, "traceback": _tb.format_exc()})
         # Store under a separate key so a Deep Scan error never clobbers the
         # live audit run-state document.
         try:

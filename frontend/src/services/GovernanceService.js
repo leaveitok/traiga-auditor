@@ -251,6 +251,15 @@ const getAuditStatus = () => http.get('/audit/run').then(r => r.data)
 const getAuditLog = (limit = 100) =>
   http.get(`/logs?limit=${limit}`).then(r => r.data)
 
+/**
+ * Operational error log (platform-admin only) — what broke, for triage.
+ * @param {number} [limit=100]
+ * @returns {Promise<Object[]>}
+ */
+// TODO: attach auth token; backend enforces platform-admin (403 otherwise)
+const getErrorLog = (limit = 100) =>
+  http.get(`/errors?limit=${limit}`).then(r => r.data)
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Deep Scan (Chrome-assisted capture for Cloudflare-protected sites)
 // ─────────────────────────────────────────────────────────────────────────────
@@ -424,6 +433,7 @@ export const GovernanceService = {
   upsertAgency,
   // Logs
   getAuditLog,
+  getErrorLog,
   // Deep Scan
   submitDeepScan,
   // Reports

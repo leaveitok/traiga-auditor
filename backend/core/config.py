@@ -21,6 +21,7 @@ SHEET_TARGETS    = "Targets"
 SHEET_SCORECARD  = "Scorecard"
 SHEET_VIOLATIONS = "Violations"
 SHEET_AUDIT_LOG  = "AuditLog"
+SHEET_ERROR_LOG  = "ErrorLog"
 SHEET_USERS      = "Users"
 
 # Admin emails (comma-separated) — these users can audit all cities

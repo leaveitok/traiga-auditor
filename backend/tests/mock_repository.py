@@ -39,11 +39,13 @@ class MockGovernanceRepository:
         users:      Optional[List[Dict[str, Any]]] = None,
         agencies:   Optional[List[Dict[str, Any]]] = None,
         ai_assets:  Optional[List[Dict[str, Any]]] = None,
+        error_log:  Optional[List[Dict[str, Any]]] = None,
     ):
         self._targets    = list(targets   or [])
         self._scorecard  = list(scorecard or [])
         self._violations = list(violations or [])
         self._audit_log  = list(audit_log  or [])
+        self._error_log  = list(error_log  or [])
         self._users      = list(users      or [])
         self._agencies   = list(agencies   or [])
         self._ai_assets  = list(ai_assets  or [])
@@ -173,6 +175,24 @@ class MockGovernanceRepository:
             "failures":    failures,
             "details_json": "{}",
             "details":     details,
+        })
+
+    # ── Error Log ─────────────────────────────────────────────────────────────
+
+    def get_error_log(self, limit: int = 100) -> List[Dict[str, Any]]:
+        # Most recent first (mirrors Firestore/Sheets ordering).
+        return list(reversed(self._error_log))[:limit]
+
+    def append_error_log(self, source: str, message: str, level: str = "error",
+                         city: Optional[str] = None,
+                         details: Optional[Dict[str, Any]] = None) -> None:
+        self._error_log.append({
+            "level":        level,
+            "source":       source,
+            "message":      message,
+            "city":         city or "",
+            "details_json": "{}",
+            "details":      details or {},
         })
 
     # ── User Management ───────────────────────────────────────────────────────

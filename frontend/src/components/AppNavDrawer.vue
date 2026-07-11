@@ -98,6 +98,7 @@ const baseItems = [
 const manageItems = [
   { to: '/targets',    icon: 'mdi-city',              title: 'Target Registry' },
   { to: '/logs',       icon: 'mdi-text-box-outline',  title: 'Audit Log'       },
+  { to: '/errors',     icon: 'mdi-alert-octagon',     title: 'Error Log'       },
   { to: '/admin',      icon: 'mdi-account-cog',       title: 'Administration'  },
 ]
 const settingsItem = { to: '/settings', icon: 'mdi-cog', title: 'Settings' }

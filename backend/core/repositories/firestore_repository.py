@@ -46,6 +46,7 @@ COLL_TARGETS    = "targets"
 COLL_SCORECARD  = "scorecard"
 COLL_VIOLATIONS = "violations"
 COLL_AUDIT_LOG  = "audit_log"
+COLL_ERROR_LOG  = "error_log"
 COLL_USERS      = "users"
 COLL_AGENCIES   = "agencies"
 COLL_AI_ASSETS  = "ai_assets"
@@ -294,6 +295,27 @@ class FirestoreRepository:
             "city_count":    city_count,
             "failures":      failures,
             "details_json":  json.dumps(details),
+        }))
+
+    # ── Error Log ─────────────────────────────────────────────────────────────
+
+    def get_error_log(self, limit: int = 100) -> List[Dict[str, Any]]:
+        # TODO: enforce platform-admin read only (auth placeholder)
+        docs = (self._db.collection(COLL_ERROR_LOG)
+                .order_by("timestamp_utc", direction=_DESC)
+                .limit(limit).stream())
+        return [d.to_dict() for d in docs]
+
+    def append_error_log(self, source: str, message: str, level: str = "error",
+                         city: Optional[str] = None,
+                         details: Optional[Dict[str, Any]] = None) -> None:
+        self._db.collection(COLL_ERROR_LOG).add(self._stringify({
+            "timestamp_utc": _now_iso(),
+            "level":         level,
+            "source":        source,
+            "message":       message,
+            "city":          city or "",
+            "details_json":  json.dumps(details or {}),
         }))
 
     # ── Users ─────────────────────────────────────────────────────────────────

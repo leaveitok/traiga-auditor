@@ -181,6 +181,38 @@ class GovernanceRepository(Protocol):
         """
         ...
 
+    # ── Error Log (operational diagnostics — platform-admin only) ─────────────
+
+    def get_error_log(self, limit: int = 100) -> List[Dict[str, Any]]:
+        """
+        Return operational error-log entries, most recent first.
+
+        Distinct from the audit log: the audit log records *who did what*
+        (governance actions), while the error log records *what broke*
+        (unhandled pipeline/scheduler/collector failures) for admin triage.
+        TODO: enforce platform-admin read only (auth placeholder).
+        """
+        ...
+
+    def append_error_log(
+        self,
+        source: str,
+        message: str,
+        level: str = "error",
+        city: Optional[str] = None,
+        details: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        """
+        Append one entry to the append-only error log.
+
+        `source` is the subsystem (e.g. "audit_pipeline", "scheduler",
+        "agenda_llm"); `message` is a short human summary; `details` carries
+        structured context (ref id, traceback). Writers must never let a
+        logging failure crash the caller — see core.error_log.record_error.
+        TODO: enforce system-level write only (auth placeholder).
+        """
+        ...
+
     # ── Durable run state (audit + scheduler; cross-instance) ─────────────────
 
     def get_run_state(self, key: str) -> Dict[str, Any]:

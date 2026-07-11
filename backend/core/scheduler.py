@@ -22,6 +22,7 @@ from apscheduler.triggers.interval import IntervalTrigger
 
 from core import config
 from core import run_state as _rs
+from core.error_log import record_error
 
 # ── Scheduler object reference (a live, instance-local APScheduler) ──────────
 # The scheduler runs on each instance; scheduler_running / next_run_utc are
@@ -178,6 +179,9 @@ async def _scheduled_scan_job() -> None:
     except Exception as exc:
         _record_scheduler_run(repo, result=None,
                               error=f"Scan error [{ref}]: {type(exc).__name__}")
+        record_error(repo, source="scheduler",
+                     message=f"{type(exc).__name__}: {exc}",
+                     details={"ref": ref, "traceback": _tb.format_exc()})
         try:
             repo.save_run_state(_rs.AUDIT_KEY, _terminal_audit_state(
                 started, "error", 0,

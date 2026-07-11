@@ -78,6 +78,9 @@ HEADERS: Dict[str, List[str]] = {
     config.SHEET_AUDIT_LOG: [
         "timestamp_utc", "event", "city_count", "failures", "details_json"
     ],
+    config.SHEET_ERROR_LOG: [
+        "timestamp_utc", "level", "source", "message", "city", "details_json"
+    ],
     config.SHEET_USERS: [
         "email", "role", "city", "created_utc", "agency_id", "cities",
     ],
@@ -484,6 +487,25 @@ class SheetsRepository:
             "city_count":    city_count,
             "failures":      failures,
             "details_json":  json.dumps(details),
+        })
+
+    # ── Error Log ─────────────────────────────────────────────────────────────
+
+    def get_error_log(self, limit: int = 100) -> List[Dict[str, Any]]:
+        # TODO: enforce platform-admin read only (auth placeholder)
+        rows = self._cached_read(config.SHEET_ERROR_LOG, ttl=30)
+        return list(reversed(rows))[:limit]
+
+    def append_error_log(self, source: str, message: str, level: str = "error",
+                         city: Optional[str] = None,
+                         details: Optional[Dict[str, Any]] = None) -> None:
+        self._append_row(config.SHEET_ERROR_LOG, {
+            "timestamp_utc": _now_iso(),
+            "level":         level,
+            "source":        source,
+            "message":       message,
+            "city":          city or "",
+            "details_json":  json.dumps(details or {}),
         })
 
     # ── Users ─────────────────────────────────────────────────────────────────
