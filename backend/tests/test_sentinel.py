@@ -70,7 +70,14 @@ def sentinel_repo():
 def sclient(sentinel_repo, monkeypatch):
     """Client with ingest token configured and admin reads (REQUIRE_AUTH=false)."""
     monkeypatch.setenv("SENTINEL_INGEST_TOKENS", TOKEN)
+    from tests.mock_repository import MockGovernanceRepository
+    from core.dependencies import get_repository
     app.dependency_overrides[get_sentinel_repository] = lambda: sentinel_repo
+    # Hermetic: /sentinel/events and /devices resolve the RBAC principal via
+    # get_repository. Without this override CI builds a real SheetsRepository and
+    # dies on the missing service_account.json (passes locally only because that
+    # creds file exists). The synthetic default user still resolves as platform_admin.
+    app.dependency_overrides[get_repository] = lambda: MockGovernanceRepository()
     with TestClient(app) as c:
         yield c
     app.dependency_overrides.clear()
