@@ -69,6 +69,7 @@
  */
 import { computed } from 'vue'
 import { useScorecardStore } from '../stores/scorecard'
+import { liveDaysLeft } from '../utils/cure'
 
 const store = useScorecardStore()
 
@@ -81,21 +82,23 @@ const toInt = (v) => {
 const inCure = computed(() =>
   (store.rows || [])
     .map((r) => {
-      const days = toInt(r.min_days_remaining)
+      // LIVE: days from the real deadline (deadline - now), NOT the stored snapshot.
+      const days = liveDaysLeft(r.min_cure_deadline_utc)
       const violations = toInt(r.open_violations_count)
         ?? (Array.isArray(r.open_violations) ? r.open_violations.length : 0)
-      return { city: r.city, days, violations, deadline: deadlineFor(days) }
+      return { city: r.city, days, violations, deadline: fmtDeadline(r.min_cure_deadline_utc) }
     })
     .filter((r) => r.city && r.days !== null && r.violations > 0)
     .sort((a, b) => a.days - b.days)
     .slice(0, 8)   // panel shows the 8 most urgent; full detail lives in Violations view
 )
 
-function deadlineFor(days) {
-  if (days === null) return ''
-  const d = new Date()
-  d.setDate(d.getDate() + days)
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+function fmtDeadline(iso) {
+  if (!iso) return ''
+  const d = new Date(iso)
+  return Number.isNaN(d.getTime())
+    ? ''
+    : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
 const urgencyColor = (days) => (days <= 15 ? 'error' : days <= 30 ? 'warning' : 'success')

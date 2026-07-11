@@ -38,6 +38,10 @@ def build_city_row(city: str, jurisdiction: str, domain: str,
 
     score = scorecard_cfg.get("score_start", 100)
     days = [v["days_remaining"] for v in open_violations if v.get("cure_period_status")]
+    # Earliest real cure deadline among open violations — lets the UI render the
+    # countdown LIVE (deadline - now) instead of the stored days_remaining snapshot.
+    _deadlines = [v.get("cure_deadline_utc") for v in open_violations if v.get("cure_deadline_utc")]
+    min_cure_deadline_utc = min(_deadlines) if _deadlines else None   # ISO strings sort chronologically
     for v in open_violations:
         base = weights.get(v.get("severity", "medium"), 12)
         mult = in_cure_mult if v.get("status") == "in_cure" else (
@@ -81,6 +85,7 @@ def build_city_row(city: str, jurisdiction: str, domain: str,
         "sb149_status": status,  # legacy alias key
         "open_violations": open_violations,
         "min_days_remaining": min(days) if days else None,
+        "min_cure_deadline_utc": min_cure_deadline_utc,
         "compliance_score": score,
         "band": _band(score, scorecard_cfg["bands"]),
         "last_scanned_utc": _now_iso(),

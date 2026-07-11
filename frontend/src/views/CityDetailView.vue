@@ -202,7 +202,7 @@
               >
                 <v-expansion-panel-title>
                   <div class="d-flex align-center ga-3 flex-wrap" style="width:100%">
-                    <CurePeriodGauge :days="parseDays(v.days_remaining)" :size="40" />
+                    <CurePeriodGauge :days="liveDaysLeft(v.cure_deadline_utc) ?? parseDays(v.days_remaining)" :size="40" />
                     <div>
                       <div class="font-weight-medium">{{ v.rule_id }}</div>
                       <a :href="citationUrl(v.citation)" target="_blank" rel="noopener"
@@ -225,7 +225,7 @@
                     <v-list-item title="Vendor"          :subtitle="v.vendor_id" />
                     <v-list-item title="First Observed"  :subtitle="fmtDate(v.first_observed_utc)" />
                     <v-list-item title="Cure Deadline"   :subtitle="fmtDate(v.cure_deadline_utc)" />
-                    <v-list-item title="Days Remaining"  :subtitle="String(parseDays(v.days_remaining) ?? '—')" />
+                    <v-list-item title="Days Remaining"  :subtitle="String(liveDaysLeft(v.cure_deadline_utc) ?? parseDays(v.days_remaining) ?? '—')" />
                     <v-list-item title="Human Review"
                                  :subtitle="v.needs_human_review ? 'Required' : 'Not required'" />
                     <v-list-item title="Statutory Citation">
@@ -374,6 +374,7 @@ import { useViolationsStore } from '../stores/violations'
 import ComplianceStatusChip from '../components/ComplianceStatusChip.vue'
 import CurePeriodGauge from '../components/CurePeriodGauge.vue'
 import AuditRunButton from '../components/AuditRunButton.vue'
+import { liveDaysLeft } from '../utils/cure'
 import AiInventoryPanel from '../components/AiInventoryPanel.vue'
 import SafeHarborPanel from '../components/SafeHarborPanel.vue'
 import { useCidStore } from '../stores/cid'
@@ -525,7 +526,7 @@ async function downloadCure() {
 
 const minDays = computed(() => {
   const days = violations.value
-    .map(v => parseDays(v.days_remaining))
+    .map(v => liveDaysLeft(v.cure_deadline_utc))   // LIVE: from real deadline, not stored snapshot
     .filter(d => d !== null)
   return days.length ? Math.min(...days) : null
 })

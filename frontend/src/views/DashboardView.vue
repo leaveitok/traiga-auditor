@@ -102,7 +102,7 @@
         </template>
 
         <template #item.min_days_remaining="{ item }">
-          <CurePeriodGauge :days="parseMinDays(item.min_days_remaining)"
+          <CurePeriodGauge :days="liveDaysLeft(item.min_cure_deadline_utc) ?? parseMinDays(item.min_days_remaining)"
                            :size="44" />
         </template>
 
@@ -193,6 +193,7 @@ import CurePeriodGauge from '../components/CurePeriodGauge.vue'
 import AddCityDialog from '../components/AddCityDialog.vue'
 import TexasComplianceMap from '../components/TexasComplianceMap.vue'
 import CureCountdownPanel from '../components/CureCountdownPanel.vue'
+import { liveDaysLeft } from '../utils/cure'
 import { useReportsStore } from '../stores/reports'
 
 const store      = useScorecardStore()

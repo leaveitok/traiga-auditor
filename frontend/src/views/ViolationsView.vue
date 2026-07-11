@@ -31,7 +31,7 @@
         <v-card hover @click="selected = v; detail = true">
           <v-card-item>
             <template #prepend>
-              <CurePeriodGauge :days="v.days_remaining" :size="52" />
+              <CurePeriodGauge :days="liveDaysLeft(v.cure_deadline_utc) ?? v.days_remaining" :size="52" />
             </template>
             <v-card-title class="text-body-1 font-weight-bold">{{ v.city }}</v-card-title>
             <v-card-subtitle>{{ v.rule_id }} · {{ v.severity }}</v-card-subtitle>
@@ -96,7 +96,7 @@
           <v-list-item title="Status" :subtitle="selected.status" />
           <v-list-item title="First Observed" :subtitle="fmtDate(selected.first_observed_utc)" />
           <v-list-item title="Cure Deadline" :subtitle="fmtDate(selected.cure_deadline_utc)" />
-          <v-list-item title="Days Remaining" :subtitle="String(selected.days_remaining ?? '—')" />
+          <v-list-item title="Days Remaining" :subtitle="String(liveDaysLeft(selected.cure_deadline_utc) ?? selected.days_remaining ?? '—')" />
         </v-list>
         <v-divider class="my-3" />
         <div class="text-subtitle-2 mb-1">Evidence / Remediation</div>
@@ -112,6 +112,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useViolationsStore } from '../stores/violations'
 import ComplianceStatusChip from '../components/ComplianceStatusChip.vue'
 import CurePeriodGauge from '../components/CurePeriodGauge.vue'
+import { liveDaysLeft } from '../utils/cure'
 
 const vStore = useViolationsStore()
 const statusFilter = ref(null)

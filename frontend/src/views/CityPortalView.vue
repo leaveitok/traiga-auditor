@@ -116,7 +116,7 @@
                 <v-expansion-panel v-for="v in violations" :key="v.violation_id">
                   <v-expansion-panel-title>
                     <div class="d-flex align-center ga-3 flex-wrap" style="width:100%">
-                      <CurePeriodGauge :days="parseDays(v.days_remaining)" :size="40" />
+                      <CurePeriodGauge :days="liveDaysLeft(v.cure_deadline_utc) ?? parseDays(v.days_remaining)" :size="40" />
                       <div>
                         <div class="font-weight-medium">{{ v.rule_id }}</div>
                         <a :href="citationUrl(v.citation)" target="_blank" rel="noopener"
@@ -134,7 +134,7 @@
                       <v-list-item title="Vendor"         :subtitle="v.vendor_id" />
                       <v-list-item title="First Observed" :subtitle="fmtDate(v.first_observed_utc)" />
                       <v-list-item title="Cure Deadline"  :subtitle="fmtDate(v.cure_deadline_utc)" />
-                      <v-list-item title="Days Remaining" :subtitle="String(parseDays(v.days_remaining) ?? '—')" />
+                      <v-list-item title="Days Remaining" :subtitle="String(liveDaysLeft(v.cure_deadline_utc) ?? parseDays(v.days_remaining) ?? '—')" />
                       <v-list-item title="Statutory Citation">
                         <template #subtitle>
                           <div class="d-flex flex-column ga-1 mt-1">
@@ -205,6 +205,7 @@ import { useAuditStore }      from '../stores/audit'
 import AuditRunButton       from '../components/AuditRunButton.vue'
 import ComplianceStatusChip from '../components/ComplianceStatusChip.vue'
 import CurePeriodGauge      from '../components/CurePeriodGauge.vue'
+import { liveDaysLeft }      from '../utils/cure'
 import { useReportsStore } from '../stores/reports'
 
 const auth       = useAuthStore()
@@ -235,7 +236,7 @@ const violations = computed(() =>
 )
 
 const minDays = computed(() => {
-  const days = violations.value.map(v => parseDays(v.days_remaining)).filter(d => d !== null)
+  const days = violations.value.map(v => liveDaysLeft(v.cure_deadline_utc)).filter(d => d !== null)
   return days.length ? Math.min(...days) : null
 })
 
