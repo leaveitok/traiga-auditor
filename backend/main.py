@@ -41,6 +41,7 @@ from api.routes import (health, targets, audit, scorecard, violations, logs,
                         reports, auth_routes, remediation, sentinel, agencies,
                         inventory, safeharbor, cid, discovery)
 from api.routes import settings as settings_api
+from api.routes import analytics as analytics_api
 
 
 # ── Lifespan handler (replaces deprecated @app.on_event) ─────────────────────
@@ -118,7 +119,7 @@ for router in [health.router, targets.router, audit.router,
                reports.router, auth_routes.router, remediation.router,
                sentinel.router, agencies.router, inventory.router,
                safeharbor.router, cid.router, discovery.router,
-               settings_api.router]:
+               settings_api.router, analytics_api.router]:
     app.include_router(router, prefix="/api")
 
 

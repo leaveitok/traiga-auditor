@@ -215,6 +215,10 @@ const runAgendaDiscovery = (payload) =>
   // TODO: server enforces RBAC (platform_admin/agency_admin) + city scoping
   http.post('/discovery/agenda', payload, { timeout: 300000 }).then(r => r.data)
 
+// ── Analytics ─────────────────────────────────────────────────────────────────
+/** Aggregate compliance + discovery analytics (RBAC-scoped server-side). */
+const getAnalytics = () => http.get('/analytics').then(r => r.data)
+
 // ── Admin: operational settings / feature flags (platform_admin only) ─────────
 /** @returns {Promise<{settings: Object, schema: Object}>} */
 const getAdminSettings  = () => http.get('/admin/settings').then(r => r.data)
@@ -409,6 +413,8 @@ export const GovernanceService = {
   // Admin settings
   getAdminSettings,
   saveAdminSettings,
+  // Analytics
+  getAnalytics,
   // Admin (users & agencies)
   getMe,
   getUsers,

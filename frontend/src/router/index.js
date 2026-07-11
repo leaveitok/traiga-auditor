@@ -19,6 +19,12 @@ const routes = [
     meta: { title: 'Dashboard', icon: 'mdi-view-dashboard', requiresAuth: true },
   },
   {
+    path: '/analytics',
+    name: 'Analytics',
+    component: () => import('../views/AnalyticsView.vue'),
+    meta: { title: 'Analytics', icon: 'mdi-chart-box', requiresAuth: true },
+  },
+  {
     path: '/targets',
     name: 'Targets',
     component: () => import('../views/TargetsView.vue'),
