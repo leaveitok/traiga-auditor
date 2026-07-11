@@ -56,11 +56,10 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
-import { logsApi } from '../api/client'
+import { ref, computed, onMounted } from 'vue'
+import { useLogsStore } from '../stores/logs'
 
-const rows         = ref([])
-const loading      = ref(false)
+const store        = useLogsStore()
 const detailDialog = ref(false)
 const detailItem   = ref(null)
 
@@ -74,12 +73,16 @@ const headers = [
   { title: 'Details',      key: 'details',       sortable: false },
 ]
 
-/** Parse details_json once so Actor/Summary render as first-class columns. */
+/** The backend returns details already parsed (object); tolerate legacy details_json. */
 function enrich(row) {
-  let d = {}
-  try { d = JSON.parse(row.details_json || '{}') } catch { /* legacy rows */ }
-  return { ...row, _actor: d.actor || 'system', _summary: d.summary || '' }
+  const d = row.details || (() => {
+    try { return JSON.parse(row.details_json || '{}') } catch { return {} }
+  })()
+  return { ...row, details: d, _actor: d.actor || 'system', _summary: d.summary || '' }
 }
+
+const rows    = computed(() => store.rows.map(enrich))
+const loading = computed(() => store.loading)
 
 const fmtDate = (iso) => iso ? new Date(iso).toLocaleString() : '—'
 
@@ -88,15 +91,5 @@ function showDetails(item) {
   detailDialog.value = true
 }
 
-async function load() {
-  loading.value = true
-  try {
-    const res = await logsApi.list(200)
-    rows.value = res.data.map(enrich)
-  } finally {
-    loading.value = false
-  }
-}
-
-onMounted(load)
+onMounted(() => store.fetchLogs(200))
 </script>

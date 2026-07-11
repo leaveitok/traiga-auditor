@@ -60,7 +60,7 @@
  * violations series only.
  */
 import { ref, computed, onMounted } from 'vue'
-import { logsApi } from '../api/client'
+import { GovernanceService } from '../services/GovernanceService'
 
 const W = 560, H = 170, PAD = 28
 const points = ref([])
@@ -80,12 +80,13 @@ const violLine = computed(() =>
 
 onMounted(async () => {
   try {
-    const res = await logsApi.list(200)
-    const scans = res.data
+    const data = await GovernanceService.getAuditLog(200)
+    const scans = data
       .filter(r => r.event === 'scan_complete')
       .map(r => {
-        let d = {}
-        try { d = JSON.parse(r.details_json || '{}') } catch { /* legacy */ }
+        // Backend returns details already parsed (object); tolerate legacy JSON.
+        let d = r.details
+        if (!d) { try { d = JSON.parse(r.details_json || '{}') } catch { d = {} } }
         return {
           ts:         r.timestamp_utc,
           label:      new Date(r.timestamp_utc).toLocaleDateString(),
