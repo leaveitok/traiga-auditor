@@ -56,7 +56,8 @@
                  :loading="downloadingPack" @click="downloadPack">
             AG Response Pack
           </v-btn>
-          <v-btn v-if="canWrite" color="primary" prepend-icon="mdi-plus"
+          <v-btn v-if="canWrite" color="primary" variant="tonal" size="small"
+                 prepend-icon="mdi-plus"
                  @click="openDeclare">Declare AI System</v-btn>
           <!-- Inside-out discovery: merge Sentinel staff-usage telemetry into the registry -->
           <v-tooltip v-if="auth.isPlatformAdmin" location="bottom" max-width="320"

@@ -115,6 +115,7 @@ const STATUS = {
   non_compliant:  { color: '#E53935', label: 'Non-Compliant' },
   expired:        { color: '#B71C1C', label: 'Expired' },
   no_ai_detected: { color: '#00897B', label: 'No AI Detected' },
+  review_needed:  { color: '#F57C00', label: 'Review Needed', failed: true },
   scan_failed:    { color: '#7B1FA2', label: 'Scan Failed', failed: true },
   not_assessed:   { color: '#BDBDBD', label: 'Not Assessed' },
 }

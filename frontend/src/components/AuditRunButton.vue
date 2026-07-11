@@ -17,6 +17,13 @@
               label>
         {{ statusLabel }}
       </v-chip>
+
+      <!-- Live residential-proxy indicator: the paid path is amber (= cost). -->
+      <v-chip v-if="auditStore.isRunning && proxyActive"
+              color="amber-darken-2" variant="flat" label size="small"
+              prepend-icon="mdi-shield-globe">
+        Residential IP
+      </v-chip>
     </div>
 
     <!-- Progress bar shown only while running -->
@@ -26,7 +33,7 @@
         :model-value="auditStore.progress && auditStore.progress.total
           ? (auditStore.progress.completed / auditStore.progress.total) * 100
           : 0"
-        color="primary"
+        :color="proxyActive ? 'amber-darken-2' : 'primary'"
         rounded
         height="6"
         class="mb-1"
@@ -166,6 +173,10 @@ watch(() => auditStore.isRunning, (running) => {
 })
 
 onUnmounted(() => clearInterval(_msgTimer))
+
+// True while the current city is being crawled through the residential proxy
+// (the paid path). Surfaced live so the operator always knows when it's in use.
+const proxyActive = computed(() => !!auditStore.progress?.proxy_active)
 
 const statusColor = computed(() => ({
   running:   'info',

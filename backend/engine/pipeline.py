@@ -166,10 +166,13 @@ def run_full_audit(
     rows: List[Dict[str, Any]] = []
     total = len(targets)
 
-    def _progress(city: str, completed: int) -> None:
+    used_proxy_by_city: Dict[str, bool] = {}
+
+    def _progress(city: str, completed: int, proxy_active: bool = False) -> None:
         if progress_cb:
             try:
-                progress_cb({"current_city": city, "completed": completed, "total": total})
+                progress_cb({"current_city": city, "completed": completed,
+                             "total": total, "proxy_active": bool(proxy_active)})
             except Exception:
                 pass  # progress reporting must never break the scan
 
@@ -180,6 +183,7 @@ def run_full_audit(
         per_city_assets.setdefault(city, [])
         _progress(city, idx)
         city_failures: List[Dict[str, Any]] = []
+        proxied = False   # did this city's crawl actually go through the residential proxy?
 
         # Per-city error isolation: a crawl failure for one city must not
         # abort the entire pipeline run.  Log and continue.
@@ -195,6 +199,10 @@ def run_full_audit(
                 from engine import config as _cfg
                 flagged = str(target.get("cloudflare_protected", "")).strip().lower() in ("true", "1", "yes")
                 use_proxy = (not _cfg.SCAN_PROXY_ONLY_FLAGGED) or flagged
+                # The proxy only actually applies when SCAN_PROXY_URL is configured.
+                proxied = bool(use_proxy and _cfg.SCAN_PROXY_URL)
+                if proxied:
+                    _progress(city, idx, proxy_active=True)   # live "on residential IP" signal
                 captures = crawl_site(url, use_proxy=use_proxy)
 
                 # WAF auto-escalation: the operator can't know which cities
@@ -205,6 +213,8 @@ def run_full_audit(
                         and all(is_waf_challenge(c) for c in captures)):
                     print(f"[pipeline] {city} | WAF challenge detected on direct crawl "
                           f"— auto-escalating to residential proxy")
+                    proxied = True
+                    _progress(city, idx, proxy_active=True)   # live escalation signal
                     captures = crawl_site(url, use_proxy=True)
 
                 # Fail-secure: challenge pages carry no vendor surface. If all
@@ -224,6 +234,7 @@ def run_full_audit(
         # auto-cure that city's existing violations (could be a WAF false-negative).
         if captures:
             crawled_cities.add(city)
+        used_proxy_by_city[city] = proxied
 
         # Debug: log what the crawler captured for each page
         for cap in captures:
@@ -257,7 +268,15 @@ def run_full_audit(
             if existing is None or asset.match_confidence > existing[0].match_confidence:
                 best[asset.vendor_id] = (asset, cap)
 
-        for asset, cap in best.values():
+        best_assets = list(best.values())
+        # A branded vendor match makes the structural "unknown chatbot" candidate
+        # redundant — drop candidates when any confirmed vendor fired for the city.
+        has_branded = any(a.verification_status != "candidate_review"
+                          for a, _ in best_assets)
+        for asset, cap in best_assets:
+            is_candidate = asset.verification_status == "candidate_review"
+            if is_candidate and has_branded:
+                continue
             per_city_assets[city].append({
                 "vendor_id":           asset.vendor_id,
                 "display_name":        asset.display_name,
@@ -266,6 +285,10 @@ def run_full_audit(
                 "page_url":            asset.page_url,
                 "verification_status": asset.verification_status,
             })
+            # Candidates are surfaced for human review but NEVER auto-generate a
+            # §552 violation — fail-secure without false-positive enforcement.
+            if is_candidate:
+                continue
             for v in validate(cap, asset, rules):
                 city_failures.append({
                     "city":      city,
@@ -301,6 +324,7 @@ def run_full_audit(
             open_violations=city_open,
             scorecard_cfg=scorecard_cfg,
             crawl_ok=(city in crawled_cities),
+            used_proxy=used_proxy_by_city.get(city, False),
         )
         rows.append(row)
         try:

@@ -66,9 +66,11 @@ def test_progress_callback_reports_each_city_and_totals():
          patch("engine.config.SCAN_PROXY_URL", ""), \
          patch("engine.config.SCAN_PROXY_ONLY_FLAGGED", True):
         run_full_audit(TARGETS, repo, progress_cb=events.append)
-    assert events[0] == {"current_city": "Alpha", "completed": 0, "total": 2}
-    assert events[-1] == {"current_city": "Beta", "completed": 2, "total": 2}
+    assert events[0] == {"current_city": "Alpha", "completed": 0, "total": 2, "proxy_active": False}
+    assert events[-1] == {"current_city": "Beta", "completed": 2, "total": 2, "proxy_active": False}
     assert all(e["total"] == 2 for e in events)
+    # No proxy is configured (SCAN_PROXY_URL patched empty) → never on the paid path.
+    assert all(e["proxy_active"] is False for e in events)
 
 
 def test_result_counts_unchanged_by_restructure():

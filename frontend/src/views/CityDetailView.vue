@@ -24,17 +24,21 @@
           </template>
           <v-card-title class="text-h5">{{ cityRow.city }}</v-card-title>
           <v-card-subtitle>
-            {{ cityRow.jurisdiction }} · {{ cityRow.domain }}
+            {{ cityRow.jurisdiction }} ·
+            <a :href="cityUrl" target="_blank" rel="noopener"
+               class="text-decoration-none font-weight-medium">{{ cityRow.domain }}<v-icon size="13" class="ml-1">mdi-open-in-new</v-icon></a>
           </v-card-subtitle>
           <template #append>
             <div class="text-right">
               <!-- A failed or never-run scan has NO score: showing the default
                    100 next to "Scan Failed" reads as a clean bill of health
                    (observed with Fort Worth 2026-07-07). -->
-              <template v-if="cityRow.traiga_status === 'scan_failed' || cityRow.traiga_status === 'not_assessed'">
+              <template v-if="['scan_failed','not_assessed','review_needed'].includes(cityRow.traiga_status)">
                 <div class="text-h3 font-weight-bold text-medium-emphasis">—</div>
                 <div class="text-caption text-medium-emphasis">
-                  {{ cityRow.traiga_status === 'scan_failed' ? 'Not scored — scan failed' : 'Not scored — not assessed' }}
+                  {{ cityRow.traiga_status === 'scan_failed' ? 'Not scored — scan failed'
+                     : cityRow.traiga_status === 'review_needed' ? 'Not scored — chatbot needs review'
+                     : 'Not scored — not assessed' }}
                 </div>
               </template>
               <template v-else>
@@ -56,6 +60,12 @@
               <v-chip size="small" label prepend-icon="mdi-clock-outline" color="default">
                 Last scanned {{ fmtDate(cityRow.last_scanned_utc) }}
               </v-chip>
+              <v-tooltip v-if="usedProxy" text="This city's last scan used a paid residential proxy (WAF bypass)." location="top">
+                <template #activator="{ props }">
+                  <v-chip v-bind="props" size="small" label color="amber-darken-2"
+                          variant="flat" prepend-icon="mdi-shield-globe">Residential IP</v-chip>
+                </template>
+              </v-tooltip>
             </div>
             <div class="d-flex align-center ga-3 flex-wrap">
               <AuditRunButton :city-override="cityName" @audit-complete="refresh" />
@@ -465,6 +475,20 @@ const cityName = computed(() => decodeURIComponent(route.params.cityName))
 const cityRow = computed(() =>
   scStore.rows.find(r => r.city === cityName.value) || null
 )
+
+// Clickable link to the city's live site (prepend https:// if bare domain).
+const cityUrl = computed(() => {
+  const d = targetRow.value?.url || cityRow.value?.domain || ''
+  if (!d) return '#'
+  return /^https?:\/\//i.test(d) ? d : `https://${d}`
+})
+
+// Persistent "Residential IP" badge — true when the last scan used the paid
+// proxy. Values may arrive as bool (Firestore) or string (Sheets contract).
+const usedProxy = computed(() => {
+  const v = cityRow.value?.last_scan_via_proxy
+  return v === true || v === 'True' || v === 'true'
+})
 
 const assets = computed(() => {
   if (!cityRow.value) return []

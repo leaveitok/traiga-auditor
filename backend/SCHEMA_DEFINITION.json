@@ -303,6 +303,65 @@
         ]
       },
       {
+        "vendor_id": "frase",
+        "display_name": "Frase Answers (municipal AI chatbot)",
+        "category": "gov_ai_chatbot_llm",
+        "asset_types": [
+          "chatbot",
+          "virtual_assistant"
+        ],
+        "verification_status": "unverified_candidate",
+        "note": "Observed live on odessa-tx.gov 2026-07-11: chatbot 'Jett' embedded as <iframe id=\"frase-iframe\" src=\"https://answers-bot.frase.io/<hash>\"> with loader from answers-script.frase.io. The chat UI is inside the cross-origin iframe (unreadable), so detection keys off the parent-page iframe origin + loader host. Frase Answers is deployed across multiple CivicPlus municipal sites (sweep network effect).",
+        "indicators": [
+          {
+            "type": "iframe_origin_regex",
+            "pattern": "answers-bot\\.frase\\.io",
+            "weight": 0.6,
+            "note": "Chatbot iframe origin. Fires alone (>= 0.6 threshold)."
+          },
+          {
+            "type": "script_host_regex",
+            "pattern": "(^|\\.)frase\\.io",
+            "weight": 0.6,
+            "note": "answers-script.frase.io loader host."
+          },
+          {
+            "type": "text_marker_regex",
+            "pattern": "frase-iframe|answers-bot\\.frase\\.io|answers-script\\.frase\\.io",
+            "weight": 0.4
+          }
+        ]
+      },
+      {
+        "vendor_id": "unknown_chatbot",
+        "display_name": "Unrecognized chatbot / AI widget (candidate — review)",
+        "category": "generic",
+        "asset_types": [
+          "chatbot"
+        ],
+        "verification_status": "candidate_review",
+        "note": "Structural fallback: flags an UNRECOGNIZED conversational widget as a CANDIDATE for human review when no branded vendor matched — never an enforcement determination and never an auto-violation. Targets self-hosted city bots served from generic app-hosting platforms (AWS Amplify, Vercel, Azure, Firebase, Netlify, Cloud Run, Heroku). Observed live on midlandtexas.gov 2026-07-11: chatbot 'Jacky' as <iframe id=\"jacky-widget\" src=\"https://main.<id>.amplifyapp.com/widget\">, 'Powered by City of Midland AI Team'. Requires an app-host iframe AND a chat/widget id-or-launcher token so it stays conservative; the pipeline drops it when a branded vendor already matched for the city.",
+        "indicators": [
+          {
+            "type": "iframe_origin_regex",
+            "pattern": "amplifyapp\\.com|vercel\\.app|azurewebsites\\.net|web\\.app|firebaseapp\\.com|netlify\\.app|run\\.app|herokuapp\\.com|azurestaticapps\\.net",
+            "weight": 0.4,
+            "note": "Iframe served from a generic app-hosting platform (self-built app/bot)."
+          },
+          {
+            "type": "dom_selector",
+            "pattern": "[id*='chatbot'], [id*='assistant'], [id*='-widget'], [class*='chat'], [id*='chat']",
+            "weight": 0.35,
+            "note": "Conversational-widget id/class token on the parent page."
+          },
+          {
+            "type": "text_marker_regex",
+            "pattern": "how can i help|virtual assistant|ai assistant|chat with (us|me)|powered by[^<]{0,40}ai team",
+            "weight": 0.3
+          }
+        ]
+      },
+      {
         "vendor_id": "generic_llm_chat",
         "display_name": "Generic / self-hosted LLM chat widget",
         "category": "generic",

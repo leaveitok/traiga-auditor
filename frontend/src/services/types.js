@@ -42,7 +42,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * @typedef {'compliant'|'in_cure'|'non_compliant'|'expired'|'no_ai_detected'|'scan_failed'|'not_assessed'} TraigaStatus
+ * @typedef {'compliant'|'in_cure'|'non_compliant'|'expired'|'no_ai_detected'|'review_needed'|'scan_failed'|'not_assessed'} TraigaStatus
  */
 
 /**
@@ -73,6 +73,7 @@
  * @property {number}       compliance_score       - 0–100
  * @property {ComplianceBand} band
  * @property {string}       last_scanned_utc
+ * @property {boolean}      [last_scan_via_proxy]  - true if the last scan used the paid residential proxy
  */
 
 /**

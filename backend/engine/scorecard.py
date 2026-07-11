@@ -30,7 +30,8 @@ def build_city_row(city: str, jurisdiction: str, domain: str,
                    assets: List[Dict[str, Any]],
                    open_violations: List[Dict[str, Any]],
                    scorecard_cfg: Dict[str, Any],
-                   crawl_ok: bool = True) -> Dict[str, Any]:
+                   crawl_ok: bool = True,
+                   used_proxy: bool = False) -> Dict[str, Any]:
     weights = scorecard_cfg["severity_weights"]
     in_cure_mult = scorecard_cfg.get("in_cure_weight_multiplier", 0.5)
     expired_mult = scorecard_cfg.get("expired_weight_multiplier", 1.0)
@@ -45,13 +46,21 @@ def build_city_row(city: str, jurisdiction: str, domain: str,
     score = max(0, int(round(score)))
 
     # Status resolution. When there are no open violations we must distinguish
-    # three very different situations that were previously all "not_assessed":
-    #   - assets present            -> compliant (AI found, disclosures OK)
+    # several very different situations that were previously all "not_assessed":
+    #   - branded asset present     -> compliant (AI found, disclosures OK)
+    #   - only candidate asset(s)   -> review_needed (an unrecognized chatbot was
+    #                                  seen but not confirmed — NEVER shows clean)
     #   - crawl OK, no assets       -> no_ai_detected (assessed; site has no AI)
     #   - crawl failed / 0 captures -> scan_failed (WAF/error; could not assess)
+    branded_assets   = [a for a in assets
+                        if a.get("verification_status") != "candidate_review"]
+    candidate_assets = [a for a in assets
+                        if a.get("verification_status") == "candidate_review"]
     if not open_violations:
-        if assets:
+        if branded_assets:
             status = "compliant"
+        elif candidate_assets:
+            status = "review_needed"
         elif crawl_ok:
             status = "no_ai_detected"
         else:
@@ -75,6 +84,7 @@ def build_city_row(city: str, jurisdiction: str, domain: str,
         "compliance_score": score,
         "band": _band(score, scorecard_cfg["bands"]),
         "last_scanned_utc": _now_iso(),
+        "last_scan_via_proxy": bool(used_proxy),
     }
 
 
