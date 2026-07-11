@@ -14,8 +14,36 @@ env:
   IMAGE: api
 
 jobs:
+  # ── CI GATE ─────────────────────────────────────────────────────────────────
+  # Runs the backend test suite on every push. The deploy job below depends on
+  # this ("needs: test"), so a single failing test BLOCKS the deploy — production
+  # stays on the last known-good revision. This is the server-side enforcement of
+  # the same pytest gate the local ship_*.bat runs, so it can never be skipped.
+  test:
+    name: Backend tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+          pip install pytest
+
+      - name: Run backend test suite
+        working-directory: backend
+        run: python -m pytest tests/ -q
+
   deploy:
     name: Build & Deploy
+    needs: test          # ← deploy is gated: it only runs if "test" succeeded
     runs-on: ubuntu-latest
 
     steps:
