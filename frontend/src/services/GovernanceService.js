@@ -215,6 +215,12 @@ const runAgendaDiscovery = (payload) =>
   // TODO: server enforces RBAC (platform_admin/agency_admin) + city scoping
   http.post('/discovery/agenda', payload, { timeout: 300000 }).then(r => r.data)
 
+// ── Admin: operational settings / feature flags (platform_admin only) ─────────
+/** @returns {Promise<{settings: Object, schema: Object}>} */
+const getAdminSettings  = () => http.get('/admin/settings').then(r => r.data)
+/** @param {Object} updates key→value; server validates + audit-logs. */
+const saveAdminSettings = (updates) => http.put('/admin/settings', { updates }).then(r => r.data)
+
 // ── Admin: users & agencies ──────────────────────────────────────────────────
 const getMe        = ()       => http.get('/auth/me').then(r => r.data)
 const getUsers     = ()       => http.get('/auth/users').then(r => r.data)
@@ -400,6 +406,9 @@ export const GovernanceService = {
   // Discovery channels
   runProcurementDiscovery,
   runAgendaDiscovery,
+  // Admin settings
+  getAdminSettings,
+  saveAdminSettings,
   // Admin (users & agencies)
   getMe,
   getUsers,

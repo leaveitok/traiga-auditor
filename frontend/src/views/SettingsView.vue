@@ -2,8 +2,40 @@
   <v-container fluid class="pa-6" max-width="720">
     <div class="text-h5 font-weight-bold mb-2">Settings</div>
     <div class="text-caption text-medium-emphasis mb-6">
-      Backend configuration reference — values are set via environment variables on the server.
+      Operational feature flags are editable below (platform admin). Other values are set via
+      environment variables / Secret Manager on the server.
     </div>
+
+    <!-- Feature Flags (platform admin) — editable operational settings -->
+    <v-card v-if="auth.isPlatformAdmin" class="mb-4">
+      <v-card-title class="d-flex align-center">
+        <v-icon class="mr-2">mdi-toggle-switch</v-icon>Feature Flags
+        <v-spacer />
+        <v-btn size="small" color="primary" :loading="settingsStore.saving"
+               :disabled="!dirty" @click="saveFlags">Save</v-btn>
+      </v-card-title>
+      <v-card-text>
+        <v-alert v-if="settingsStore.error" type="error" density="compact" variant="tonal" class="mb-2">
+          {{ settingsStore.error }}
+        </v-alert>
+        <div class="text-caption text-medium-emphasis mb-3">
+          Changes apply within ~20s across all instances and are written to the Audit Log.
+          Secrets (proxy URL, service account, tokens) are never editable here.
+        </div>
+        <template v-for="(spec, key) in settingsStore.schema" :key="key">
+          <v-switch v-if="spec.type === 'bool'" v-model="edit[key]" color="primary"
+                    density="comfortable" :label="spec.label" :hint="spec.help" persistent-hint
+                    @update:model-value="dirty = true" />
+          <v-select v-else-if="spec.type === 'enum'" v-model="edit[key]" :items="spec.options"
+                    density="comfortable" class="mb-2" :label="spec.label" :hint="spec.help" persistent-hint
+                    @update:model-value="dirty = true" />
+          <v-text-field v-else-if="spec.type === 'int'" v-model.number="edit[key]" type="number"
+                        :min="spec.min" :max="spec.max" density="comfortable" class="mb-2"
+                        :label="spec.label" :hint="spec.help" persistent-hint
+                        @update:model-value="dirty = true" />
+        </template>
+      </v-card-text>
+    </v-card>
 
     <v-card class="mb-4">
       <v-card-title prepend-icon="mdi-google-spreadsheet">Google Sheets</v-card-title>
@@ -81,8 +113,30 @@
 </template>
 
 <script setup>
-import { reactive, onMounted } from 'vue'
+import { reactive, ref, onMounted } from 'vue'
 import { healthApi } from '../api/client'
+import { useSettingsStore } from '../stores/settings'
+import { useAuthStore } from '../stores/auth'
+
+const settingsStore = useSettingsStore()
+const auth          = useAuthStore()
+const edit          = reactive({})
+const dirty         = ref(false)
+
+async function loadFlags() {
+  if (!auth.isPlatformAdmin) return
+  await settingsStore.fetch()
+  Object.assign(edit, settingsStore.settings)
+  dirty.value = false
+}
+
+async function saveFlags() {
+  try {
+    await settingsStore.save({ ...edit })
+    Object.assign(edit, settingsStore.settings)
+    dirty.value = false
+  } catch { /* error surfaced by the store */ }
+}
 
 const health = reactive({ ok: false, ts: null, err: null, loading: false })
 
@@ -101,5 +155,5 @@ async function checkHealth() {
   }
 }
 
-onMounted(checkHealth)
+onMounted(() => { checkHealth(); loadFlags() })
 </script>

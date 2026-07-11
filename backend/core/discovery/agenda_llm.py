@@ -95,10 +95,11 @@ def _vertex_extractor(model: str, project: str, location: str) -> Callable:
     return _fn
 
 
-def get_extractor() -> Callable[[List[Dict[str, Any]], str], List[Dict[str, Any]]]:
-    """Return the configured extract_fn (single swap point)."""
+def get_extractor(provider: str = None) -> Callable[[List[Dict[str, Any]], str], List[Dict[str, Any]]]:
+    """Return the configured extract_fn (single swap point). `provider` overrides
+    the config default (so the admin Settings toggle takes effect at runtime)."""
     from core import config
-    provider = getattr(config, "AGENDA_LLM_PROVIDER", "keyword")
+    provider = provider or getattr(config, "AGENDA_LLM_PROVIDER", "keyword")
     if provider in ("none", ""):
         return lambda items, city: []
     if provider in ("vertex", "gemini"):

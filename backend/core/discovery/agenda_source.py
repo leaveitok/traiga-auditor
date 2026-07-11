@@ -49,8 +49,8 @@ def run_agenda_discovery(
 
     TODO: enforce system/admin-only invocation (auth placeholder — route enforces).
     """
-    from core import config
-    if not getattr(config, "AGENDA_ENGINE_ENABLED", False):
+    from core import settings
+    if not settings.get_bool(repo, "AGENDA_ENGINE_ENABLED"):
         return _disabled_result()
 
     # Fail-secure tenancy: an agency user can only write assets for its own cities.
@@ -63,7 +63,8 @@ def run_agenda_discovery(
     # Resolve the extractor (single swap point: config.AGENDA_LLM_PROVIDER),
     # injectable for tests. extract_fn(items, city) -> items enriched with vendor/product.
     from core.discovery.agenda_llm import get_extractor
-    extractor = extract_fn or get_extractor()
+    from core import settings as _settings
+    extractor = extract_fn or get_extractor(_settings.get_value(repo, "AGENDA_LLM_PROVIDER"))
 
     if items is not None:
         # Already extracted (vendor/product present) — beta / manual / test path.
@@ -127,8 +128,8 @@ def run_legistar_discovery(
     enrich + normalize + merge via run_agenda_discovery. Flag-gated + tenancy-guarded
     there. `fetch_json` is injectable so this is testable without live HTTP.
     """
-    from core import config
-    if not getattr(config, "AGENDA_ENGINE_ENABLED", False):
+    from core import settings
+    if not settings.get_bool(repo, "AGENDA_ENGINE_ENABLED"):
         return _disabled_result()
 
     from core.discovery.agenda_fetch import fetch_legistar
@@ -162,8 +163,8 @@ def run_pdf_discovery(
     items → enrich + normalize + merge. Flag-gated + tenancy-guarded downstream.
     fetch_bytes is injectable so this is testable without live HTTP.
     """
-    from core import config
-    if not getattr(config, "AGENDA_ENGINE_ENABLED", False):
+    from core import settings
+    if not settings.get_bool(repo, "AGENDA_ENGINE_ENABLED"):
         return _disabled_result()
 
     from core.discovery.agenda_fetch import fetch_pdf_agenda
