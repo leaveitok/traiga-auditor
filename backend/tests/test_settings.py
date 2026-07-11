@@ -53,6 +53,16 @@ def test_bad_enum_falls_back():
     assert eff["AGENDA_LLM_PROVIDER"] == "keyword"
 
 
+def test_agenda_llm_model_is_settable_enum():
+    r = FakeRepo()
+    # Valid model is accepted and stored.
+    eff = settings.save(r, {"AGENDA_LLM_MODEL": "gemini-3.1-flash-lite"})
+    assert eff["AGENDA_LLM_MODEL"] == "gemini-3.1-flash-lite"
+    # Off-list model falls back to the default (never a broken model id).
+    eff = settings.save(r, {"AGENDA_LLM_MODEL": "gpt-4o"})
+    assert eff["AGENDA_LLM_MODEL"] == settings.SETTABLE["AGENDA_LLM_MODEL"]["default"]()
+
+
 def test_public_schema_has_no_defaults_or_secrets():
     sch = settings.public_schema()
     assert all("default" not in spec for spec in sch.values())

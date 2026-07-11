@@ -64,7 +64,10 @@ def run_agenda_discovery(
     # injectable for tests. extract_fn(items, city) -> items enriched with vendor/product.
     from core.discovery.agenda_llm import get_extractor
     from core import settings as _settings
-    extractor = extract_fn or get_extractor(_settings.get_value(repo, "AGENDA_LLM_PROVIDER"))
+    extractor = extract_fn or get_extractor(
+        _settings.get_value(repo, "AGENDA_LLM_PROVIDER"),
+        model=_settings.get_value(repo, "AGENDA_LLM_MODEL"),
+    )
 
     if items is not None:
         # Already extracted (vendor/product present) — beta / manual / test path.

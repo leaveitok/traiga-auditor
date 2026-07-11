@@ -33,6 +33,13 @@ SETTABLE: Dict[str, Dict[str, Any]] = {
         "help": "keyword = free, no LLM (items surface as review candidates); "
                 "vertex = Gemini on Vertex AI (cleaner vendor/product); none = disabled.",
         "default": lambda: config.AGENDA_LLM_PROVIDER},
+    "AGENDA_LLM_MODEL": {
+        "type": "enum", "group": "Agenda discovery", "label": "Vertex model",
+        "options": ["gemini-2.5-flash-lite", "gemini-3.1-flash-lite"],
+        "help": "Gemini model for the Vertex extractor (only used when Extractor = vertex). "
+                "gemini-2.5-flash-lite = GA/stable (supported through >=2026-10-16); "
+                "gemini-3.1-flash-lite = newer, cheaper.",
+        "default": lambda: config.AGENDA_LLM_MODEL},
     "AGENDA_LOOKBACK_MONTHS": {
         "type": "int", "group": "Agenda discovery", "label": "Default lookback (months)",
         "min": 1, "max": config.AGENDA_LOOKBACK_MONTHS_MAX,
