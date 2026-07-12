@@ -44,7 +44,7 @@
 
       <v-divider />
 
-      <!-- User profile + sign out -->
+      <!-- User profile + theme toggle + sign out -->
       <v-list density="compact" nav class="py-2">
         <v-list-item rounded="lg">
           <template #prepend>
@@ -64,12 +64,21 @@
             </v-chip>
           </v-list-item-subtitle>
           <template #append>
-            <v-tooltip text="Sign out" location="top">
-              <template #activator="{ props }">
-                <v-btn v-bind="props" icon="mdi-logout" size="small" variant="text"
-                       @click="signOut" />
-              </template>
-            </v-tooltip>
+            <div class="d-flex align-center">
+              <v-tooltip :text="isDark() ? 'Switch to Light' : 'Switch to Stealth (dark)'" location="top">
+                <template #activator="{ props }">
+                  <v-btn v-bind="props"
+                         :icon="isDark() ? 'mdi-weather-night' : 'mdi-white-balance-sunny'"
+                         size="small" variant="text" @click="toggleTheme" />
+                </template>
+              </v-tooltip>
+              <v-tooltip text="Sign out" location="top">
+                <template #activator="{ props }">
+                  <v-btn v-bind="props" icon="mdi-logout" size="small" variant="text"
+                         @click="signOut" />
+                </template>
+              </v-tooltip>
+            </div>
           </template>
         </v-list-item>
       </v-list>
@@ -82,11 +91,14 @@
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { useAppTheme } from '../composables/useAppTheme'
 
 const auth   = useAuthStore()
 const router = useRouter()
 const drawer = ref(true)
 const rail   = ref(false)
+
+const { toggle: toggleTheme, isDark } = useAppTheme()
 
 const baseItems = [
   { to: '/dashboard',  icon: 'mdi-view-dashboard',          title: 'Dashboard'      },

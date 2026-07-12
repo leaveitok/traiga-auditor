@@ -6,6 +6,24 @@
       environment variables / Secret Manager on the server.
     </div>
 
+    <!-- Appearance (all users) — theme is per-browser, saved locally -->
+    <v-card class="mb-4">
+      <v-card-title prepend-icon="mdi-palette-outline">Appearance</v-card-title>
+      <v-card-text>
+        <div class="text-caption text-medium-emphasis mb-3">
+          Interface theme. <strong>Stealth</strong> is a dark, low-glare palette. Your choice is
+          saved to this browser and applies immediately.
+        </div>
+        <v-btn-toggle :model-value="currentName()" color="primary" density="comfortable"
+                      variant="outlined" divided mandatory
+                      @update:model-value="(v) => v && setTheme(v)">
+          <v-btn v-for="t in APP_THEMES" :key="t.value" :value="t.value" :prepend-icon="t.icon">
+            {{ t.label }}
+          </v-btn>
+        </v-btn-toggle>
+      </v-card-text>
+    </v-card>
+
     <!-- Feature Flags (platform admin) — editable operational settings -->
     <v-card v-if="auth.isPlatformAdmin" class="mb-4">
       <v-card-title class="d-flex align-center">
@@ -142,11 +160,15 @@ import { reactive, ref, onMounted } from 'vue'
 import { healthApi } from '../api/client'
 import { useSettingsStore } from '../stores/settings'
 import { useAuthStore } from '../stores/auth'
+import { useAppTheme } from '../composables/useAppTheme'
 
 const settingsStore = useSettingsStore()
 const auth          = useAuthStore()
 const edit          = reactive({})
 const dirty         = ref(false)
+
+// Theme control (shared composable — same source of truth as the nav toggle).
+const { currentName, setTheme, APP_THEMES } = useAppTheme()
 
 async function loadFlags() {
   if (!auth.isPlatformAdmin) return

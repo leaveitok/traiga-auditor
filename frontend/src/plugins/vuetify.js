@@ -11,6 +11,9 @@ export default createVuetify({
     sets: { mdi },
   },
   theme: {
+    // NOTE: themes are keyed by name. To add a new theme later, add a palette
+    // here and a matching entry in src/composables/useAppTheme.js — no other
+    // code changes needed (nav toggle + Settings render from that list).
     defaultTheme: 'light',
     themes: {
       light: {
@@ -23,6 +26,21 @@ export default createVuetify({
           info:       '#0277BD',
           background: '#F5F7FA',
           surface:    '#FFFFFF',
+        },
+      },
+      // Stealth: dark, low-glare palette for technical users. Status colors are
+      // brightened so compliant/in-cure/non-compliant stay legible on dark.
+      stealth: {
+        dark: true,
+        colors: {
+          primary:    '#4FA3F7',   // brighter navy for dark surfaces
+          secondary:  '#90A4AE',
+          success:    '#4CAF50',
+          warning:    '#FFB300',
+          error:      '#EF5350',
+          info:       '#42A5F5',
+          background: '#0E1116',    // near-black slate
+          surface:    '#171B22',    // cards / panels
         },
       },
     },
