@@ -67,7 +67,7 @@ HEADERS: Dict[str, List[str]] = {
     config.SHEET_SCORECARD: [
         "city", "jurisdiction", "domain", "ai_assets_json", "traiga_status",
         "open_violations_count", "min_days_remaining", "min_cure_deadline_utc", "compliance_score",
-        "band", "last_scanned_utc",
+        "band", "last_scanned_utc", "last_scan_via_proxy",
     ],
     config.SHEET_VIOLATIONS: [
         "violation_id", "city", "domain", "asset_id", "vendor_id", "rule_id",
@@ -445,6 +445,7 @@ class SheetsRepository:
                     "compliance_score":     row.get("compliance_score", 100),
                     "band":                 row.get("band", "green"),
                     "last_scanned_utc":     row.get("last_scanned_utc", _now_iso()),
+                    "last_scan_via_proxy":  str(bool(row.get("last_scan_via_proxy", False))).lower(),
                 }
             )
 

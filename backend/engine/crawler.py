@@ -172,7 +172,8 @@ def crawl_site(seed_url: str,
         else:
             print(f"[crawler] Routing {seed_url} through proxy — static tier only (1 request, no browser)")
         try:
-            return _crawl_static(seed_url, max_pages, max_depth, skip_robots, proxy)
+            _to = config.RENDER_TIMEOUT_SECONDS if render else None
+            return _crawl_static(seed_url, max_pages, max_depth, skip_robots, proxy, timeout=_to)
         except ImportError:
             return []
     try:
@@ -466,7 +467,7 @@ def _fetch_gtm_container(gtm_id: str, session) -> str:
     return ""
 
 
-def _crawl_static(seed_url, max_pages, max_depth, skip_robots=True, proxy="") -> List[PageCapture]:
+def _crawl_static(seed_url, max_pages, max_depth, skip_robots=True, proxy="", timeout=None) -> List[PageCapture]:
     import requests  # type: ignore
     from bs4 import BeautifulSoup  # type: ignore
 
@@ -497,7 +498,7 @@ def _crawl_static(seed_url, max_pages, max_depth, skip_robots=True, proxy="") ->
             continue
         seen.add(url)
         try:
-            resp = session.get(url, timeout=config.REQUEST_TIMEOUT_SECONDS)
+            resp = session.get(url, timeout=timeout or config.REQUEST_TIMEOUT_SECONDS)
             html = resp.text
             soup = BeautifulSoup(html, "html.parser")
 

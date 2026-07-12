@@ -121,9 +121,9 @@
 
         <template #item.cloudflare_protected="{ item }">
           <v-chip
-            v-if="item.cloudflare_protected"
+            v-if="scannedViaProxy(item)"
             color="warning" variant="tonal" size="x-small" label
-            title="WAF-protected — scanned via residential proxy"
+            title="Scanned via residential proxy (static or render tier) to bypass a WAF"
           >
             <v-icon start size="12">mdi-shield-alert-outline</v-icon>
             Proxy
@@ -249,6 +249,15 @@ const parseMinDays = (val) => {
   if (!val || val === 'None' || val === '') return null
   const n = Number(val)
   return isNaN(n) ? null : n
+}
+
+// Scan Type chip: prefer the ACTUAL per-scan signal (last_scan_via_proxy, now
+// persisted); fall back to the cloudflare_protected routing hint for older rows.
+const scannedViaProxy = (item) => {
+  const v = item.last_scan_via_proxy
+  if (v === true || v === 'true') return true
+  if (v === false || v === 'false') return false
+  return item.cloudflare_protected === true || item.cloudflare_protected === 'true'
 }
 
 async function refresh() { await store.fetchScorecard() }

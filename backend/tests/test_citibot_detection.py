@@ -147,7 +147,7 @@ def test_crawl_site_skips_proxy_when_unset(monkeypatch=None):
     # Force the static tier by making the playwright import path yield 0 captures
     orig_pw = cr._crawl_with_playwright
     cr._crawl_with_playwright = lambda *a, **k: []
-    def _cap_static(seed, mp, md, sr=True, proxy=""):
+    def _cap_static(seed, mp, md, sr=True, proxy="", timeout=None):
         captured["proxy"] = proxy
         return [PageCapture(url=seed, html="", render_engine="static")]
     cr._crawl_static = _cap_static
@@ -168,7 +168,7 @@ def test_crawl_site_proxy_uses_static_only_no_browser():
     cfg.SCAN_PROXY_URL = "http://scraperapi.premium=true:KEY@proxy-server.scraperapi.com:8001"
     def _pw(*a, **k):
         calls["pw"] += 1; return [PageCapture(url="x", render_engine="playwright")]
-    def _static(seed, mp, md, sr=True, proxy=""):
+    def _static(seed, mp, md, sr=True, proxy="", timeout=None):
         calls["static"] += 1
         assert proxy == cfg.SCAN_PROXY_URL, "proxy not passed to static tier"
         return [PageCapture(url=seed, render_engine="static")]

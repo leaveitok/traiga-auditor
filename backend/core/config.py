@@ -68,6 +68,10 @@ MAX_PAGES_PER_SITE: int = 3
 MAX_DEPTH: int = 1
 CRAWL_DELAY_SECONDS: float = 1.0
 REQUEST_TIMEOUT_SECONDS: int = 15
+# Proxy RENDER-tier requests run a real browser server-side (JS + cookie WAF
+# challenge) and take far longer than a static fetch. ScraperAPI render can
+# need up to ~70s, so use a separate, generous timeout for those requests only.
+RENDER_TIMEOUT_SECONDS: int = int(os.environ.get("RENDER_TIMEOUT_SECONDS", "75"))
 USER_AGENT: str = (
     "LewisvilleAITransparencyAuditor/2.0 (+external-observer; respects robots.txt)"
 )
@@ -106,15 +110,4 @@ AGENDA_PROXY_URL: str = os.environ.get("AGENDA_PROXY_URL", os.environ.get("SCAN_
 
 # ── Storage backend selection (Firestore migration, Phase 2) ─────────────────
 # "sheets" (legacy) or "firestore". Defaults to sheets so ROLLBACK IS A CONFIG
-# CHANGE: unset/flip the env var and redeploy — no code revert needed.
-GOVERNANCE_STORE: str = os.environ.get("GOVERNANCE_STORE", "sheets").strip().lower()
-SENTINEL_STORE: str = os.environ.get("SENTINEL_STORE", "sheets").strip().lower()
-
-# Firestore project + named databases. Dashboard data lives in "(default)"
-# (the only database covered by the free tier); Sentinel telemetry lives in a
-# SEPARATE named database for dataset integrity/security separation.
-FIRESTORE_PROJECT_ID: str = os.environ.get(
-    "FIRESTORE_PROJECT_ID", os.environ.get("FIREBASE_PROJECT_ID", "")
-).strip()
-FIRESTORE_GOVERNANCE_DB: str = os.environ.get("FIRESTORE_GOVERNANCE_DB", "(default)").strip()
-FIRESTORE_SENTINEL_DB: str = os.environ.get("FIRESTORE_SENTINEL_DB", "traiga-sentinel").strip()
+# CHANGE: unset/flip the env var and redeploy — no cod

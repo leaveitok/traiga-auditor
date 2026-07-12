@@ -40,3 +40,31 @@ def test_render_required_flag_round_trips_via_update_target():
     assert repo.update_target(t["id"], {"render_required": True}) is True
     saved = next(x for x in repo.get_targets() if x["id"] == t["id"])
     assert saved["render_required"] is True
+
+
+def test_render_request_uses_the_long_render_timeout():
+    """The render tier must NOT use the 15s static timeout — Austin's Incapsula
+    render request timed out at 15s (ScraperAPI render needs ~70s). crawl_site
+    must pass RENDER_TIMEOUT_SECONDS to the fetch when render=True, and leave the
+    static tier on the default."""
+    from engine import crawler, config
+    calls = []
+
+    def fake_static(seed, mp, md, sr=True, proxy="", timeout=None):
+        calls.append({"proxy": proxy, "timeout": timeout})
+        return []
+
+    orig_static = crawler._crawl_static
+    orig_proxy = config.SCAN_PROXY_URL
+    crawler._crawl_static = fake_static
+    config.SCAN_PROXY_URL = "http://scraperapi:KEY@proxy-server.scraperapi.com:8001"
+    try:
+        crawler.crawl_site("https://x.gov", use_proxy=True, render=True)
+        assert calls[-1]["timeout"] == config.RENDER_TIMEOUT_SECONDS
+        assert "render=true" in calls[-1]["proxy"]
+        assert config.RENDER_TIMEOUT_SECONDS >= 60  # generous enough for server-side render
+        crawler.crawl_site("https://x.gov", use_proxy=True, render=False)
+        assert calls[-1]["timeout"] is None  # static tier keeps the default
+    finally:
+        crawler._crawl_static = orig_static
+        config.SCAN_PROXY_URL = orig_proxy

@@ -255,6 +255,7 @@ class FirestoreRepository:
                 "compliance_score":      row.get("compliance_score", 100),
                 "band":                  row.get("band", "green"),
                 "last_scanned_utc":      row.get("last_scanned_utc", _now_iso()),
+                "last_scan_via_proxy":   str(bool(row.get("last_scan_via_proxy", False))).lower(),
             }
             self._db.collection(COLL_SCORECARD).document(
                 _doc_id(row["city"])
