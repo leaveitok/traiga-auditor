@@ -66,7 +66,7 @@ HEADERS: Dict[str, List[str]] = {
     ],
     config.SHEET_SCORECARD: [
         "city", "jurisdiction", "domain", "ai_assets_json", "traiga_status",
-        "open_violations_count", "min_days_remaining", "compliance_score",
+        "open_violations_count", "min_days_remaining", "min_cure_deadline_utc", "compliance_score",
         "band", "last_scanned_utc",
     ],
     config.SHEET_VIOLATIONS: [
@@ -439,6 +439,7 @@ class SheetsRepository:
                     "traiga_status":        row.get("traiga_status", "not_assessed"),
                     "open_violations_count": len(row.get("open_violations", [])),
                     "min_days_remaining":   row.get("min_days_remaining", ""),
+                    "min_cure_deadline_utc": row.get("min_cure_deadline_utc", ""),
                     "compliance_score":     row.get("compliance_score", 100),
                     "band":                 row.get("band", "green"),
                     "last_scanned_utc":     row.get("last_scanned_utc", _now_iso()),

@@ -49,7 +49,7 @@
           />
           <div class="text-caption text-medium-emphasis mt-1">
             {{ row.violations }} open violation{{ row.violations === 1 ? '' : 's' }}
-            · cure expires {{ row.deadline }}
+            <template v-if="row.deadline"> · cure expires {{ row.deadline }}</template>
           </div>
         </div>
       </template>
@@ -82,8 +82,10 @@ const toInt = (v) => {
 const inCure = computed(() =>
   (store.rows || [])
     .map((r) => {
-      // LIVE: days from the real deadline (deadline - now), NOT the stored snapshot.
-      const days = liveDaysLeft(r.min_cure_deadline_utc)
+      // Prefer the LIVE deadline (deadline - now); fall back to the persisted
+      // min_days_remaining snapshot so cities scanned before min_cure_deadline_utc
+      // was persisted still populate the panel.
+      const days = liveDaysLeft(r.min_cure_deadline_utc) ?? toInt(r.min_days_remaining)
       const violations = toInt(r.open_violations_count)
         ?? (Array.isArray(r.open_violations) ? r.open_violations.length : 0)
       return { city: r.city, days, violations, deadline: fmtDeadline(r.min_cure_deadline_utc) }
