@@ -38,21 +38,32 @@
     </v-card>
 
     <v-card class="mb-4">
-      <v-card-title prepend-icon="mdi-google-spreadsheet">Google Sheets</v-card-title>
+      <v-card-title prepend-icon="mdi-tag-outline">Version &amp; Build</v-card-title>
       <v-card-text>
         <v-list density="compact">
-          <v-list-item title="SPREADSHEET_ID"
-                       subtitle="Set in backend/.env — the ID from your Sheets URL" />
-          <v-list-item title="GOOGLE_SERVICE_ACCOUNT_FILE"
-                       subtitle="Path to the service-account JSON key file" />
-          <v-list-item title="Required Sheets tabs"
-                       subtitle="Targets · Scorecard · Violations · AuditLog" />
+          <v-list-item title="Backend build"  :subtitle="health.version || '—'" />
+          <v-list-item title="Frontend build" :subtitle="frontendBuild" />
+          <v-list-item title="Environment"    :subtitle="health.environment || '—'" />
+        </v-list>
+        <div class="text-caption text-medium-emphasis">
+          Build IDs are the deployed git commit (short SHA), stamped by CI at deploy time.
+        </div>
+      </v-card-text>
+    </v-card>
+
+    <v-card class="mb-4">
+      <v-card-title prepend-icon="mdi-database">Storage</v-card-title>
+      <v-card-text>
+        <v-list density="compact">
+          <v-list-item title="Backend"   :subtitle="`Cloud Firestore (${health.storage || 'firestore'})`" />
+          <v-list-item title="Project"   subtitle="traiga-auditor" />
+          <v-list-item title="Databases" subtitle="(default) — governance · traiga-sentinel — DLP telemetry" />
+          <v-list-item title="Rollback path" subtitle="Google Sheets (GOVERNANCE_STORE=sheets) — legacy, not used in production" />
         </v-list>
       </v-card-text>
       <v-card-actions>
         <v-btn prepend-icon="mdi-open-in-new" variant="text"
-               href="https://console.cloud.google.com/apis/api/sheets.googleapis.com"
-               target="_blank">
+               href="https://console.cloud.google.com/firestore" target="_blank">
           Google Cloud Console
         </v-btn>
       </v-card-actions>
@@ -62,9 +73,9 @@
       <v-card-title prepend-icon="mdi-api">Backend API</v-card-title>
       <v-card-text>
         <v-list density="compact">
-          <v-list-item title="Base URL" subtitle="http://localhost:8000/api  (dev)" />
-          <v-list-item title="Docs" subtitle="/api/docs  (Swagger UI)" />
-          <v-list-item title="CORS_ORIGINS" subtitle="Set to your Vue dev server + Firebase domain" />
+          <v-list-item title="Base URL" subtitle="/api  (Cloud Run, via Firebase Hosting rewrite)" />
+          <v-list-item title="Service"  subtitle="ai-transparency-auditor-api · Cloud Run · us-central1" />
+          <v-list-item title="Docs"     subtitle="/api/docs  (Swagger UI)" />
         </v-list>
       </v-card-text>
       <v-card-actions>
@@ -76,12 +87,26 @@
     </v-card>
 
     <v-card class="mb-4">
-      <v-card-title prepend-icon="mdi-firebase">Firebase Hosting</v-card-title>
+      <v-card-title prepend-icon="mdi-connection">Integrations &amp; Services</v-card-title>
       <v-card-text>
         <v-list density="compact">
-          <v-list-item title="Deploy" subtitle="firebase deploy --only hosting  (from project root)" />
-          <v-list-item title="Build" subtitle="cd frontend && npm run build  (output → dist/)" />
-          <v-list-item title="Backend" subtitle="Deploy separately — Cloud Run, App Engine, or any VPS" />
+          <v-list-item title="Firebase Authentication" subtitle="Google sign-in · ID tokens verified server-side" />
+          <v-list-item title="Vertex AI (Gemini)"       subtitle="Agenda extractor · model set above · runs as the Cloud Run service account" />
+          <v-list-item title="Residential proxy"        subtitle="WAF-bypass crawl tier for Cloudflare-protected sites (secret)" />
+          <v-list-item title="Legistar"                 subtitle="Council-agenda item API (agenda discovery)" />
+          <v-list-item title="Cloud Scheduler"          subtitle="Hourly trigger → daily automated scan (see toggles above)" />
+          <v-list-item title="Sentinel ingest"          subtitle="Browser-DLP telemetry · device-token auth · metadata only" />
+        </v-list>
+      </v-card-text>
+    </v-card>
+
+    <v-card class="mb-4">
+      <v-card-title prepend-icon="mdi-rocket-launch-outline">Deployment (CI/CD)</v-card-title>
+      <v-card-text>
+        <v-list density="compact">
+          <v-list-item title="Frontend" subtitle="Firebase Hosting · CI: deploy_frontend.yml (vite build → dist/)" />
+          <v-list-item title="Backend"  subtitle="Cloud Run · CI: deploy.yml (test-gated) on push to main" />
+          <v-list-item title="Source of truth" subtitle="Both halves build + deploy from committed source only" />
         </v-list>
       </v-card-text>
     </v-card>
@@ -138,7 +163,11 @@ async function saveFlags() {
   } catch { /* error surfaced by the store */ }
 }
 
-const health = reactive({ ok: false, ts: null, err: null, loading: false })
+const health = reactive({ ok: false, ts: null, err: null, loading: false,
+                          version: null, environment: null, storage: null })
+
+// Frontend build id — stamped by CI (deploy_frontend.yml sets VITE_BUILD_SHA); 'dev' locally.
+const frontendBuild = (import.meta.env.VITE_BUILD_SHA || 'dev').slice(0, 12)
 
 async function checkHealth() {
   health.loading = true
@@ -147,6 +176,9 @@ async function checkHealth() {
     const res    = await healthApi.check()
     health.ok    = true
     health.ts    = new Date(res.data.timestamp).toLocaleTimeString()
+    health.version     = res.data.version
+    health.environment = res.data.environment
+    health.storage     = res.data.storage
   } catch (e) {
     health.ok    = false
     health.err   = e.message

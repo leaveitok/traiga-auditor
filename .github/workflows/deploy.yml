@@ -90,6 +90,7 @@ jobs:
             echo 'GOVERNANCE_STORE: "firestore"'
             echo 'SENTINEL_STORE: "firestore"'
             echo 'FIRESTORE_SENTINEL_DB: traiga-sentinel'
+            echo 'GIT_SHA: ${{ github.sha }}'
           } > deploy/env.yaml
 
       - name: Deploy to Cloud Run

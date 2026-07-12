@@ -34,6 +34,9 @@ jobs:
       - name: Build (Vite)
         working-directory: frontend
         # This IS the gate: a broken UI fails here and the deploy step never runs.
+        # Stamp the build with the deploy commit -> import.meta.env.VITE_BUILD_SHA.
+        env:
+          VITE_BUILD_SHA: ${{ github.sha }}
         run: npm run build
 
       - name: Authenticate to Google Cloud
