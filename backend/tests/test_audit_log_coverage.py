@@ -9,7 +9,7 @@ from api.routes.scorecard import delete_scorecard_row
 from api.routes.violations import purge_dirty_violations
 from tests.mock_repository import MockGovernanceRepository
 
-ADMIN = {"email": "leaveitok@gmail.com"}   # platform-admin bootstrap (ADMIN_EMAILS)
+ADMIN = {"email": "admin@test.gov"}   # platform-admin bootstrap (ADMIN_EMAILS)
 
 
 def test_scorecard_row_delete_is_audited():
@@ -18,7 +18,7 @@ def test_scorecard_row_delete_is_audited():
     log = repo.get_audit_log()
     assert any(e["event"] == "scorecard_row_deleted" for e in log), [e["event"] for e in log]
     entry = next(e for e in log if e["event"] == "scorecard_row_deleted")
-    assert entry["details"]["actor"] == "leaveitok@gmail.com"
+    assert entry["details"]["actor"] == "admin@test.gov"
     assert entry["details"]["city"] == "Ghost City"
 
 
@@ -31,4 +31,4 @@ def test_violation_purge_is_audited():
     assert any(e["event"] == "violations_purged" for e in log), [e["event"] for e in log]
     entry = next(e for e in log if e["event"] == "violations_purged")
     assert entry["details"]["removed"] == 1
-    assert entry["details"]["actor"] == "leaveitok@gmail.com"
+    assert entry["details"]["actor"] == "admin@test.gov"
