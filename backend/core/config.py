@@ -41,7 +41,15 @@ CORS_ORIGINS: list[str] = os.environ.get(
 PROJECT_DIR = Path(__file__).resolve().parent.parent
 SCHEMA_FILE = PROJECT_DIR / "SCHEMA_DEFINITION.json"
 CURE_PERIOD_DAYS: int = 60
-SCAN_CADENCE_HOURS: int = 24
+SCAN_CADENCE_HOURS: int = 24   # legacy in-process interval; superseded by the daily-hour schedule below
+
+# Automated daily scan (driven by Cloud Scheduler hitting /api/audit/scheduled-run).
+# These are DEFAULTS; both are admin-toggleable at runtime via the Settings page.
+SCAN_SCHEDULE_ENABLED: bool = os.environ.get("SCAN_SCHEDULE_ENABLED", "true").lower() == "true"
+SCAN_SCHEDULE_HOUR: int = int(os.environ.get("SCAN_SCHEDULE_HOUR", "7"))   # UTC hour (0-23) to run the daily scan
+# Shared token Cloud Scheduler sends (X-Scheduler-Token) to authorize the trigger.
+# Secret; set via Secret Manager/env, NEVER exposed in the Settings API. Empty = trigger disabled (fail-secure).
+SCHEDULER_TOKEN: str = os.environ.get("SCHEDULER_TOKEN", "").strip()
 
 # Durable audit-run lease (cross-instance run state). A running scan refreshes
 # its heartbeat after every city; if the heartbeat goes stale for longer than

@@ -40,6 +40,15 @@ SETTABLE: Dict[str, Dict[str, Any]] = {
                 "gemini-2.5-flash-lite = GA/stable (supported through >=2026-10-16); "
                 "gemini-3.1-flash-lite = newer, cheaper.",
         "default": lambda: config.AGENDA_LLM_MODEL},
+    "SCAN_SCHEDULE_ENABLED": {
+        "type": "bool", "group": "Automated scans", "label": "Daily scan enabled",
+        "help": "Run a full compliance scan automatically once per day.",
+        "default": lambda: config.SCAN_SCHEDULE_ENABLED},
+    "SCAN_SCHEDULE_HOUR": {
+        "type": "int", "group": "Automated scans", "label": "Daily scan hour (UTC, 0-23)",
+        "min": 0, "max": 23,
+        "help": "Hour of day (UTC) to run the automated daily scan. e.g. 7 = 07:00 UTC.",
+        "default": lambda: config.SCAN_SCHEDULE_HOUR},
     "AGENDA_LOOKBACK_MONTHS": {
         "type": "int", "group": "Agenda discovery", "label": "Default lookback (months)",
         "min": 1, "max": config.AGENDA_LOOKBACK_MONTHS_MAX,

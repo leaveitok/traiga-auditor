@@ -192,6 +192,62 @@ async def _scheduled_scan_job() -> None:
         print(f"[scheduler] ERROR [{ref}] {type(exc).__name__}: {exc}\n{_tb.format_exc()}")
 
 
+def scheduled_scan_due(repo: Any, now: Optional[datetime] = None) -> tuple:
+    """
+    Is the automated daily scan due RIGHT NOW? True only when it's enabled, the
+    current UTC hour matches the configured hour, and it hasn't already run today.
+    Cheap + side-effect-free, so the hourly Cloud Scheduler ping can call it before
+    doing any work. Returns (due: bool, info: dict).
+    """
+    from core import settings as _settings
+    now = now or datetime.now(timezone.utc)
+    today = now.date().isoformat()
+    if not _settings.get_bool(repo, "SCAN_SCHEDULE_ENABLED"):
+        return False, {"reason": "disabled"}
+    hour = int(_settings.get_value(repo, "SCAN_SCHEDULE_HOUR") or 0)
+    if now.hour != hour:
+        return False, {"reason": "not_scheduled_hour", "scheduled_hour": hour, "current_hour": now.hour}
+    sched = repo.get_run_state(_rs.SCHEDULER_KEY) or {}
+    if sched.get("last_scheduled_date") == today:
+        return False, {"reason": "already_ran_today"}
+    return True, {"date": today}
+
+
+def stamp_scheduled_today(repo: Any, now: Optional[datetime] = None) -> None:
+    """Record that today's scheduled scan has been kicked off — set BEFORE the run so
+    subsequent hourly pings (or a slow/failed run) never re-trigger it the same day."""
+    now = now or datetime.now(timezone.utc)
+    try:
+        sched = repo.get_run_state(_rs.SCHEDULER_KEY) or {}
+        sched["last_scheduled_date"] = now.date().isoformat()
+        repo.save_run_state(_rs.SCHEDULER_KEY, sched)
+    except Exception:
+        pass
+
+
+def run_scheduled_scan_bg() -> None:
+    """Sync wrapper so FastAPI BackgroundTasks runs the scan in a THREADPOOL (its own
+    event loop) — the blocking crawl never freezes the main request loop."""
+    import asyncio
+    asyncio.run(_scheduled_scan_job())
+
+
+async def trigger_scheduled_scan(repo: Any = None, now: Optional[datetime] = None,
+                                 force: bool = False) -> Dict[str, Any]:
+    """Due-gated runner for the in-process interval backup (warm instances). The
+    external Cloud Scheduler path uses scheduled_scan_due + run_scheduled_scan_bg
+    (non-blocking) instead. Idempotent via claim_run_slot + last_scheduled_date."""
+    from core.dependencies import get_repository
+    repo = repo or get_repository()
+    if not force:
+        due, info = scheduled_scan_due(repo, now)
+        if not due:
+            return {"ran": False, **info}
+    stamp_scheduled_today(repo, now)
+    await _scheduled_scan_job()
+    return {"ran": True}
+
+
 def build_scheduler() -> AsyncIOScheduler:
     """
     Build and return a configured AsyncIOScheduler.
@@ -206,8 +262,8 @@ def build_scheduler() -> AsyncIOScheduler:
 
     scheduler = AsyncIOScheduler(timezone="UTC")
     scheduler.add_job(
-        _scheduled_scan_job,
-        trigger=IntervalTrigger(hours=config.SCAN_CADENCE_HOURS),
+        trigger_scheduled_scan,   # due-gated: runs only at the configured UTC hour, once/day
+        trigger=IntervalTrigger(hours=1),
         id="scheduled_audit",
         name="Automated TRAIGA Compliance Scan",
         replace_existing=True,

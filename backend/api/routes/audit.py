@@ -186,6 +186,35 @@ async def _run_audit_task(
         })
 
 
+@router.post("/scheduled-run")
+async def scheduled_run(
+    request: Request,
+    background_tasks: BackgroundTasks,
+    repo: GovernanceRepository = Depends(get_repository),
+):
+    """
+    Machine trigger for the automated DAILY scan — called by Cloud Scheduler on an
+    hourly heartbeat (reliable on Cloud Run: it wakes a scaled-to-zero instance,
+    unlike the in-process timer). Authorized by the shared X-Scheduler-Token
+    (constant-time compare). Gating (enabled + configured UTC hour + not-already-run
+    -today) is cheap and runs inline; the actual scan runs off the event loop as a
+    background task. Fail-secure: no token configured -> 503.
+    """
+    import hmac
+    expected = (getattr(config, "SCHEDULER_TOKEN", "") or "")
+    if not expected:
+        raise HTTPException(status_code=503, detail="Scheduled trigger not configured.")
+    if not hmac.compare_digest(request.headers.get("X-Scheduler-Token", ""), expected):
+        raise HTTPException(status_code=401, detail="Invalid scheduler token.")
+    from core.scheduler import scheduled_scan_due, stamp_scheduled_today, run_scheduled_scan_bg
+    due, info = scheduled_scan_due(repo)
+    if not due:
+        return {"ran": False, **info}
+    stamp_scheduled_today(repo)                       # mark before running (retry-storm guard)
+    background_tasks.add_task(run_scheduled_scan_bg)  # blocking crawl runs in a threadpool
+    return {"ran": True, **info}
+
+
 @router.post("/run", response_model=AuditRunResponse)
 @limiter.limit("5/minute")
 async def trigger_audit(
