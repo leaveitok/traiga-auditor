@@ -54,6 +54,7 @@ class GovernanceRepository(Protocol):
         url: str,
         tags: List[str],
         cloudflare_protected: bool = False,
+        population: int = 0,
     ) -> Dict[str, Any]:
         """
         Add a new target to the registry.
@@ -72,7 +73,8 @@ class GovernanceRepository(Protocol):
     def update_target(self, target_id: str, fields: Dict[str, Any]) -> bool:
         """
         Update mutable scan settings on an existing target.
-        Supported keys: cloudflare_protected (bool), tags (List[str]), url (str).
+        Supported keys: cloudflare_protected (bool), tags (List[str]), url (str),
+        city (str), jurisdiction (str), domain (str), population (int).
         Returns True if found and updated, False if not found.
         Route layer enforces platform_admin before calling.
         """

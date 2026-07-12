@@ -25,6 +25,7 @@
  * @property {string[]} tags         - Descriptive tags (e.g. ["home_jurisdiction"])
  * @property {string}   added_utc    - ISO 8601 timestamp
  * @property {boolean}  active       - false = soft-deleted
+ * @property {number}   [population]  - Municipal population (0 if unknown)
  */
 
 /**
@@ -35,6 +36,7 @@
  * @property {string}   domain
  * @property {string}   [url]         - Defaults to domain if omitted
  * @property {string[]} [tags]
+ * @property {number}   [population]  - Municipal population (optional; 0 if unknown)
  */
 
 // ─────────────────────────────────────────────────────────────────────────────

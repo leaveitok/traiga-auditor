@@ -119,6 +119,10 @@ class FirestoreRepository:
         for r in result:
             raw = r.get("cloudflare_protected", "false")
             r["cloudflare_protected"] = str(raw).lower() in ("true", "1", "yes")
+            try:
+                r["population"] = int(float(r.get("population", 0) or 0))
+            except (TypeError, ValueError):
+                r["population"] = 0
         return result
 
     def add_target(
@@ -129,6 +133,7 @@ class FirestoreRepository:
         url: str,
         tags: List[str],
         cloudflare_protected: bool = False,
+        population: int = 0,
     ) -> Dict[str, Any]:
         # TODO: enforce admin-only write permission (auth placeholder)
         row = {
@@ -141,6 +146,7 @@ class FirestoreRepository:
             "added_utc":            _now_iso(),
             "active":               "true",
             "cloudflare_protected": str(cloudflare_protected).lower(),
+            "population":           str(int(population or 0)),
         }
         self._db.collection(COLL_TARGETS).document(row["id"]).set(self._stringify(row))
         return {**row, "cloudflare_protected": cloudflare_protected, "active": True}  # type: ignore[dict-item]
@@ -165,8 +171,14 @@ class FirestoreRepository:
             update["cloudflare_protected"] = str(bool(fields["cloudflare_protected"])).lower()
         if "tags" in fields:
             update["tags"] = json.dumps(list(fields["tags"]))
-        if "url" in fields and str(fields["url"]).strip():
-            update["url"] = str(fields["url"]).strip()
+        if "population" in fields:
+            try:
+                update["population"] = str(int(float(fields["population"])))
+            except (TypeError, ValueError):
+                pass
+        for _k in ("url", "city", "jurisdiction", "domain"):
+            if _k in fields and str(fields[_k]).strip():
+                update[_k] = str(fields[_k]).strip()
         if not update:
             return True  # nothing to change is not an error
         ref.update(update)

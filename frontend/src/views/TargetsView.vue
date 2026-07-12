@@ -58,7 +58,13 @@
         <template #item.domain="{ item }">
           <a :href="item.domain" target="_blank" class="text-primary">{{ item.domain }}</a>
         </template>
+        <template #item.population="{ item }">
+          <span v-if="Number(item.population) > 0">{{ fmtPop(item.population) }}</span>
+          <span v-else class="text-medium-emphasis">—</span>
+        </template>
         <template #item.actions="{ item }">
+          <v-btn v-if="auth.isPlatformAdmin" icon="mdi-pencil" size="small" variant="text"
+                 title="Edit target" @click="openEdit(item)" />
           <v-btn icon="mdi-delete" size="small" color="error" variant="text"
                  @click="confirmDelete(item)" />
         </template>
@@ -86,6 +92,33 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
+
+    <!-- Edit target (platform_admin only; server enforces + audit-logs every change) -->
+    <v-dialog v-model="editDialog" max-width="520">
+      <v-card>
+        <v-card-title>Edit Target</v-card-title>
+        <v-card-subtitle class="text-caption text-medium-emphasis pb-2">
+          Changes are written to the Audit Log.
+        </v-card-subtitle>
+        <v-divider />
+        <v-card-text class="pt-4">
+          <v-text-field v-model="editForm.city" label="City" density="compact" class="mb-3" />
+          <v-text-field v-model="editForm.jurisdiction" label="Jurisdiction" density="compact" class="mb-3" />
+          <v-text-field v-model="editForm.domain" label="Domain" density="compact" class="mb-3" />
+          <v-text-field v-model="editForm.url" label="Seed URL" density="compact" class="mb-3" />
+          <v-text-field v-model="editTagsInput" label="Tags (comma-separated)" density="compact" class="mb-3" />
+          <v-text-field v-model.number="editForm.population" label="Population" type="number" min="0" density="compact" class="mb-3" />
+          <v-switch v-model="editForm.cloudflare_protected" label="Cloudflare protected" color="warning" density="compact" inset />
+          <v-alert v-if="editError" type="error" density="compact" variant="tonal" class="mt-2">{{ editError }}</v-alert>
+        </v-card-text>
+        <v-divider />
+        <v-card-actions class="pa-4">
+          <v-spacer />
+          <v-btn variant="text" @click="editDialog = false">Cancel</v-btn>
+          <v-btn color="primary" :loading="editSaving" @click="saveEdit">Save</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </v-container>
 </template>
 
@@ -102,6 +135,7 @@ const auth  = useAuthStore()
 const headers = [
   { title: 'City',         key: 'city',                  sortable: true  },
   { title: 'Jurisdiction', key: 'jurisdiction',          sortable: true  },
+  { title: 'Population',   key: 'population',             sortable: true  },
   { title: 'Domain',       key: 'domain',                sortable: false },
   { title: 'CF',           key: 'cloudflare_protected',  sortable: false },
   { title: 'Tags',         key: 'tags',                  sortable: false },
@@ -117,8 +151,11 @@ const deleteTarget = ref(null)
 const deleting     = ref(false)
 
 const parseTags = (raw) => {
+  if (Array.isArray(raw)) return raw
   try { return JSON.parse(raw) } catch { return raw?.split(',').map(t => t.trim()).filter(Boolean) || [] }
 }
+
+const fmtPop = (p) => Number(p).toLocaleString()
 
 const isCf = (item) =>
   item.cloudflare_protected === true || item.cloudflare_protected === 'true'
@@ -146,6 +183,54 @@ async function doDelete() {
     deleteDialog.value = false
   } finally {
     deleting.value = false
+  }
+}
+
+// ── Edit target (platform_admin) — sends only changed fields so the audit
+// log records real edits; store.updateTarget optimistically patches the row.
+const editDialog = ref(false)
+const editSaving = ref(false)
+const editError  = ref('')
+const editTagsInput = ref('')
+const editForm = ref({})
+let editOriginal = null
+
+function openEdit(item) {
+  editOriginal = item
+  editForm.value = {
+    city: item.city || '',
+    jurisdiction: item.jurisdiction || 'TX',
+    domain: item.domain || '',
+    url: item.url || '',
+    population: Number(item.population) || 0,
+    cloudflare_protected: isCf(item),
+  }
+  editTagsInput.value = parseTags(item.tags).join(', ')
+  editError.value = ''
+  editDialog.value = true
+}
+
+async function saveEdit() {
+  editSaving.value = true
+  editError.value = ''
+  const tags = editTagsInput.value.split(',').map(t => t.trim()).filter(Boolean)
+  const patch = {}
+  if (editForm.value.city !== editOriginal.city) patch.city = editForm.value.city
+  if (editForm.value.jurisdiction !== editOriginal.jurisdiction) patch.jurisdiction = editForm.value.jurisdiction
+  if (editForm.value.domain !== editOriginal.domain) patch.domain = editForm.value.domain
+  if (editForm.value.url !== editOriginal.url) patch.url = editForm.value.url
+  if ((Number(editOriginal.population) || 0) !== editForm.value.population) patch.population = editForm.value.population
+  if (isCf(editOriginal) !== editForm.value.cloudflare_protected) patch.cloudflare_protected = editForm.value.cloudflare_protected
+  if (JSON.stringify(parseTags(editOriginal.tags)) !== JSON.stringify(tags)) patch.tags = tags
+  if (Object.keys(patch).length === 0) { editDialog.value = false; editSaving.value = false; return }
+  try {
+    await store.updateTarget(editOriginal.id, patch)
+    Object.assign(editOriginal, patch)
+    editDialog.value = false
+  } catch (e) {
+    editError.value = e.response?.data?.detail || e.message
+  } finally {
+    editSaving.value = false
   }
 }
 

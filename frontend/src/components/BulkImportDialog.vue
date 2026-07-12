@@ -15,7 +15,7 @@
         <template v-if="phase === 'select'">
           <p class="text-body-2 mb-3">
             Upload a CSV with columns <code>city, domain</code>
-            (optional: <code>url, jurisdiction, tags, cloudflare_protected</code>).
+            (optional: <code>url, jurisdiction, tags, cloudflare_protected, population</code>).
             Imported cities are created as <strong>Not Assessed</strong> and are
             <strong>not scanned automatically</strong> — run a scan when you're ready.
           </p>
@@ -126,6 +126,7 @@ const previewHeaders = [
   { title: 'City',         key: 'city',         sortable: false },
   { title: 'Domain',       key: 'domain',       sortable: false },
   { title: 'Jurisdiction', key: 'jurisdiction', sortable: false },
+  { title: 'Population',   key: 'population',    sortable: false },
   { title: 'Status',       key: '_status',      sortable: false },
 ]
 
@@ -193,6 +194,7 @@ async function onFile(f) {
       jurisdiction: get('jurisdiction') || 'TX',
       tags: get('tags') ? get('tags').split(';').map(t => t.trim()).filter(Boolean) : [],
       cloudflare_protected: TRUTHY.has(get('cloudflare_protected').toLowerCase()),
+      population: get('population') ? Number(get('population').replace(/[,\s]/g, '')) || 0 : 0,
       _error: '',
     }
     if (!city || !domain) rowObj._error = 'missing city or domain'
@@ -223,9 +225,9 @@ async function doImport() {
 }
 
 function downloadTemplate() {
-  const csv = 'city,domain,url,jurisdiction,tags,cloudflare_protected\n'
-    + 'Grand Prairie,gptx.org,https://www.gptx.org,TX,dfw;pilot,false\n'
-    + 'Denton,cityofdenton.com,,TX,dfw,true\n'
+  const csv = 'city,domain,url,jurisdiction,tags,cloudflare_protected,population\n'
+    + 'Grand Prairie,gptx.org,https://www.gptx.org,TX,dfw;pilot,false,196000\n'
+    + 'Denton,cityofdenton.com,,TX,dfw,true,148000\n'
   const a = document.createElement('a')
   a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }))
   a.download = 'bulk_import_template.csv'

@@ -265,6 +265,7 @@ class SheetsRepository:
         url: str,
         tags: List[str],
         cloudflare_protected: bool = False,
+        population: int = 0,
     ) -> Dict[str, Any]:
         self._invalidate(config.SHEET_TARGETS)
         # TODO: enforce admin-only write permission (auth placeholder)
@@ -278,6 +279,7 @@ class SheetsRepository:
             "added_utc":            _now_iso(),
             "active":               "true",
             "cloudflare_protected": str(cloudflare_protected).lower(),
+            "population":           str(int(population or 0)),
         }
         self._append_row(config.SHEET_TARGETS, row)
         # Return with bool-typed cloudflare_protected (consistent with get_targets)
@@ -327,8 +329,14 @@ class SheetsRepository:
             col_values["cloudflare_protected"] = str(bool(fields["cloudflare_protected"])).lower()
         if "tags" in fields:
             col_values["tags"] = json.dumps(list(fields["tags"]))
-        if "url" in fields and str(fields["url"]).strip():
-            col_values["url"] = str(fields["url"]).strip()
+        if "population" in fields:
+            try:
+                col_values["population"] = str(int(float(fields["population"])))
+            except (TypeError, ValueError):
+                pass
+        for _k in ("url", "city", "jurisdiction", "domain"):
+            if _k in fields and str(fields[_k]).strip():
+                col_values[_k] = str(fields[_k]).strip()
         if not col_values:
             return True
         for i, row in enumerate(rows[1:], start=2):

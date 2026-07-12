@@ -35,6 +35,7 @@ class TargetCreate(BaseModel):
     url: str
     tags: List[str] = []
     cloudflare_protected: bool = False
+    population: int = 0
 
 
 @router.get("")
@@ -57,6 +58,7 @@ def create_target(
         url=body.url,
         tags=body.tags,
         cloudflare_protected=body.cloudflare_protected,
+        population=body.population,
     )
     # Instant visibility: a target has no scorecard row until its first scan,
     # which made newly added cities invisible on the dashboard. Write a
@@ -94,6 +96,7 @@ class BulkTargetRow(BaseModel):
     jurisdiction: str = "TX"
     tags: List[str] = []
     cloudflare_protected: bool = False
+    population: int = 0
 
 
 class BulkImportRequest(BaseModel):
@@ -171,6 +174,7 @@ def bulk_import_targets(
                 url=url,
                 tags=row.tags,
                 cloudflare_protected=row.cloudflare_protected,
+                population=row.population,
             )
         except Exception as exc:
             skipped.append({"row": line, "city": city,
@@ -218,10 +222,15 @@ def bulk_import_targets(
 
 
 class TargetUpdate(BaseModel):
-    """Partial update of mutable scan settings. Omitted fields are unchanged."""
+    """Partial update of an existing target. Omitted fields are unchanged.
+    Every applied change is written to the audit log (target_updated)."""
     cloudflare_protected: Optional[bool] = None
     tags: Optional[List[str]] = None
     url: Optional[str] = None
+    city: Optional[str] = None
+    jurisdiction: Optional[str] = None
+    domain: Optional[str] = None
+    population: Optional[int] = None
 
 
 @router.patch("/{target_id}")
@@ -249,6 +258,14 @@ def update_target(
         fields["tags"] = body.tags
     if body.url is not None:
         fields["url"] = body.url
+    if body.city is not None:
+        fields["city"] = body.city
+    if body.jurisdiction is not None:
+        fields["jurisdiction"] = body.jurisdiction
+    if body.domain is not None:
+        fields["domain"] = body.domain
+    if body.population is not None:
+        fields["population"] = body.population
     if not fields:
         raise HTTPException(status_code=400, detail="No fields to update")
     ok = repo.update_target(target_id, fields)

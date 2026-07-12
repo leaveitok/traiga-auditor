@@ -43,6 +43,16 @@
             class="mb-3"
           />
           <v-text-field
+            v-model.number="form.population"
+            label="Population (optional)"
+            type="number"
+            min="0"
+            density="compact"
+            class="mb-3"
+            hint="Used for pricing tiers / reporting; approximate is fine"
+            persistent-hint
+          />
+          <v-text-field
             v-model="tagsInput"
             label="Tags (comma-separated)"
             density="compact"
@@ -117,6 +127,7 @@ const defaultForm = () => ({
   jurisdiction:        'TX',
   domain:              '',
   url:                 '',
+  population:          0,
   cloudflare_protected: false,
 })
 

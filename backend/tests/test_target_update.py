@@ -84,3 +84,16 @@ def test_unknown_target_404_and_empty_patch_400():
         raise AssertionError("expected 400")
     except HTTPException as exc:
         assert exc.status_code == 400
+
+
+def test_admin_can_edit_population_and_city_and_it_logs():
+    """Population + identity fields are editable post-capture and every applied
+    change is written to the audit log (the edit-with-audit-log requirement)."""
+    admin = _setup_admin_email()
+    repo = StubRepo(targets=[{"id": "od1", "city": "Odesa", "population": 0}])
+    result = _run_patch(repo, admin, "od1", city="Odessa", population=114000)
+    assert set(result["updated"]) == {"city", "population"}
+    assert repo.targets[0]["city"] == "Odessa"
+    assert repo.targets[0]["population"] == 114000
+    ev = [e for e in repo.log_events if e.get("event") == "target_updated"]
+    assert ev and ev[0]["details"]["actor"] == admin

@@ -27,10 +27,10 @@ class StubRepo:
     def get_targets(self):
         return self.targets
 
-    def add_target(self, city, jurisdiction, domain, url, tags, cloudflare_protected):
+    def add_target(self, city, jurisdiction, domain, url, tags, cloudflare_protected, population=0):
         t = {"id": str(len(self.targets) + 1), "city": city, "jurisdiction": jurisdiction,
              "domain": domain, "url": url, "tags": tags,
-             "cloudflare_protected": cloudflare_protected, "active": True}
+             "cloudflare_protected": cloudflare_protected, "population": population, "active": True}
         self.targets.append(t)
         return t
 

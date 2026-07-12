@@ -69,6 +69,7 @@ class MockGovernanceRepository:
         url: str,
         tags: List[str],
         cloudflare_protected: bool = False,
+        population: int = 0,
     ) -> Dict[str, Any]:
         row = {
             "id":                   str(len(self._targets) + 1),
@@ -79,6 +80,7 @@ class MockGovernanceRepository:
             "tags":                 tags,
             "active":               True,
             "cloudflare_protected": cloudflare_protected,
+            "population":           int(population or 0),
             "added_utc":    "2026-01-01T00:00:00Z",
         }
         self._targets.append(row)
@@ -98,8 +100,14 @@ class MockGovernanceRepository:
                     t["cloudflare_protected"] = bool(fields["cloudflare_protected"])
                 if "tags" in fields:
                     t["tags"] = list(fields["tags"])
-                if "url" in fields and str(fields["url"]).strip():
-                    t["url"] = str(fields["url"]).strip()
+                if "population" in fields:
+                    try:
+                        t["population"] = int(float(fields["population"]))
+                    except (TypeError, ValueError):
+                        pass
+                for _k in ("url", "city", "jurisdiction", "domain"):
+                    if _k in fields and str(fields[_k]).strip():
+                        t[_k] = str(fields[_k]).strip()
                 return True
         return False
 
