@@ -387,7 +387,46 @@
             "weight": 0.25
           }
         ]
-      }
+      },
+        {
+          "vendor_id": "uneeq",
+          "display_name": "UneeQ Digital Human (conversational AI avatar)",
+          "category": "gov_ai_chatbot_llm",
+          "asset_types": [
+            "chatbot",
+            "virtual_assistant",
+            "digital_human",
+            "avatar"
+          ],
+          "verification_status": "unverified_candidate",
+          "note": "Observed live on www.amarillo.gov 2026-07-12: 'Emma, Your Digital Assistant' is a UneeQ digital-human avatar with a 'Chat with Emma'/'Habla con Emma' launcher. Loader script https://cdn.uneeq.io/hosted-experience/deploy/index.js; rendered MUI containers #uneeq-initial-container / #uneeq-initial-content / #uneeqContainedLayout. The conversation runs in a UneeQ-hosted experience, so detection keys off the parent-page loader host + the uneeq-* container ids, not the avatar's speech. cdn.uneeq.io is an unambiguous, cross-tenant signature — any municipality running a UneeQ avatar now flags (sweep network effect).",
+          "indicators": [
+            {
+              "type": "script_host_regex",
+              "pattern": "(^|\\.)uneeq\\.io",
+              "weight": 0.7,
+              "note": "cdn.uneeq.io hosted-experience loader. Fires alone (>= 0.6 threshold)."
+            },
+            {
+              "type": "network_request_regex",
+              "pattern": "(^|\\.)uneeq\\.io",
+              "weight": 0.6,
+              "note": "Runtime calls to the UneeQ hosted experience."
+            },
+            {
+              "type": "text_marker_regex",
+              "pattern": "cdn\\.uneeq\\.io|uneeq-initial-container|uneeqContainedLayout",
+              "weight": 0.5,
+              "note": "Loader URL + container ids present in rendered HTML."
+            },
+            {
+              "type": "dom_selector",
+              "pattern": "[id*='uneeq']",
+              "weight": 0.4,
+              "note": "uneeq-* container ids on the mounted avatar widget."
+            }
+          ]
+        }
     ]
   },
   "Compliance_Ruleset": {
