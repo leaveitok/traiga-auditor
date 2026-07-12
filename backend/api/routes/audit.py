@@ -211,6 +211,11 @@ async def scheduled_run(
     if not due:
         return {"ran": False, **info}
     stamp_scheduled_today(repo)                       # mark before running (retry-storm guard)
+    try:   # completeness: the automated trigger appears in the trail (scan_complete follows from the pipeline)
+        repo.append_audit_log(event="scheduled_scan_triggered", city_count=0, failures=0,
+                              details={"actor": "scheduler", "summary": "Automated daily scan triggered"})
+    except Exception:
+        pass
     background_tasks.add_task(run_scheduled_scan_bg)  # blocking crawl runs in a threadpool
     return {"ran": True, **info}
 

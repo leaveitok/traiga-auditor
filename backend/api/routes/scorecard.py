@@ -84,4 +84,11 @@ def delete_scorecard_row(
     deleted = repo.delete_scorecard_row(city_name)
     if not deleted:
         raise HTTPException(status_code=404, detail=f"No scorecard row found for '{city_name}'")
+    try:   # audit trail: a destructive admin delete must be recorded (logging never breaks the action)
+        repo.append_audit_log(
+            event="scorecard_row_deleted", city_count=1, failures=0,
+            details={"actor": user.get("email", "unknown"),
+                     "summary": f"Deleted scorecard row for {city_name}", "city": city_name})
+    except Exception as exc:
+        print(f"[scorecard] WARN: could not audit scorecard delete: {exc}")
     return {"deleted": city_name}

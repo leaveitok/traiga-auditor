@@ -135,4 +135,13 @@ def purge_dirty_violations(
     if removed:
         repo.write_violations(clean)
 
+    try:   # audit trail: a destructive admin purge must be recorded, even if 0 removed
+        repo.append_audit_log(
+            event="violations_purged", city_count=0, failures=removed,
+            details={"actor": user.get("email", "unknown"),
+                     "summary": f"Purged {removed} violation record(s) matching '{pattern}'",
+                     "pattern": pattern, "removed": removed, "remaining": len(clean)})
+    except Exception as exc:
+        print(f"[violations] WARN: could not audit purge: {exc}")
+
     return {"removed": removed, "remaining": len(clean)}

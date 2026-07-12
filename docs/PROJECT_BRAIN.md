@@ -238,8 +238,11 @@ Order = **trust/integrity first, then credibility polish, then flagship + growth
 
 1. ~~Cure timer live countdown~~ — **DONE** 2026-07-11.
 2. ~~Scheduler reliability + UI scan-time~~ — **DONE** 2026-07-11.
-3. **Audit-log completeness** — verify EVERY consequential action writes a log (integrity;
-   the other "prove what you claim" item before an agency).
+3. ~~Audit-log completeness~~ — **DONE** 2026-07-11. Audited all mutating endpoints; coverage
+   was already strong (targets/users/agencies/inventory/safe-harbor/CID/reports/discovery/
+   settings/scans all log; automated scans log `scan_complete` via `pipeline.py`). Closed the
+   two real gaps: destructive `violations_purged` + `scorecard_row_deleted` now audit-logged
+   with actor; added `scheduled_scan_triggered`. Test: test_audit_log_coverage.py.
 4. **Settings-page accuracy** — it still shows legacy Google Sheets + `localhost:8000`;
    production is Firestore + Vertex. Cheap, high embarrassment-avoidance.
 5. **Microsoft/Google OAuth shadow-AI discovery** — THE flagship. Find AI apps employees
