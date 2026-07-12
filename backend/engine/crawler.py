@@ -124,11 +124,27 @@ def _playwright_proxy(proxy_url: str) -> dict:
     return cfg
 
 
+def _with_render(proxy_url: str) -> str:
+    """Enable ScraperAPI server-side JS rendering by appending `.render=true` to
+    the proxy username (proxy-mode convention). Still ONE billed request: the
+    proxy runs a real browser at the residential IP and returns fully-rendered
+    HTML, clearing JS/cookie WAF challenges (e.g. Imperva Incapsula) that the
+    static tier cannot. No-op if the proxy has no username or already renders."""
+    parts = urlparse(proxy_url)
+    if not parts.username or "render=true" in parts.username:
+        return proxy_url
+    user = parts.username + ".render=true"
+    auth = user + (f":{parts.password}" if parts.password else "")
+    host = parts.hostname + (f":{parts.port}" if parts.port else "")
+    return f"{parts.scheme}://{auth}@{host}"
+
+
 def crawl_site(seed_url: str,
                max_pages: int = config.MAX_PAGES_PER_SITE,
                max_depth: int = config.MAX_DEPTH,
                skip_robots: bool = True,
-               use_proxy: bool = True) -> List[PageCapture]:
+               use_proxy: bool = True,
+               render: bool = False) -> List[PageCapture]:
     """Crawl a single site starting at seed_url, returning page captures.
 
     skip_robots=True (default) bypasses robots.txt for explicitly registered
@@ -150,7 +166,11 @@ def crawl_site(seed_url: str,
         # sufficient. If a proxied target genuinely needs JS execution, add
         # `.render=true` to SCAN_PROXY_URL so the proxy renders server-side
         # (still one billed request), rather than routing a browser through it.
-        print(f"[crawler] Routing {seed_url} through proxy — static tier only (1 request, no browser)")
+        if render:
+            proxy = _with_render(proxy)
+            print(f"[crawler] Routing {seed_url} through proxy RENDER tier (server-side JS, 1 request)")
+        else:
+            print(f"[crawler] Routing {seed_url} through proxy — static tier only (1 request, no browser)")
         try:
             return _crawl_static(seed_url, max_pages, max_depth, skip_robots, proxy)
         except ImportError:

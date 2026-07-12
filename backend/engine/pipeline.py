@@ -198,12 +198,14 @@ def run_full_audit(
                 # SCAN_PROXY_URL is set. crawl_site no-ops the proxy if unset.
                 from engine import config as _cfg
                 flagged = str(target.get("cloudflare_protected", "")).strip().lower() in ("true", "1", "yes")
-                use_proxy = (not _cfg.SCAN_PROXY_ONLY_FLAGGED) or flagged
+                render_required = str(target.get("render_required", "")).strip().lower() in ("true", "1", "yes")
+                # render_required implies the proxy (render is a proxy-side capability).
+                use_proxy = (not _cfg.SCAN_PROXY_ONLY_FLAGGED) or flagged or render_required
                 # The proxy only actually applies when SCAN_PROXY_URL is configured.
                 proxied = bool(use_proxy and _cfg.SCAN_PROXY_URL)
                 if proxied:
                     _progress(city, idx, proxy_active=True)   # live "on residential IP" signal
-                captures = crawl_site(url, use_proxy=use_proxy)
+                captures = crawl_site(url, use_proxy=use_proxy, render=render_required)
 
                 # WAF auto-escalation: the operator can't know which cities
                 # front with a WAF, so the flag is only a routing hint. If every
@@ -215,7 +217,29 @@ def run_full_audit(
                           f"— auto-escalating to residential proxy")
                     proxied = True
                     _progress(city, idx, proxy_active=True)   # live escalation signal
-                    captures = crawl_site(url, use_proxy=True)
+                    captures = crawl_site(url, use_proxy=True, render=render_required)
+
+                # Render escalation: the static proxy tier cannot solve a JS/cookie
+                # WAF challenge (e.g. Imperva Incapsula). If the proxied crawl is
+                # still empty or all-challenge and we have not rendered yet, retry
+                # once on the proxy RENDER tier (server-side JS). Persist
+                # render_required so this city goes straight to render next scan.
+                if (_cfg.SCAN_PROXY_URL and not render_required
+                        and (not captures or all(is_waf_challenge(c) for c in captures))):
+                    print(f"[pipeline] {city} | static proxy tier blocked — "
+                          f"escalating to proxy RENDER tier (server-side JS)")
+                    proxied = True
+                    _progress(city, idx, proxy_active=True)
+                    rendered = crawl_site(url, use_proxy=True, render=True)
+                    if rendered and not all(is_waf_challenge(c) for c in rendered):
+                        captures = rendered
+                        try:
+                            repo.update_target(target.get("id"), {"render_required": True})
+                            print(f"[pipeline] {city} | render tier cleared the WAF — "
+                                  f"flagged render_required for future scans")
+                        except Exception as _exc:
+                            print(f"[pipeline] WARN: could not persist render_required "
+                                  f"for {city}: {type(_exc).__name__}: {_exc}")
 
                 # Fail-secure: challenge pages carry no vendor surface. If all
                 # captures are still challenges, treat the crawl as FAILED so

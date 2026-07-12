@@ -105,6 +105,8 @@ class MockGovernanceRepository:
                         t["population"] = int(float(fields["population"]))
                     except (TypeError, ValueError):
                         pass
+                if "render_required" in fields:
+                    t["render_required"] = bool(fields["render_required"])
                 for _k in ("url", "city", "jurisdiction", "domain"):
                     if _k in fields and str(fields[_k]).strip():
                         t[_k] = str(fields[_k]).strip()

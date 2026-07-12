@@ -123,6 +123,7 @@ class FirestoreRepository:
                 r["population"] = int(float(r.get("population", 0) or 0))
             except (TypeError, ValueError):
                 r["population"] = 0
+            r["render_required"] = str(r.get("render_required", "")).lower() in ("true", "1", "yes")
         return result
 
     def add_target(
@@ -176,6 +177,8 @@ class FirestoreRepository:
                 update["population"] = str(int(float(fields["population"])))
             except (TypeError, ValueError):
                 pass
+        if "render_required" in fields:
+            update["render_required"] = str(bool(fields["render_required"])).lower()
         for _k in ("url", "city", "jurisdiction", "domain"):
             if _k in fields and str(fields[_k]).strip():
                 update[_k] = str(fields[_k]).strip()

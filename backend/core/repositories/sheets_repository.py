@@ -62,7 +62,7 @@ SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
 HEADERS: Dict[str, List[str]] = {
     config.SHEET_TARGETS: [
         "id", "city", "jurisdiction", "domain", "url", "tags", "added_utc", "active",
-        "cloudflare_protected",
+        "cloudflare_protected", "render_required",
     ],
     config.SHEET_SCORECARD: [
         "city", "jurisdiction", "domain", "ai_assets_json", "traiga_status",
@@ -334,6 +334,8 @@ class SheetsRepository:
                 col_values["population"] = str(int(float(fields["population"])))
             except (TypeError, ValueError):
                 pass
+        if "render_required" in fields:
+            col_values["render_required"] = str(bool(fields["render_required"])).lower()
         for _k in ("url", "city", "jurisdiction", "domain"):
             if _k in fields and str(fields[_k]).strip():
                 col_values[_k] = str(fields[_k]).strip()

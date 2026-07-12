@@ -231,6 +231,7 @@ class TargetUpdate(BaseModel):
     jurisdiction: Optional[str] = None
     domain: Optional[str] = None
     population: Optional[int] = None
+    render_required: Optional[bool] = None
 
 
 @router.patch("/{target_id}")
@@ -266,6 +267,8 @@ def update_target(
         fields["domain"] = body.domain
     if body.population is not None:
         fields["population"] = body.population
+    if body.render_required is not None:
+        fields["render_required"] = body.render_required
     if not fields:
         raise HTTPException(status_code=400, detail="No fields to update")
     ok = repo.update_target(target_id, fields)
