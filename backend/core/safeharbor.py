@@ -170,7 +170,12 @@ def evaluate_profile(module: Dict[str, Any], ctx: Dict[str, Any],
 
         controls_out.append({
             **{k: c.get(k) for k in ("control_id", "function", "title", "plain",
-                                     "nist_ref", "evidence", "attest_hint")},
+                                     "evidence", "attest_hint")},
+            # Carry every crosswalk reference (nist_ref, iso_ref, iso_overlap, and any
+            # future <framework>_ref/_overlap) so the frontend lens can re-label a
+            # control per framework WITHOUT a backend change each time. The evaluation
+            # result is unchanged; these are inert labels.
+            **{k: v for k, v in c.items() if k.endswith("_ref") or k.endswith("_overlap")},
             "status": status,
             "basis": basis,
             "machine_result": machine,

@@ -26,9 +26,25 @@
       Tex. Bus. &amp; Com. Code § 552.105(c)–(e).
     </v-card-subtitle>
 
+    <!-- Framework lens: same assessment, re-labeled per framework. Only appears when
+         more than one lens-capable framework is enabled (e.g. after ISO 42001 is
+         turned on in Settings); with only NIST live this is hidden and the panel is
+         identical to before. -->
+    <div v-if="lensFrameworks.length > 1" class="px-4 pb-2 d-flex align-center flex-wrap ga-2">
+      <span class="text-caption text-medium-emphasis">Framework lens:</span>
+      <v-chip-group v-model="lens" mandatory class="py-0">
+        <v-chip v-for="f in lensFrameworks" :key="f.id" :value="f.id"
+                size="small" label variant="outlined">{{ fwShort(f) }}</v-chip>
+      </v-chip-group>
+    </div>
+
     <v-card-text>
       <v-alert v-if="store.error" type="error" variant="tonal" density="compact" class="mb-3">
         {{ store.error }}
+      </v-alert>
+
+      <v-alert v-if="lensCaveat" type="info" variant="tonal" density="compact" class="mb-3 text-caption">
+        Viewing as <strong>{{ currentFw?.name }}</strong> — {{ lensCaveat }}
       </v-alert>
 
       <div v-if="store.loading && !readiness" class="text-center py-6">
@@ -69,7 +85,9 @@
                 <div class="flex-grow-1">
                   <div class="text-body-2 font-weight-medium">
                     {{ c.title }}
-                    <span class="text-caption text-medium-emphasis">· {{ c.nist_ref }}</span>
+                    <span class="text-caption text-medium-emphasis">· {{ frameworkRef(c) }}</span>
+                    <v-chip v-if="overlapOf(c)" size="x-small" label variant="tonal"
+                            :color="overlapColor(overlapOf(c))" class="ml-1">{{ overlapOf(c) }}</v-chip>
                   </div>
                   <div class="text-caption text-medium-emphasis">{{ c.plain }}</div>
                   <div v-if="c.attestation?.status === 'attested'" class="text-caption mt-1">
@@ -131,8 +149,13 @@
  * Machine controls derive from scan/inventory/violation data; human controls
  * are attested here. The Alignment Statement docx is the § 552.105 evidence
  * artifact (counsel review required — the document says so itself).
+ *
+ * Framework lens: the assessment is computed once; a framework (NIST, ISO 42001,
+ * …) is a re-labeling of the SAME satisfied/unsatisfied controls, not a second
+ * checklist. The selector only offers frameworks whose per-control ref exists and
+ * are enabled, so with only NIST live the panel is unchanged.
  */
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useSafeHarborStore } from '../stores/safeharbor'
 import { useAuthStore } from '../stores/auth'
 
@@ -149,12 +172,52 @@ const attesting    = ref(null)
 const attestNotes  = ref('')
 const saving       = ref(false)
 const downloading  = ref(false)
+const lens         = ref(null)
 
 const readiness = computed(() => store.byCity[props.city] || null)
 const canAttest = computed(() => auth.isPlatformAdmin || auth.isAgencyAdmin)
 
-const controlsFor = (fn) =>
-  (readiness.value?.controls || []).filter(c => c.function === fn)
+const allControls = computed(() => readiness.value?.controls || [])
+const frameworks  = computed(() => readiness.value?.frameworks || [])
+
+// A framework is a usable lens only if its per-control ref field actually resolves
+// on the controls (NIST via nist_ref always; ISO via iso_ref once enabled). The home
+// statute (TRAIGA) has no per-control ref — the whole panel is already its view.
+const lensFrameworks = computed(() =>
+  frameworks.value.filter(f => f.ref_field && allControls.value.some(c => c[f.ref_field] != null)),
+)
+const currentFw = computed(() =>
+  lensFrameworks.value.find(f => f.id === lens.value)
+  || lensFrameworks.value.find(f => f.ref_field === 'nist_ref')
+  || lensFrameworks.value[0] || null,
+)
+const lensCaveat = computed(() =>
+  (currentFw.value && currentFw.value.ref_field !== 'nist_ref' && currentFw.value.caveats)
+    ? currentFw.value.caveats : '',
+)
+
+// Default the lens to the NIST view (the profile's native refs) so nothing changes
+// visually until the user actively picks another framework.
+watch(lensFrameworks, (fws) => {
+  if (!fws.length) { lens.value = null; return }
+  if (!lens.value || !fws.some(f => f.id === lens.value)) {
+    lens.value = (fws.find(f => f.ref_field === 'nist_ref') || fws[0]).id
+  }
+}, { immediate: true })
+
+const controlsFor = (fn) => allControls.value.filter(c => c.function === fn)
+
+const frameworkRef = (c) => {
+  const rf = currentFw.value?.ref_field
+  return (rf && c[rf] != null) ? c[rf] : c.nist_ref
+}
+const overlapOf = (c) => {
+  const of = currentFw.value?.overlap_field
+  return of ? (c[of] || null) : null
+}
+const overlapColor = (v) => ({ strong: 'success', partial: 'warning', weak: 'grey' }[v] || 'default')
+const _FW_SHORT = { nist_ai_rmf: 'NIST AI RMF', iso_42001: 'ISO 42001', traiga_hb149: 'TRAIGA' }
+const fwShort = (f) => _FW_SHORT[f.id] || (f.name || '').split(' (')[0]
 
 const bandColor  = (b) => ({ ready: 'success', partial: 'warning', early: 'error' }[b] || 'default')
 const bandLabel  = (b) => ({ ready: 'Ready', partial: 'Partial', early: 'Early' }[b] || b)

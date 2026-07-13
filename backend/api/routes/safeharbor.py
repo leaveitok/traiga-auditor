@@ -71,6 +71,21 @@ def get_readiness(
     attestations = repo.get_safe_harbor(city)
     result = evaluate_profile(module, ctx, attestations)
     result["city"] = city
+    # Enabled frameworks for the lens selector: always-on (NIST spine, TRAIGA home
+    # statute) + any voluntary/opt-in framework whose Settings enable-flag is on.
+    # Jurisdiction-precise applicability is a later refinement (today all targets are TX).
+    from core import config as _cfg
+    def _fw_enabled(f):
+        if f.get("always_on"):
+            return True
+        flag = f.get("enable_flag")
+        return bool(flag and getattr(_cfg, flag, False))
+    result["frameworks"] = [
+        {k: f.get(k) for k in ("id", "name", "version", "jurisdiction", "mandatory",
+                               "role", "ref_field", "overlap_field", "mapping_level",
+                               "caveats", "source_citation")}
+        for f in module.get("frameworks", []) if _fw_enabled(f)
+    ]
     return result
 
 
