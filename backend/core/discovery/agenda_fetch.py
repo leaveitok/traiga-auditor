@@ -42,7 +42,17 @@ def fetch_legistar(client: str, since: Optional[str] = None, until: Optional[str
     """
     fj = fetch_json or _default_fetch_json
     eps = legistar.event_endpoints(client)
-    events_raw = fj(eps["events"]) or []
+    # SERVER-SIDE date filter on the events list. Without it, Legistar returns its
+    # default page — the OLDEST ~1000 events — for a long-standing tenant (McKinney
+    # has events back to 2009), so the recent window is never in the response and the
+    # scan finds nothing. Filtering on `since` returns only in-window meetings (and
+    # shrinks the payload). `until` is still enforced client-side by parse_events.
+    events_url = eps["events"]
+    if since:
+        from urllib.parse import quote
+        _filter = quote(f"EventDate ge datetime'{since}'")
+        events_url = f"{eps['events']}?$filter={_filter}&$orderby=EventDate%20desc"
+    events_raw = fj(events_url) or []
     meetings = legistar.parse_events(events_raw, since=since, until=until)[:max_events]
 
     def _fetch_one(m: Dict[str, Any]) -> List[Dict[str, Any]]:

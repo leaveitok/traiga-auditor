@@ -53,12 +53,13 @@ def test_malformed_response_all_keyword():
 # ── parallel Legistar fetch (injected fetch_json; order preserved) ────────────
 
 def _fake_portal(url):
-    if url.endswith("/events"):
-        return [{"EventId": 100 + i, "EventBodyName": "City Council",
-                 "EventDate": f"2026-01-0{i + 1}T00:00:00", "EventInSiteURL": f"http://a/{100 + i}"}
-                for i in range(5)]
-    eid = int(url.split("/events/")[1].split("/")[0])
-    return [{"EventItemTitle": f"Award contract to Vendor{eid}", "EventItemMatterFile": f"F{eid}"}]
+    if "/eventitems" in url:   # items endpoint: .../events/{id}/eventitems
+        eid = int(url.split("/events/")[1].split("/")[0])
+        return [{"EventItemTitle": f"Award contract to Vendor{eid}", "EventItemMatterFile": f"F{eid}"}]
+    # events list (may carry a ?$filter=... query for the date window)
+    return [{"EventId": 100 + i, "EventBodyName": "City Council",
+             "EventDate": f"2026-01-0{i + 1}T00:00:00", "EventInSiteURL": f"http://a/{100 + i}"}
+            for i in range(5)]
 
 
 def test_parallel_fetch_returns_all_items_in_order():
@@ -66,6 +67,18 @@ def test_parallel_fetch_returns_all_items_in_order():
                            fetch_json=_fake_portal)
     assert len(got) == 5
     assert [g["file_number"] for g in got] == ["F100", "F101", "F102", "F103", "F104"]
+
+
+def test_events_url_is_date_filtered():
+    # Regression: a long-standing Legistar tenant (McKinney, events since 2009) returns
+    # its OLDEST ~1000 events by default. Without a server-side date filter the recent
+    # window is never returned and the scan finds nothing. fetch_legistar must filter.
+    seen = {}
+    def _capture(url):
+        seen["events" if "/eventitems" not in url else "items"] = url
+        return _fake_portal(url)
+    F.fetch_legistar("mckinney", since="2025-07-13", until="2026-07-13", fetch_json=_capture)
+    assert "$filter=" in seen["events"] and "EventDate" in seen["events"], seen["events"]
 
 
 def test_empty_meeting_list_is_safe():

@@ -117,12 +117,10 @@ def test_fetch_legistar_with_fake_http():
     ]}
 
     def fake(url):
-        if url.endswith("/events"):
-            return events
         if "/eventitems" in url:
             import re
             return items.get(int(re.search(r"/events/(\d+)/", url).group(1)), [])
-        return []
+        return events   # events list (may carry a ?$filter=... date query)
 
     parsed = fetch_legistar("cityoftest", since="2026-01-01", until="2026-12-31", fetch_json=fake)
     # P&Z meeting skipped; proclamation gated out; one award item remains.
