@@ -8,7 +8,7 @@
         :disabled="auditStore.isRunning"
         @click="dialog = true"
       >
-        {{ effectiveCity ? `Re-Audit ${effectiveCity}` : (auth.isAdmin ? 'Run Audit' : `Audit ${auth.city || 'My City'}`) }}
+        {{ buttonLabel }}
       </v-btn>
 
       <v-chip v-if="auditStore.status !== 'idle' && !auditStore.isRunning"
@@ -48,7 +48,7 @@
     <v-dialog v-model="dialog" max-width="480">
       <v-card>
         <v-card-title class="text-h6">
-          {{ effectiveCity ? `Re-Audit ${effectiveCity}` : (auth.isAdmin ? 'Run Audit' : `Audit ${auth.city || 'My City'}`) }}
+          {{ buttonLabel }}
         </v-card-title>
         <v-card-text>
           <!-- City locked (city-scoped user OR admin drilling into a city page) -->
@@ -106,6 +106,8 @@ import { useScorecardStore } from '../stores/scorecard'
 const props = defineProps({
   /** When set, locks the audit to this specific city (admin drilling into a city page). */
   cityOverride: { type: String, default: null },
+  /** True when this city has never been assessed — the button reads "Audit", not "Re-Audit". */
+  neverScanned: { type: Boolean, default: false },
 })
 
 const emit = defineEmits(['audit-complete'])
@@ -130,6 +132,14 @@ const cityOptions = computed(() => {
 const effectiveCity = computed(() =>
   props.cityOverride || (!auth.isAdmin ? auth.city : null)
 )
+
+// "Audit" on a city's first run, "Re-Audit" thereafter.
+const buttonLabel = computed(() => {
+  if (effectiveCity.value) {
+    return `${props.neverScanned ? 'Audit' : 'Re-Audit'} ${effectiveCity.value}`
+  }
+  return auth.isAdmin ? 'Run Audit' : `Audit ${auth.city || 'My City'}`
+})
 
 // Rotating progress messages — no fabricated time estimates
 const PROGRESS_MESSAGES = [

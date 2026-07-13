@@ -68,7 +68,7 @@
               </v-tooltip>
             </div>
             <div class="d-flex align-center ga-3 flex-wrap">
-              <AuditRunButton :city-override="cityName" @audit-complete="refresh" />
+              <AuditRunButton :city-override="cityName" :never-scanned="cityRow.traiga_status === 'not_assessed'" @audit-complete="refresh" />
 
               <!-- Deep Scan — shown when a city could not be assessed (scan failed / blocked) -->
               <v-btn v-if="['not_assessed','scan_failed'].includes(cityRow.traiga_status)"
