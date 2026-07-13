@@ -108,6 +108,14 @@ AGENDA_LOOKBACK_MONTHS_MAX: int = int(os.environ.get("AGENDA_LOOKBACK_MONTHS_MAX
 AGENDA_LLM_PROVIDER: str = os.environ.get("AGENDA_LLM_PROVIDER", "keyword").strip().lower()
 AGENDA_LLM_MODEL: str = os.environ.get("AGENDA_LLM_MODEL", "gemini-2.5-flash-lite").strip()
 AGENDA_LLM_LOCATION: str = os.environ.get("AGENDA_LLM_LOCATION", "us-central1").strip()
+# Scale controls for a wide date window (e.g. a 12-month backfill of a city that
+# meets weekly). Without these the run is fully sequential — one HTTP call per
+# meeting, then one LLM call per item — and a large window can exceed the Cloud
+# Run request timeout (300s) → 502. Fetch item-lists concurrently, and run the
+# per-meeting LLM extractions concurrently, both with a bounded pool so we never
+# hammer the Legistar API or the Vertex quota.
+AGENDA_FETCH_CONCURRENCY: int = int(os.environ.get("AGENDA_FETCH_CONCURRENCY", "8"))
+AGENDA_LLM_CONCURRENCY: int = int(os.environ.get("AGENDA_LLM_CONCURRENCY", "6"))
 # Demand-driven proxy (NOT coupled to the website's cloudflare_protected flag —
 # the agenda portal is usually a different third-party host). Sibling of SCAN_PROXY_*.
 AGENDA_PROXY_URL: str = os.environ.get("AGENDA_PROXY_URL", os.environ.get("SCAN_PROXY_URL", "")).strip()

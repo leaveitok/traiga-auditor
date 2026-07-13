@@ -30,6 +30,14 @@ def fetch_legistar(client: str, since: Optional[str] = None, until: Optional[str
     Return a flat list of gated agenda item dicts for a Legistar client
     (e.g. "cityoflewisville"). Applies the date window + meeting-type + award gates
     (in the parser) so only relevant items are fetched deeply.
+
+    SCALE: the per-meeting item-list fetches are independent, I/O-bound HTTP calls,
+    so they run on a BOUNDED thread pool (config.AGENDA_FETCH_CONCURRENCY). A wide
+    12-month window that was ~N sequential round-trips now takes ~N/concurrency,
+    which keeps the whole run under the Cloud Run request timeout. Order is
+    preserved (executor.map) so results are deterministic; a per-meeting fetch
+    error is logged and yields no items for that meeting (fail-open, never crashes
+    the run). fetch_json stays injectable for tests.
     TODO: enforce system-level invocation only (auth placeholder).
     """
     fj = fetch_json or _default_fetch_json
@@ -37,14 +45,29 @@ def fetch_legistar(client: str, since: Optional[str] = None, until: Optional[str
     events_raw = fj(eps["events"]) or []
     meetings = legistar.parse_events(events_raw, since=since, until=until)[:max_events]
 
-    items: List[Dict[str, Any]] = []
-    for m in meetings:
+    def _fetch_one(m: Dict[str, Any]) -> List[Dict[str, Any]]:
         try:
             raw = fj(eps["event_items"].format(event_id=m["event_id"])) or []
         except Exception as exc:
             print(f"[agenda_fetch] items fetch failed for event {m.get('event_id')}: {exc}")
-            continue
-        items.extend(legistar.parse_event_items(raw, m))
+            return []
+        return legistar.parse_event_items(raw, m)
+
+    if not meetings:
+        return []
+
+    from core import config
+    workers = max(1, min(int(getattr(config, "AGENDA_FETCH_CONCURRENCY", 8)), len(meetings)))
+
+    items: List[Dict[str, Any]] = []
+    if workers <= 1 or len(meetings) == 1:
+        for m in meetings:
+            items.extend(_fetch_one(m))
+    else:
+        from concurrent.futures import ThreadPoolExecutor
+        with ThreadPoolExecutor(max_workers=workers) as ex:
+            for chunk in ex.map(_fetch_one, meetings):   # map preserves input order
+                items.extend(chunk)
     return items
 
 
