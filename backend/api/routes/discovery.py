@@ -56,6 +56,9 @@ class DiscoveryRunResponse(BaseModel):
     rows:       int
     cities:     List[str]
     errors:     List[str]
+    extractor:  Optional[str] = None   # which extractor actually ran (agenda only):
+                                       # vertex | vertex_partial | keyword_fallback |
+                                       # keyword | preextracted | none
 
 
 @router.post("/procurement", response_model=DiscoveryRunResponse)
@@ -109,6 +112,7 @@ def run_procurement(
 
 
 # ── Council-agenda discovery (separate engine; flag-gated) ────────────────────
+# (extractor field on DiscoveryRunResponse is populated only by the agenda route)
 
 class AgendaItem(BaseModel):
     # A council-agenda contract-award item (pre-extracted, or produced by the
@@ -196,4 +200,5 @@ def run_agenda(
         candidates=result.get("candidates", 0),
         skipped=result["skipped"], rows=result["rows"],
         cities=result["cities"], errors=result["errors"],
+        extractor=result.get("extractor"),
     )

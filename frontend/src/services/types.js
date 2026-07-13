@@ -211,8 +211,18 @@
  */
 
 /**
- * Result of an agenda discovery run (same shape as procurement).
- * @typedef {ProcurementDiscoveryResult} AgendaDiscoveryResult
+ * Result of an agenda discovery run (procurement shape + which extractor ran).
+ * @typedef {Object} AgendaDiscoveryResult
+ * @property {number}   written  - assets merged into the AI inventory
+ * @property {number}   matched  - items confidently matched to an AI tool
+ * @property {number}   [candidates] - AI-keyword hits flagged for human review
+ * @property {number}   skipped  - items with no confident AI match / missing fields
+ * @property {number}   rows     - total gated items processed
+ * @property {string[]} cities   - cities that received new/updated assets
+ * @property {string[]} errors   - per-item write errors (should be empty)
+ * @property {('vertex'|'vertex_partial'|'keyword_fallback'|'keyword'|'preextracted'|'none')} [extractor]
+ *           - which extractor actually produced the items (surfaces the silent
+ *             Vertex→keyword fail-open without needing GCP logs)
  */
 
 export {}

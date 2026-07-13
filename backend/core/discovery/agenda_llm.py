@@ -16,7 +16,10 @@ Single swap point via config.AGENDA_LLM_PROVIDER:
   none    — disabled (returns []).
 
 Governance / dogfooding: the vertex path stamps {_llm_model} on each item so the
-extraction step is itself documented in the audit trail. See docs/AGENDA_ENGINE_DESIGN.md.
+extraction step is itself documented in the audit trail. Every returned item also
+carries {_extractor} ('vertex' or 'keyword') so the orchestrator can report which
+extractor ACTUALLY ran — including the silent per-item fail-open to keyword.
+See docs/AGENDA_ENGINE_DESIGN.md.
 """
 from __future__ import annotations
 
@@ -51,6 +54,7 @@ def _keyword_extract(items: List[Dict[str, Any]], city: str) -> List[Dict[str, A
             "vendor":  it.get("vendor", ""),
             "product": it.get("product") or it.get("item_title") or it.get("text", ""),
             "amount":  it.get("amount", ""),
+            "_extractor": "keyword",   # provenance: no-LLM screen produced this item
         })
     return out
 
@@ -69,6 +73,7 @@ def _vertex_extractor(model: str, project: str, location: str) -> Callable:
         out: List[Dict[str, Any]] = []
         for it in items:
             text = it.get("text") or it.get("item_title") or ""
+            used = "vertex"
             try:
                 resp = client.models.generate_content(
                     model=model,
@@ -83,6 +88,7 @@ def _vertex_extractor(model: str, project: str, location: str) -> Callable:
             except Exception as exc:
                 print(f"[agenda_llm] extract error, keyword-fallback for one item: {exc}")
                 data = {}
+                used = "keyword"     # per-item fail-open: this item did NOT use the LLM
             out.append({
                 **it,
                 "vendor":    (data.get("vendor") or "").strip(),
@@ -90,6 +96,7 @@ def _vertex_extractor(model: str, project: str, location: str) -> Callable:
                 "amount":    (data.get("amount") or it.get("amount") or "").strip(),
                 "action":    (data.get("action") or it.get("action") or "").strip(),
                 "_llm_model": model,      # audit-trail: which model produced this
+                "_extractor": used,       # provenance: 'vertex' or per-item 'keyword' fallback
             })
         return out
     return _fn

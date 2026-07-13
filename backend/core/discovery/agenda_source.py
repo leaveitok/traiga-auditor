@@ -30,6 +30,27 @@ def _disabled_result() -> Dict[str, Any]:
             "rows": 0, "cities": [], "errors": ["agenda_engine_disabled"]}
 
 
+def _effective_extractor(configured: Optional[str], extracted: List[Dict[str, Any]]) -> str:
+    """Report which extractor ACTUALLY produced the items — including the fail-open
+    fallback the vertex path performs silently. Each item is stamped with `_extractor`
+    ('vertex' on LLM success, 'keyword' on fallback) by core/discovery/agenda_llm.py.
+
+    Returns one of: 'vertex' (all items via Gemini), 'vertex_partial' (some items
+    fell back to keyword), 'keyword_fallback' (configured vertex but every item fell
+    back — Vertex unreachable), 'keyword' (no-LLM extractor as configured), or 'none'.
+    """
+    cfg = (configured or "").lower()
+    marks = {it.get("_extractor") for it in extracted if it.get("_extractor")}
+    if not marks:
+        return "none"
+    if marks == {"vertex"}:
+        return "vertex"
+    if "vertex" in marks and "keyword" in marks:
+        return "vertex_partial"
+    # keyword-only marks: distinguish a configured no-LLM run from a vertex fail-open
+    return "keyword_fallback" if cfg in ("vertex", "gemini") else "keyword"
+
+
 def run_agenda_discovery(
     repo: Any,
     city: str,
@@ -45,7 +66,7 @@ def run_agenda_discovery(
 ) -> Dict[str, Any]:
     """
     Discover AI from council-agenda contract-award items and merge into ai_assets.
-    Returns {written, matched, candidates, skipped, rows, cities, errors}.
+    Returns {written, matched, candidates, skipped, rows, cities, errors, extractor}.
 
     TODO: enforce system/admin-only invocation (auth placeholder — route enforces).
     """
@@ -64,17 +85,20 @@ def run_agenda_discovery(
     # injectable for tests. extract_fn(items, city) -> items enriched with vendor/product.
     from core.discovery.agenda_llm import get_extractor
     from core import settings as _settings
+    configured_provider = _settings.get_value(repo, "AGENDA_LLM_PROVIDER")
     extractor = extract_fn or get_extractor(
-        _settings.get_value(repo, "AGENDA_LLM_PROVIDER"),
+        configured_provider,
         model=_settings.get_value(repo, "AGENDA_LLM_MODEL"),
     )
 
+    ran_extractor = False   # True only when the extractor was invoked on gated items
     if items is not None:
         # Already extracted (vendor/product present) — beta / manual / test path.
         extracted = items
     elif parsed_items is not None:
         # Gated portal items (title + evidence) — enrich with the LLM/keyword extractor.
         extracted = extractor(parsed_items, city) or []
+        ran_extractor = True
     elif agenda_text:
         # Raw agenda text — segment + award-gate here, then enrich.
         segs = agenda.segment_items(agenda_text)
@@ -82,8 +106,17 @@ def run_agenda_discovery(
                   "source_url": agenda_url}
                  for s in segs if agenda.is_procurement_item(s.get("text", ""))]
         extracted = extractor(cands, city) or [] if cands else []
+        ran_extractor = bool(cands)
     else:
         extracted = []   # nothing supplied -> no-op (fail-secure)
+
+    # Which extractor ACTUALLY ran (surfaces the silent vertex→keyword fail-open so the
+    # UI can show it — no GCP log access required). 'preextracted' when the caller
+    # supplied already-enriched items; 'none' when nothing was gated to extract.
+    if ran_extractor:
+        effective_extractor = _effective_extractor(configured_provider, extracted)
+    else:
+        effective_extractor = "preextracted" if items is not None else "none"
 
     result = agenda.normalize(extracted, index, city, min_confidence=min_confidence)
     merged = merge_discovered_assets(repo, result)
@@ -100,6 +133,7 @@ def run_agenda_discovery(
                 "agenda_url": agenda_url,
                 "matched":    result["source_meta"]["matched"],
                 "candidates": result["source_meta"]["candidates"],
+                "extractor":  effective_extractor,
             },
         )
     except Exception as exc:
@@ -110,6 +144,7 @@ def run_agenda_discovery(
         "matched":    result["source_meta"]["matched"],
         "candidates": result["source_meta"]["candidates"],
         "rows":       result["source_meta"]["rows"],
+        "extractor":  effective_extractor,
     }
 
 

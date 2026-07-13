@@ -52,6 +52,15 @@
             <strong>{{ result.written }}</strong> added/updated
             <span v-if="result.rows"> from {{ result.rows }} gated item(s)</span>.
           </v-alert>
+
+          <!-- Which extractor actually ran — makes the silent Vertex→keyword
+               fail-open visible in-app (no GCP log access needed). -->
+          <v-chip v-if="result.extractor" size="small" label
+                  variant="tonal" :color="extractorMeta.color"
+                  :prepend-icon="extractorMeta.icon" class="mb-2">
+            {{ extractorMeta.label }}
+          </v-chip>
+
           <v-chip-group v-if="result.cities?.length">
             <v-chip v-for="c in result.cities" :key="c" size="small" variant="tonal">{{ c }}</v-chip>
           </v-chip-group>
@@ -106,6 +115,19 @@ const until          = ref(isoDaysAgo(0))
 const result         = ref({})
 const runError       = ref('')
 const disabled       = ref(false)
+
+// Human-readable badge for the extractor the backend reports it actually used.
+const EXTRACTOR_META = {
+  vertex:           { label: 'Extracted via Vertex (Gemini)',                 color: 'success', icon: 'mdi-robot-happy-outline' },
+  vertex_partial:   { label: 'Vertex (Gemini) — some items used keyword fallback', color: 'warning', icon: 'mdi-robot-confused-outline' },
+  keyword_fallback: { label: 'Vertex unavailable — keyword fallback used',    color: 'warning', icon: 'mdi-alert-outline' },
+  keyword:          { label: 'Keyword extractor (no LLM)',                     color: 'grey',    icon: 'mdi-format-letter-matches' },
+  preextracted:     { label: 'Pre-extracted items (extractor not run)',       color: 'grey',    icon: 'mdi-import' },
+  none:             { label: 'No items to extract',                           color: 'grey',    icon: 'mdi-minus-circle-outline' },
+}
+const extractorMeta = computed(() =>
+  EXTRACTOR_META[result.value.extractor] ||
+  { label: result.value.extractor, color: 'grey', icon: 'mdi-help-circle-outline' })
 
 const canRun = computed(() =>
   (source.value === 'legistar' && legistarClient.value.trim()) ||
