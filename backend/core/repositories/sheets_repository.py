@@ -62,7 +62,9 @@ SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
 HEADERS: Dict[str, List[str]] = {
     config.SHEET_TARGETS: [
         "id", "city", "jurisdiction", "domain", "url", "tags", "added_utc", "active",
-        "cloudflare_protected", "render_required",
+        "cloudflare_protected", "render_required", "population",
+        "agenda_platform", "agenda_client", "agenda_url", "cms",
+        "privacy_policy_url", "site_metadata_verified",
     ],
     config.SHEET_SCORECARD: [
         "city", "jurisdiction", "domain", "ai_assets_json", "traiga_status",
@@ -255,6 +257,7 @@ class SheetsRepository:
             # Normalise cloudflare_protected to bool — may be absent in older sheets
             raw = r.get("cloudflare_protected", "false")
             r["cloudflare_protected"] = str(raw).lower() in ("true", "1", "yes")
+            r["site_metadata_verified"] = str(r.get("site_metadata_verified", "")).lower() in ("true", "1", "yes")
         return result
 
     def add_target(
@@ -336,6 +339,11 @@ class SheetsRepository:
                 pass
         if "render_required" in fields:
             col_values["render_required"] = str(bool(fields["render_required"])).lower()
+        for _mk in ("agenda_platform", "agenda_client", "agenda_url", "cms", "privacy_policy_url"):
+            if _mk in fields:
+                col_values[_mk] = str(fields[_mk] or "").strip()
+        if "site_metadata_verified" in fields:
+            col_values["site_metadata_verified"] = str(bool(fields["site_metadata_verified"])).lower()
         for _k in ("url", "city", "jurisdiction", "domain"):
             if _k in fields and str(fields[_k]).strip():
                 col_values[_k] = str(fields[_k]).strip()

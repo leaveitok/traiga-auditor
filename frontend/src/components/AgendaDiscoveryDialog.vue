@@ -22,7 +22,7 @@
 
           <v-text-field v-if="source === 'legistar'" v-model="legistarClient"
             label="Legistar client slug" placeholder="cityoflewisville"
-            hint="From the portal URL: <slug>.legistar.com" persistent-hint
+            :hint="prefilled ? 'Remembered for this city — edit if it changed' : 'From the portal URL: <slug>.legistar.com'" persistent-hint
             density="comfortable" prepend-icon="mdi-web" class="mb-2" />
           <v-text-field v-else-if="source === 'pdf'" v-model="pdfUrl"
             label="Agenda PDF URL" placeholder="https://agenda.city.gov/.../Agenda.pdf"
@@ -86,9 +86,10 @@
  * components → stores → GovernanceService layering. The engine is flag-gated
  * server-side; a 503 is surfaced as an informational message.
  */
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useDiscoveryStore } from '../stores/discovery'
 import { useInventoryStore } from '../stores/inventory'
+import { useTargetsStore } from '../stores/targets'
 
 const open  = defineModel({ type: Boolean, default: false })
 const props = defineProps({ defaultCity: { type: String, default: '' } })
@@ -96,6 +97,7 @@ const emit  = defineEmits(['done'])
 
 const store     = useDiscoveryStore()
 const inventory = useInventoryStore()
+const targets   = useTargetsStore()
 
 const sourceOptions = [
   { label: 'Legistar (Web API)', value: 'legistar' },
@@ -115,6 +117,21 @@ const until          = ref(isoDaysAgo(0))
 const result         = ref({})
 const runError       = ref('')
 const disabled       = ref(false)
+const prefilled      = ref(false)   // slug was auto-filled from the city's saved metadata
+
+// Pre-fill the Legistar slug from what we know about this city (auto-detected on a
+// website scan, or remembered from a prior agenda run) so it is never re-typed.
+watch(open, async (isOpen) => {
+  if (!isOpen) return
+  try { if (!targets.items.length) await targets.fetchTargets() } catch { /* non-fatal */ }
+  const want = (props.defaultCity || '').trim().toLowerCase()
+  const t = targets.items.find(x => String(x.city || '').trim().toLowerCase() === want)
+  if (t && t.agenda_client && !legistarClient.value.trim()) {
+    legistarClient.value = t.agenda_client
+    source.value = 'legistar'
+    prefilled.value = true
+  }
+})
 
 // Human-readable badge for the extractor the backend reports it actually used.
 const EXTRACTOR_META = {
@@ -163,6 +180,6 @@ async function run() {
 
 function close() {
   open.value = false
-  setTimeout(() => { phase.value = 'form'; result.value = {}; runError.value = '' }, 300)
+  setTimeout(() => { phase.value = 'form'; result.value = {}; runError.value = ''; prefilled.value = false }, 300)
 }
 </script>

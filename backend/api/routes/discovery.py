@@ -22,6 +22,33 @@ from core.governance_service import GovernanceRepository
 router = APIRouter(prefix="/discovery", tags=["discovery"])
 
 
+def _remember_agenda_source(repo, city: str, legistar_client: str) -> None:
+    """Backstop: persist the Legistar slug the operator just used onto the city's
+    target, so the agenda dialog pre-fills it next time and it is never re-typed.
+    A slug the user actively ran with is authoritative → site_metadata_verified=True.
+    Fully guarded — remembering the source must never fail the discovery response.
+
+    # TODO: scope to the requesting user's jurisdiction (auth placeholder).
+    """
+    try:
+        slug = (legistar_client or "").strip()
+        if not slug:
+            return
+        want = str(city).strip().lower()
+        for t in repo.get_targets():
+            if str(t.get("city", "")).strip().lower() == want:
+                repo.update_target(t.get("id"), {
+                    "agenda_platform": "legistar",
+                    "agenda_client": slug,
+                    "agenda_url": f"https://{slug}.legistar.com",
+                    "site_metadata_verified": True,
+                })
+                break
+    except Exception as exc:
+        print(f"[discovery] WARN: could not remember agenda source for {city}: "
+              f"{type(exc).__name__}: {exc}")
+
+
 class ProcurementRow(BaseModel):
     # Accept the common column names. The normalizer matches the PRODUCT/line-item
     # as well as the vendor, and runs an AI-keyword screen over both.
@@ -194,6 +221,10 @@ def run_agenda(
         raise HTTPException(
             status_code=503,
             detail="Agenda engine is disabled. Set AGENDA_ENGINE_ENABLED=true to enable.")
+
+    # Backstop: remember the Legistar slug on the city so it is never re-typed.
+    if body.legistar_client:
+        _remember_agenda_source(repo, body.city, body.legistar_client)
 
     return DiscoveryRunResponse(
         written=result["written"], matched=result["matched"],

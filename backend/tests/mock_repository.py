@@ -107,6 +107,11 @@ class MockGovernanceRepository:
                         pass
                 if "render_required" in fields:
                     t["render_required"] = bool(fields["render_required"])
+                for _mk in ("agenda_platform", "agenda_client", "agenda_url", "cms", "privacy_policy_url"):
+                    if _mk in fields:
+                        t[_mk] = str(fields[_mk] or "").strip()
+                if "site_metadata_verified" in fields:
+                    t["site_metadata_verified"] = bool(fields["site_metadata_verified"])
                 for _k in ("url", "city", "jurisdiction", "domain"):
                     if _k in fields and str(fields[_k]).strip():
                         t[_k] = str(fields[_k]).strip()

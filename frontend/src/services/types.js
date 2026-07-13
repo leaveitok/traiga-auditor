@@ -26,6 +26,12 @@
  * @property {string}   added_utc    - ISO 8601 timestamp
  * @property {boolean}  active       - false = soft-deleted
  * @property {number}   [population]  - Municipal population (0 if unknown)
+ * @property {string}   [agenda_platform]      - Detected agenda platform (e.g. "legistar")
+ * @property {string}   [agenda_client]        - Agenda portal client slug (e.g. "cityoflewisville")
+ * @property {string}   [agenda_url]           - Agenda portal URL
+ * @property {string}   [cms]                  - Detected content-management system
+ * @property {string}   [privacy_policy_url]   - Detected privacy-policy URL
+ * @property {boolean}  [site_metadata_verified] - true once a human confirms the above (else an unverified candidate)
  */
 
 /**

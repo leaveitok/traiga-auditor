@@ -1,20 +1,252 @@
 {
   "AI_Tool_Catalog": {
     "note": "Canonical AI tool registry for cross-channel identity (procurement, OAuth, network, Sentinel). tool_id is the canonical key; aliases map each channel's raw identifier to it. procurement_names = company-as-billed; product_names = product/line-item (disambiguates multi-product vendors). oauth_app_ids are populated during the OAuth channel build. Fingerprint vendor_ids in AI_Vendor_Fingerprints are ALSO valid tool_ids. Governance-as-code: add tools here, never in code.",
-    "ai_keywords": ["ai", "artificial intelligence", "machine learning", "generative ai", "genai", "large language model", "llm", "gpt", "chatbot", "virtual assistant", "conversational ai", "natural language", "computer vision", "facial recognition", "predictive analytics", "automated decision", "copilot", "neural network", "deep learning", "cognitive services"],
+    "ai_keywords": [
+      "ai",
+      "artificial intelligence",
+      "machine learning",
+      "generative ai",
+      "genai",
+      "large language model",
+      "llm",
+      "gpt",
+      "chatbot",
+      "virtual assistant",
+      "conversational ai",
+      "natural language",
+      "computer vision",
+      "facial recognition",
+      "predictive analytics",
+      "automated decision",
+      "copilot",
+      "neural network",
+      "deep learning",
+      "cognitive services"
+    ],
     "tools": [
-      {"tool_id": "openai_chatgpt", "display_name": "ChatGPT (OpenAI)", "category": "genai_assistant", "aliases": {"sentinel_site_ids": ["chatgpt", "openai"], "domains": ["chatgpt.com", "chat.openai.com", "openai.com", "api.openai.com"], "procurement_names": ["openai", "chatgpt", "chatgpt enterprise", "chatgpt team", "openai api"], "oauth_app_ids": []}},
-      {"tool_id": "anthropic_claude", "display_name": "Claude (Anthropic)", "category": "genai_assistant", "aliases": {"sentinel_site_ids": ["claude", "anthropic"], "domains": ["claude.ai", "anthropic.com", "api.anthropic.com"], "procurement_names": ["anthropic", "claude", "claude for work", "claude enterprise"], "oauth_app_ids": []}},
-      {"tool_id": "google_gemini", "display_name": "Google Gemini", "category": "genai_assistant", "aliases": {"sentinel_site_ids": ["gemini", "bard"], "domains": ["gemini.google.com", "bard.google.com"], "procurement_names": ["gemini", "google gemini", "duet ai", "gemini for workspace"], "oauth_app_ids": []}},
-      {"tool_id": "microsoft_copilot", "display_name": "Microsoft Copilot", "category": "genai_assistant", "aliases": {"sentinel_site_ids": ["copilot"], "domains": ["copilot.microsoft.com", "m365.cloud.microsoft"], "procurement_names": ["microsoft copilot", "m365 copilot", "copilot for microsoft 365", "copilot studio", "microsoft 365 copilot"], "product_names": ["copilot", "microsoft 365 copilot", "m365 copilot", "copilot studio"], "oauth_app_ids": []}},
-      {"tool_id": "github_copilot", "display_name": "GitHub Copilot", "category": "code_assistant", "aliases": {"domains": ["github.com"], "procurement_names": ["github copilot"], "oauth_app_ids": []}},
-      {"tool_id": "perplexity_ai", "display_name": "Perplexity", "category": "genai_search", "aliases": {"sentinel_site_ids": ["perplexity"], "domains": ["perplexity.ai"], "procurement_names": ["perplexity"], "oauth_app_ids": []}},
-      {"tool_id": "grok_xai", "display_name": "Grok (xAI)", "category": "genai_assistant", "aliases": {"sentinel_site_ids": ["grok"], "domains": ["grok.com", "x.ai"], "procurement_names": ["grok", "xai"], "oauth_app_ids": []}},
-      {"tool_id": "otter_ai", "display_name": "Otter.ai", "category": "transcription_ai", "aliases": {"domains": ["otter.ai"], "procurement_names": ["otter", "otter.ai"], "oauth_app_ids": []}},
-      {"tool_id": "grammarly", "display_name": "Grammarly", "category": "writing_ai", "aliases": {"domains": ["grammarly.com"], "procurement_names": ["grammarly"], "oauth_app_ids": []}},
-      {"tool_id": "notion_ai", "display_name": "Notion AI", "category": "productivity_ai", "aliases": {"domains": ["notion.so", "notion.ai"], "procurement_names": ["notion ai", "notion"], "oauth_app_ids": []}},
-      {"tool_id": "zoom_ai_companion", "display_name": "Zoom AI Companion", "category": "meeting_ai", "aliases": {"domains": ["zoom.us"], "procurement_names": ["zoom ai", "zoom ai companion"], "oauth_app_ids": []}},
-      {"tool_id": "fireflies_ai", "display_name": "Fireflies.ai", "category": "transcription_ai", "aliases": {"domains": ["fireflies.ai"], "procurement_names": ["fireflies", "fireflies.ai"], "oauth_app_ids": []}}
+      {
+        "tool_id": "openai_chatgpt",
+        "display_name": "ChatGPT (OpenAI)",
+        "category": "genai_assistant",
+        "aliases": {
+          "sentinel_site_ids": [
+            "chatgpt",
+            "openai"
+          ],
+          "domains": [
+            "chatgpt.com",
+            "chat.openai.com",
+            "openai.com",
+            "api.openai.com"
+          ],
+          "procurement_names": [
+            "openai",
+            "chatgpt",
+            "chatgpt enterprise",
+            "chatgpt team",
+            "openai api"
+          ],
+          "oauth_app_ids": []
+        }
+      },
+      {
+        "tool_id": "anthropic_claude",
+        "display_name": "Claude (Anthropic)",
+        "category": "genai_assistant",
+        "aliases": {
+          "sentinel_site_ids": [
+            "claude",
+            "anthropic"
+          ],
+          "domains": [
+            "claude.ai",
+            "anthropic.com",
+            "api.anthropic.com"
+          ],
+          "procurement_names": [
+            "anthropic",
+            "claude",
+            "claude for work",
+            "claude enterprise"
+          ],
+          "oauth_app_ids": []
+        }
+      },
+      {
+        "tool_id": "google_gemini",
+        "display_name": "Google Gemini",
+        "category": "genai_assistant",
+        "aliases": {
+          "sentinel_site_ids": [
+            "gemini",
+            "bard"
+          ],
+          "domains": [
+            "gemini.google.com",
+            "bard.google.com"
+          ],
+          "procurement_names": [
+            "gemini",
+            "google gemini",
+            "duet ai",
+            "gemini for workspace"
+          ],
+          "oauth_app_ids": []
+        }
+      },
+      {
+        "tool_id": "microsoft_copilot",
+        "display_name": "Microsoft Copilot",
+        "category": "genai_assistant",
+        "aliases": {
+          "sentinel_site_ids": [
+            "copilot"
+          ],
+          "domains": [
+            "copilot.microsoft.com",
+            "m365.cloud.microsoft"
+          ],
+          "procurement_names": [
+            "microsoft copilot",
+            "m365 copilot",
+            "copilot for microsoft 365",
+            "copilot studio",
+            "microsoft 365 copilot"
+          ],
+          "product_names": [
+            "copilot",
+            "microsoft 365 copilot",
+            "m365 copilot",
+            "copilot studio"
+          ],
+          "oauth_app_ids": []
+        }
+      },
+      {
+        "tool_id": "github_copilot",
+        "display_name": "GitHub Copilot",
+        "category": "code_assistant",
+        "aliases": {
+          "domains": [
+            "github.com"
+          ],
+          "procurement_names": [
+            "github copilot"
+          ],
+          "oauth_app_ids": []
+        }
+      },
+      {
+        "tool_id": "perplexity_ai",
+        "display_name": "Perplexity",
+        "category": "genai_search",
+        "aliases": {
+          "sentinel_site_ids": [
+            "perplexity"
+          ],
+          "domains": [
+            "perplexity.ai"
+          ],
+          "procurement_names": [
+            "perplexity"
+          ],
+          "oauth_app_ids": []
+        }
+      },
+      {
+        "tool_id": "grok_xai",
+        "display_name": "Grok (xAI)",
+        "category": "genai_assistant",
+        "aliases": {
+          "sentinel_site_ids": [
+            "grok"
+          ],
+          "domains": [
+            "grok.com",
+            "x.ai"
+          ],
+          "procurement_names": [
+            "grok",
+            "xai"
+          ],
+          "oauth_app_ids": []
+        }
+      },
+      {
+        "tool_id": "otter_ai",
+        "display_name": "Otter.ai",
+        "category": "transcription_ai",
+        "aliases": {
+          "domains": [
+            "otter.ai"
+          ],
+          "procurement_names": [
+            "otter",
+            "otter.ai"
+          ],
+          "oauth_app_ids": []
+        }
+      },
+      {
+        "tool_id": "grammarly",
+        "display_name": "Grammarly",
+        "category": "writing_ai",
+        "aliases": {
+          "domains": [
+            "grammarly.com"
+          ],
+          "procurement_names": [
+            "grammarly"
+          ],
+          "oauth_app_ids": []
+        }
+      },
+      {
+        "tool_id": "notion_ai",
+        "display_name": "Notion AI",
+        "category": "productivity_ai",
+        "aliases": {
+          "domains": [
+            "notion.so",
+            "notion.ai"
+          ],
+          "procurement_names": [
+            "notion ai",
+            "notion"
+          ],
+          "oauth_app_ids": []
+        }
+      },
+      {
+        "tool_id": "zoom_ai_companion",
+        "display_name": "Zoom AI Companion",
+        "category": "meeting_ai",
+        "aliases": {
+          "domains": [
+            "zoom.us"
+          ],
+          "procurement_names": [
+            "zoom ai",
+            "zoom ai companion"
+          ],
+          "oauth_app_ids": []
+        }
+      },
+      {
+        "tool_id": "fireflies_ai",
+        "display_name": "Fireflies.ai",
+        "category": "transcription_ai",
+        "aliases": {
+          "domains": [
+            "fireflies.ai"
+          ],
+          "procurement_names": [
+            "fireflies",
+            "fireflies.ai"
+          ],
+          "oauth_app_ids": []
+        }
+      }
     ]
   },
   "meta": {
@@ -84,7 +316,7 @@
             "type": "text_marker_regex",
             "pattern": "webchat[\\-_]ui\\.citibot\\.(io|net)",
             "weight": 0.7,
-            "note": "Matches webchat-ui.citibot.net \u2014 confirmed embed subdomain for Lewisville deployment."
+            "note": "Matches webchat-ui.citibot.net — confirmed embed subdomain for Lewisville deployment."
           },
           {
             "type": "text_marker_regex",
@@ -388,45 +620,45 @@
           }
         ]
       },
-        {
-          "vendor_id": "uneeq",
-          "display_name": "UneeQ Digital Human (conversational AI avatar)",
-          "category": "gov_ai_chatbot_llm",
-          "asset_types": [
-            "chatbot",
-            "virtual_assistant",
-            "digital_human",
-            "avatar"
-          ],
-          "verification_status": "unverified_candidate",
-          "note": "Observed live on www.amarillo.gov 2026-07-12: 'Emma, Your Digital Assistant' is a UneeQ digital-human avatar with a 'Chat with Emma'/'Habla con Emma' launcher. Loader script https://cdn.uneeq.io/hosted-experience/deploy/index.js; rendered MUI containers #uneeq-initial-container / #uneeq-initial-content / #uneeqContainedLayout. The conversation runs in a UneeQ-hosted experience, so detection keys off the parent-page loader host + the uneeq-* container ids, not the avatar's speech. cdn.uneeq.io is an unambiguous, cross-tenant signature — any municipality running a UneeQ avatar now flags (sweep network effect).",
-          "indicators": [
-            {
-              "type": "script_host_regex",
-              "pattern": "(^|\\.)uneeq\\.io",
-              "weight": 0.7,
-              "note": "cdn.uneeq.io hosted-experience loader. Fires alone (>= 0.6 threshold)."
-            },
-            {
-              "type": "network_request_regex",
-              "pattern": "(^|\\.)uneeq\\.io",
-              "weight": 0.6,
-              "note": "Runtime calls to the UneeQ hosted experience."
-            },
-            {
-              "type": "text_marker_regex",
-              "pattern": "cdn\\.uneeq\\.io|uneeq-initial-container|uneeqContainedLayout",
-              "weight": 0.5,
-              "note": "Loader URL + container ids present in rendered HTML."
-            },
-            {
-              "type": "dom_selector",
-              "pattern": "[id*='uneeq']",
-              "weight": 0.4,
-              "note": "uneeq-* container ids on the mounted avatar widget."
-            }
-          ]
-        }
+      {
+        "vendor_id": "uneeq",
+        "display_name": "UneeQ Digital Human (conversational AI avatar)",
+        "category": "gov_ai_chatbot_llm",
+        "asset_types": [
+          "chatbot",
+          "virtual_assistant",
+          "digital_human",
+          "avatar"
+        ],
+        "verification_status": "unverified_candidate",
+        "note": "Observed live on www.amarillo.gov 2026-07-12: 'Emma, Your Digital Assistant' is a UneeQ digital-human avatar with a 'Chat with Emma'/'Habla con Emma' launcher. Loader script https://cdn.uneeq.io/hosted-experience/deploy/index.js; rendered MUI containers #uneeq-initial-container / #uneeq-initial-content / #uneeqContainedLayout. The conversation runs in a UneeQ-hosted experience, so detection keys off the parent-page loader host + the uneeq-* container ids, not the avatar's speech. cdn.uneeq.io is an unambiguous, cross-tenant signature — any municipality running a UneeQ avatar now flags (sweep network effect).",
+        "indicators": [
+          {
+            "type": "script_host_regex",
+            "pattern": "(^|\\.)uneeq\\.io",
+            "weight": 0.7,
+            "note": "cdn.uneeq.io hosted-experience loader. Fires alone (>= 0.6 threshold)."
+          },
+          {
+            "type": "network_request_regex",
+            "pattern": "(^|\\.)uneeq\\.io",
+            "weight": 0.6,
+            "note": "Runtime calls to the UneeQ hosted experience."
+          },
+          {
+            "type": "text_marker_regex",
+            "pattern": "cdn\\.uneeq\\.io|uneeq-initial-container|uneeqContainedLayout",
+            "weight": 0.5,
+            "note": "Loader URL + container ids present in rendered HTML."
+          },
+          {
+            "type": "dom_selector",
+            "pattern": "[id*='uneeq']",
+            "weight": 0.4,
+            "note": "uneeq-* container ids on the mounted avatar widget."
+          }
+        ]
+      }
     ]
   },
   "Compliance_Ruleset": {
@@ -654,7 +886,7 @@
     }
   },
   "Safe_Harbor_Module": {
-    "module_description": "Municipal AI Profile v1.0 \u2014 a right-sized profile of the NIST AI Risk Management Framework (AI RMF 1.0 core functions + Generative AI Profile, NIST AI 600-1) for Texas municipalities. Powers the TRAIGA safe-harbor readiness checklist and the Alignment Statement generator.",
+    "module_description": "Municipal AI Profile v1.0 — a right-sized profile of the NIST AI Risk Management Framework (AI RMF 1.0 core functions + Generative AI Profile, NIST AI 600-1) for Texas municipalities. Powers the TRAIGA safe-harbor readiness checklist and the Alignment Statement generator.",
     "legal_basis": {
       "citation": "Tex. Bus. & Com. Code Sec. 552.105(c)-(e) (HB 149 enrolled)",
       "verified": "2026-07-07 against enrolled HB 149 text, capitol.texas.gov/tlodocs/89R/billtext/html/HB00149F.htm",
@@ -669,9 +901,43 @@
       "partial": 0.5
     },
     "frameworks": [
-      {"id": "nist_ai_rmf", "name": "NIST AI Risk Management Framework 1.0 (+ Generative AI Profile)", "version": "1.0 / AI 600-1", "jurisdiction": "any", "mandatory": false, "role": "spine", "always_on": true, "ref_field": "nist_ref", "source_citation": "https://www.nist.gov/itl/ai-risk-management-framework"},
-      {"id": "traiga_hb149", "name": "Texas HB 149 / TRAIGA (Tex. Bus. & Com. Code Ch. 552)", "version": "enrolled; eff. 2026-01-01", "jurisdiction": "TX", "mandatory": true, "role": "home_statute", "always_on": true, "ref_field": "citation", "source_citation": "https://statutes.capitol.texas.gov/Docs/BC/htm/BC.552.htm"},
-      {"id": "iso_42001", "name": "ISO/IEC 42001:2023 (AI management system)", "version": "2023", "jurisdiction": "any", "mandatory": false, "role": "voluntary_standard", "enable_flag": "FRAMEWORK_ISO_42001_ENABLED", "default_enabled": false, "ref_field": "iso_ref", "overlap_field": "iso_overlap", "mapping_level": "Annex A objective (A.2-A.10)", "source_citation": "https://www.iso.org/standard/81230.html", "caveats": "Objective-level mapping; refine to sub-controls against the licensed standard. Voluntary per-city opt-in. Design/positioning aid, not legal advice."}
+      {
+        "id": "nist_ai_rmf",
+        "name": "NIST AI Risk Management Framework 1.0 (+ Generative AI Profile)",
+        "version": "1.0 / AI 600-1",
+        "jurisdiction": "any",
+        "mandatory": false,
+        "role": "spine",
+        "always_on": true,
+        "ref_field": "nist_ref",
+        "source_citation": "https://www.nist.gov/itl/ai-risk-management-framework"
+      },
+      {
+        "id": "traiga_hb149",
+        "name": "Texas HB 149 / TRAIGA (Tex. Bus. & Com. Code Ch. 552)",
+        "version": "enrolled; eff. 2026-01-01",
+        "jurisdiction": "TX",
+        "mandatory": true,
+        "role": "home_statute",
+        "always_on": true,
+        "ref_field": "citation",
+        "source_citation": "https://statutes.capitol.texas.gov/Docs/BC/htm/BC.552.htm"
+      },
+      {
+        "id": "iso_42001",
+        "name": "ISO/IEC 42001:2023 (AI management system)",
+        "version": "2023",
+        "jurisdiction": "any",
+        "mandatory": false,
+        "role": "voluntary_standard",
+        "enable_flag": "FRAMEWORK_ISO_42001_ENABLED",
+        "default_enabled": false,
+        "ref_field": "iso_ref",
+        "overlap_field": "iso_overlap",
+        "mapping_level": "Annex A objective (A.2-A.10)",
+        "source_citation": "https://www.iso.org/standard/81230.html",
+        "caveats": "Objective-level mapping; refine to sub-controls against the licensed standard. Voluntary per-city opt-in. Design/positioning aid, not legal advice."
+      }
     ],
     "controls": [
       {
@@ -830,5 +1096,97 @@
         "attest_hint": "Reference the procurement review step or contract clause used."
       }
     ]
+  },
+  "Site_Metadata_Signatures": {
+    "_comment": "Governance-as-code site metadata detection. Signatures are UNVERIFIED candidates until a human confirms them (same discipline as vendor fingerprints). New platforms/CMS are added HERE — no code change.",
+    "agenda_platforms": [
+      {
+        "platform": "legistar",
+        "host_regex": "([a-z0-9][a-z0-9-]*)\\.legistar\\.com",
+        "slug_group": 1,
+        "slug_stoplist": [
+          "webapi",
+          "www",
+          "insite"
+        ]
+      },
+      {
+        "platform": "civicplus_agendas",
+        "host_regex": "([a-z0-9][a-z0-9-]*)\\.civicweb\\.net",
+        "slug_group": 1,
+        "slug_stoplist": [
+          "www"
+        ]
+      },
+      {
+        "platform": "civicclerk",
+        "host_regex": "([a-z0-9][a-z0-9-]*)\\.civicclerk\\.com",
+        "slug_group": 1,
+        "slug_stoplist": [
+          "www"
+        ]
+      },
+      {
+        "platform": "primegov",
+        "host_regex": "([a-z0-9][a-z0-9-]*)\\.primegov\\.com",
+        "slug_group": 1,
+        "slug_stoplist": [
+          "www"
+        ]
+      },
+      {
+        "platform": "novusagenda",
+        "host_regex": "([a-z0-9][a-z0-9-]*)\\.novusagenda\\.com",
+        "slug_group": 1,
+        "slug_stoplist": [
+          "www"
+        ]
+      },
+      {
+        "platform": "granicus_viewpublisher",
+        "host_regex": "([a-z0-9][a-z0-9-]*)\\.granicus\\.com",
+        "slug_group": 1,
+        "slug_stoplist": [
+          "www"
+        ]
+      },
+      {
+        "platform": "boarddocs",
+        "host_regex": "go\\.boarddocs\\.com/([a-z]{2}/[a-z0-9]+)/",
+        "slug_group": 1,
+        "slug_stoplist": []
+      }
+    ],
+    "cms": [
+      {
+        "name": "CivicPlus (CivicEngage)",
+        "html_regex": "civicplus|civicengage|/Modules/"
+      },
+      {
+        "name": "Granicus",
+        "html_regex": "granicus"
+      },
+      {
+        "name": "WordPress",
+        "html_regex": "wp-content|wp-includes"
+      },
+      {
+        "name": "Drupal",
+        "html_regex": "Drupal\\.settings|sites/(all|default)/files"
+      },
+      {
+        "name": "Joomla",
+        "html_regex": "/media/jui/|com_content"
+      },
+      {
+        "name": "Squarespace",
+        "html_regex": "squarespace"
+      },
+      {
+        "name": "Wix",
+        "html_regex": "wixstatic|_wix"
+      }
+    ],
+    "privacy_link_regex": "privacy"
   }
 }

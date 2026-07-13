@@ -232,6 +232,21 @@ class TargetUpdate(BaseModel):
     domain: Optional[str] = None
     population: Optional[int] = None
     render_required: Optional[bool] = None
+    # Site metadata (auto-detected on scan OR entered here). Persisting the agenda
+    # slug is what stops the operator re-typing it every agenda run.
+    agenda_platform: Optional[str] = None
+    agenda_client: Optional[str] = None
+    agenda_url: Optional[str] = None
+    cms: Optional[str] = None
+    privacy_policy_url: Optional[str] = None
+    site_metadata_verified: Optional[bool] = None
+
+
+# Site-metadata string fields the repos round-trip (kept in one place so the route,
+# the pipeline detector, and the agenda backstop all agree on the field names).
+SITE_METADATA_STR_FIELDS = (
+    "agenda_platform", "agenda_client", "agenda_url", "cms", "privacy_policy_url",
+)
 
 
 @router.patch("/{target_id}")
@@ -269,6 +284,15 @@ def update_target(
         fields["population"] = body.population
     if body.render_required is not None:
         fields["render_required"] = body.render_required
+    for _mk in SITE_METADATA_STR_FIELDS:
+        _mv = getattr(body, _mk)
+        if _mv is not None:
+            fields[_mk] = _mv
+    # A human editing any agenda/site-metadata field is an explicit confirmation.
+    if body.site_metadata_verified is not None:
+        fields["site_metadata_verified"] = body.site_metadata_verified
+    elif any(getattr(body, _mk) is not None for _mk in SITE_METADATA_STR_FIELDS):
+        fields["site_metadata_verified"] = True
     # Keep the crawl seed (url) in sync with a domain edit unless the caller set
     # url explicitly — otherwise a re-scan would still hit the OLD domain.
     if "domain" in fields and "url" not in fields:

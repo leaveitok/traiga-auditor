@@ -24,6 +24,36 @@ def _asset_key(city: str, vendor_id: str) -> str:
     return f"{safe(city)}::{safe(vendor_id)}"
 
 
+def _persist_site_metadata(repo, target, captures, schema) -> None:
+    """Detect CANDIDATE site metadata (agenda platform/slug/url, CMS, privacy URL)
+    from a successful crawl and persist it to the target. Fills ONLY empty fields,
+    so it never clobbers a human-verified value (verified fields are non-empty).
+    Stored unverified — a human confirms via the target editor / agenda run.
+    Fully guarded: metadata capture must never break a scan.
+
+    # TODO: scope to the requesting user's jurisdiction (auth placeholder).
+    """
+    try:
+        from engine.collectors.site_metadata import detect_site_metadata
+        pages = [{
+            "html": getattr(c, "html", "") or "",
+            "url":  getattr(c, "url", ""),
+            "hosts": list(getattr(c, "script_hosts", []) or [])
+                     + list(getattr(c, "iframe_origins", []) or [])
+                     + list(getattr(c, "network_urls", []) or []),
+        } for c in captures]
+        detected = detect_site_metadata(pages, schema)
+        to_write = {k: v for k, v in detected.items()
+                    if v and not str(target.get(k, "") or "").strip()}
+        if to_write:
+            repo.update_target(target.get("id"), to_write)   # candidate; verified stays false
+            print(f"[pipeline] {target.get('city')} | site metadata captured "
+                  f"(candidate): {sorted(to_write)}")
+    except Exception as exc:
+        print(f"[pipeline] WARN: site metadata capture failed for "
+              f"{target.get('city')}: {type(exc).__name__}: {exc}")
+
+
 def _feed_inventory(repo: GovernanceRepository, city: str,
                     detected: list) -> None:
     """
@@ -258,6 +288,7 @@ def run_full_audit(
         # auto-cure that city's existing violations (could be a WAF false-negative).
         if captures:
             crawled_cities.add(city)
+            _persist_site_metadata(repo, target, captures, schema)
         used_proxy_by_city[city] = proxied
 
         # Debug: log what the crawler captured for each page

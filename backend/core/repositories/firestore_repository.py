@@ -124,6 +124,7 @@ class FirestoreRepository:
             except (TypeError, ValueError):
                 r["population"] = 0
             r["render_required"] = str(r.get("render_required", "")).lower() in ("true", "1", "yes")
+            r["site_metadata_verified"] = str(r.get("site_metadata_verified", "")).lower() in ("true", "1", "yes")
         return result
 
     def add_target(
@@ -179,6 +180,11 @@ class FirestoreRepository:
                 pass
         if "render_required" in fields:
             update["render_required"] = str(bool(fields["render_required"])).lower()
+        for _mk in ("agenda_platform", "agenda_client", "agenda_url", "cms", "privacy_policy_url"):
+            if _mk in fields:
+                update[_mk] = str(fields[_mk] or "").strip()
+        if "site_metadata_verified" in fields:
+            update["site_metadata_verified"] = str(bool(fields["site_metadata_verified"])).lower()
         for _k in ("url", "city", "jurisdiction", "domain"):
             if _k in fields and str(fields[_k]).strip():
                 update[_k] = str(fields[_k]).strip()
