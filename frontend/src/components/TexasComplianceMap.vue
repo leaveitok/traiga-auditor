@@ -2,28 +2,39 @@
   <v-card class="fill-height">
     <v-card-title class="d-flex align-center justify-space-between">
       <span class="text-subtitle-1 font-weight-bold">Texas Compliance Map</span>
-      <span class="text-caption text-medium-emphasis">{{ pins.length }} of {{ rows.length }} cities mapped</span>
+      <div class="d-flex align-center ga-1">
+        <span class="text-caption text-medium-emphasis mr-1">{{ pins.length }} of {{ rows.length }} mapped</span>
+        <v-btn icon="mdi-minus" size="x-small" variant="text" title="Zoom out" @click="zoomBy(1 / STEP)" />
+        <v-btn icon="mdi-plus" size="x-small" variant="text" title="Zoom in" @click="zoomBy(STEP)" />
+        <v-btn icon="mdi-restore" size="x-small" variant="text" title="Reset view"
+               :disabled="isDefault" @click="resetView" />
+      </div>
     </v-card-title>
     <v-card-text>
-      <svg :viewBox="`0 0 ${W} ${H}`" width="100%" preserveAspectRatio="xMidYMid meet"
-           role="img" aria-label="Map of Texas with monitored cities colored by TRAIGA status">
+      <svg ref="svgEl" :viewBox="viewBox" width="100%" preserveAspectRatio="xMidYMid meet"
+           :style="{ cursor: dragging ? 'grabbing' : 'grab', touchAction: 'none' }"
+           role="img" aria-label="Map of Texas with monitored cities colored by TRAIGA status. Scroll to zoom, drag to pan."
+           @wheel.prevent="onWheel" @mousedown="onDown">
         <!-- Texas outline (simplified border, equirectangular projection) -->
         <polygon :points="outline" fill="currentColor" fill-opacity="0.06"
-                 stroke="currentColor" stroke-opacity="0.35" stroke-width="1.5"
+                 stroke="currentColor" stroke-opacity="0.35" :stroke-width="1.5 / zoom"
                  stroke-linejoin="round" />
-        <!-- city pins -->
+        <!-- city pins (radii counter-scaled by zoom so they stay a constant size) -->
         <g v-for="p in pins" :key="p.city" style="cursor:pointer"
-           @click="$router.push(`/city/${encodeURIComponent(p.city)}`)">
-          <circle :cx="p.x" :cy="p.y" r="9" :fill="p.color" fill-opacity="0.25"
-                  :stroke="p.failed ? p.color : 'none'" stroke-width="1.5"
-                  :stroke-dasharray="p.failed ? '3,2' : null">
+           @click="onPinClick(p)">
+          <circle :cx="p.x" :cy="p.y" :r="9 / zoom" :fill="p.color" fill-opacity="0.25"
+                  :stroke="p.failed ? p.color : 'none'" :stroke-width="1.5 / zoom"
+                  :stroke-dasharray="p.failed ? `${3 / zoom},${2 / zoom}` : null">
             <title>{{ p.city }} — {{ p.statusLabel }}</title>
           </circle>
-          <circle :cx="p.x" :cy="p.y" r="4.5" :fill="p.color" stroke="white" stroke-width="1.2">
+          <circle :cx="p.x" :cy="p.y" :r="4.5 / zoom" :fill="p.color" stroke="white" :stroke-width="1.2 / zoom">
             <title>{{ p.city }} — {{ p.statusLabel }}</title>
           </circle>
         </g>
       </svg>
+      <div class="text-caption text-medium-emphasis mt-1">
+        Scroll to zoom · drag to pan · click a city to open it
+      </div>
       <!-- legend -->
       <div class="d-flex flex-wrap ga-2 mt-2">
         <v-chip v-for="l in legend" :key="l.label" size="x-small" variant="tonal" label>
@@ -43,15 +54,35 @@
  * built-in lat/lon gazetteer of Texas municipalities (extend TX_CITIES as
  * the registry grows toward the TAGITM 1,200); pins are colored by
  * traiga_status and click through to the city detail page.
+ *
+ * Zoom/pan: the viewBox is reactive. Scroll zooms toward the cursor, drag
+ * pans, and the +/-/reset buttons drive it too — so the dense DFW cluster
+ * can be separated and clicked. Pin radii are divided by the zoom factor so
+ * markers stay a constant on-screen size instead of ballooning when zoomed.
  */
-import { computed } from 'vue'
+import { ref, reactive, computed, onBeforeUnmount } from 'vue'
+import { useRouter } from 'vue-router'
 
 const props = defineProps({
   /** Scorecard rows: [{city, traiga_status, ...}] */
   rows: { type: Array, default: () => [] },
 })
 
+const router = useRouter()
+
 const W = 460, H = 440
+const STEP = 1.4          // zoom factor per button press
+const MIN_W = W / 12      // deepest zoom (12x)
+const MAX_W = W           // fully zoomed out = default
+
+// Reactive viewBox drives zoom + pan.
+const view = reactive({ x: 0, y: 0, w: W, h: H })
+const viewBox   = computed(() => `${view.x.toFixed(2)} ${view.y.toFixed(2)} ${view.w.toFixed(2)} ${view.h.toFixed(2)}`)
+const zoom      = computed(() => W / view.w)
+const isDefault = computed(() => view.x === 0 && view.y === 0 && view.w === W && view.h === H)
+const svgEl     = ref(null)
+const dragging  = ref(false)
+
 // Texas bounding box
 const LON = [-106.7, -93.4], LAT = [25.7, 36.6]
 const X = (lon) => ((lon - LON[0]) / (LON[1] - LON[0])) * (W - 20) + 10
@@ -143,6 +174,72 @@ const legend = computed(() => {
     .filter(([k]) => present.has(k))
     .map(([, v]) => v)
 })
+
+// ── Zoom / pan ──────────────────────────────────────────────────────────────
+function clampView() {
+  view.w = Math.min(MAX_W, Math.max(MIN_W, view.w))
+  view.h = view.w * (H / W)
+  // Keep the view centre within the map so you can never lose it entirely.
+  view.x = Math.min(W - view.w / 2, Math.max(-view.w / 2, view.x))
+  view.y = Math.min(H - view.h / 2, Math.max(-view.h / 2, view.y))
+}
+
+// Zoom keeping the SVG point (cx,cy) fixed under the cursor. factor > 1 zooms in.
+function zoomAt(factor, cx, cy) {
+  const rx = (cx - view.x) / view.w
+  const ry = (cy - view.y) / view.h
+  view.w = Math.min(MAX_W, Math.max(MIN_W, view.w / factor))
+  view.h = view.w * (H / W)
+  view.x = cx - rx * view.w
+  view.y = cy - ry * view.h
+  clampView()
+}
+function zoomBy(factor) {
+  zoomAt(factor, view.x + view.w / 2, view.y + view.h / 2)
+}
+function resetView() { view.x = 0; view.y = 0; view.w = W; view.h = H }
+
+function svgPoint(evt) {
+  const rect = svgEl.value.getBoundingClientRect()
+  return {
+    x: view.x + ((evt.clientX - rect.left) / rect.width) * view.w,
+    y: view.y + ((evt.clientY - rect.top) / rect.height) * view.h,
+  }
+}
+function onWheel(evt) {
+  if (!svgEl.value) return
+  const p = svgPoint(evt)
+  zoomAt(evt.deltaY < 0 ? 1.15 : 1 / 1.15, p.x, p.y)
+}
+
+let last = null, moved = false
+function onDown(evt) {
+  dragging.value = true; moved = false
+  last = { x: evt.clientX, y: evt.clientY }
+  window.addEventListener('mousemove', onMove)
+  window.addEventListener('mouseup', onUp)
+}
+function onMove(evt) {
+  if (!dragging.value || !svgEl.value) return
+  const rect = svgEl.value.getBoundingClientRect()
+  if (Math.abs(evt.clientX - last.x) + Math.abs(evt.clientY - last.y) > 3) moved = true
+  view.x -= ((evt.clientX - last.x) / rect.width) * view.w
+  view.y -= ((evt.clientY - last.y) / rect.height) * view.h
+  clampView()
+  last = { x: evt.clientX, y: evt.clientY }
+}
+function onUp() {
+  dragging.value = false
+  window.removeEventListener('mousemove', onMove)
+  window.removeEventListener('mouseup', onUp)
+}
+onBeforeUnmount(onUp)
+
+// Suppress the click-through when the pointer was actually dragging the map.
+function onPinClick(p) {
+  if (moved) return
+  router.push(`/city/${encodeURIComponent(p.city)}`)
+}
 </script>
 
 <style scoped>
