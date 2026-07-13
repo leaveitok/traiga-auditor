@@ -269,6 +269,11 @@ def update_target(
         fields["population"] = body.population
     if body.render_required is not None:
         fields["render_required"] = body.render_required
+    # Keep the crawl seed (url) in sync with a domain edit unless the caller set
+    # url explicitly — otherwise a re-scan would still hit the OLD domain.
+    if "domain" in fields and "url" not in fields:
+        _d = str(fields["domain"]).strip()
+        fields["url"] = _d if _d.lower().startswith("http") else f"https://{_d.lstrip('/')}"
     if not fields:
         raise HTTPException(status_code=400, detail="No fields to update")
     ok = repo.update_target(target_id, fields)

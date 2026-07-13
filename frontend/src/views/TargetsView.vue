@@ -123,7 +123,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import { useTargetsStore } from '../stores/targets'
 import { useAuthStore } from '../stores/auth'
 import AddCityDialog from '../components/AddCityDialog.vue'
@@ -194,6 +194,16 @@ const editError  = ref('')
 const editTagsInput = ref('')
 const editForm = ref({})
 let editOriginal = null
+
+// When the Domain is edited, follow it in the Seed URL field IF the URL was just
+// the (old) domain — so the scan targets the new domain and the user sees it change.
+const deriveUrl = (d) => (d ? (/^https?:\/\//i.test(d) ? d : `https://${d.replace(/^\/+/, '')}`) : '')
+watch(() => editForm.value.domain, (nd) => {
+  if (!editOriginal) return
+  if (!editForm.value.url || editForm.value.url === deriveUrl(editOriginal.domain)) {
+    editForm.value.url = deriveUrl(nd)
+  }
+})
 
 function openEdit(item) {
   editOriginal = item

@@ -97,3 +97,24 @@ def test_admin_can_edit_population_and_city_and_it_logs():
     assert repo.targets[0]["population"] == 114000
     ev = [e for e in repo.log_events if e.get("event") == "target_updated"]
     assert ev and ev[0]["details"]["actor"] == admin
+
+
+def test_domain_edit_syncs_the_crawl_url():
+    """Editing a target's domain must move the crawl seed url too, or a re-scan
+    would still hit the OLD domain (the Rowlett .com->.gov bug)."""
+    admin = _setup_admin_email()
+    repo = StubRepo(targets=[{"id": "rw1", "city": "Rowlett",
+                              "domain": "rowlett.com", "url": "https://rowlett.com"}])
+    result = _run_patch(repo, admin, "rw1", domain="rowlett.gov")
+    assert "url" in result["updated"], "url did not follow the domain edit"
+    assert repo.targets[0]["domain"] == "rowlett.gov"
+    assert repo.targets[0]["url"] == "https://rowlett.gov"
+
+
+def test_explicit_url_is_not_overwritten_by_domain_edit():
+    """If the caller sets url explicitly alongside domain, respect it (custom seed)."""
+    admin = _setup_admin_email()
+    repo = StubRepo(targets=[{"id": "rw1", "city": "Rowlett", "domain": "rowlett.com",
+                              "url": "https://rowlett.com"}])
+    _run_patch(repo, admin, "rw1", domain="rowlett.gov", url="https://www.rowlett.gov/ai")
+    assert repo.targets[0]["url"] == "https://www.rowlett.gov/ai"

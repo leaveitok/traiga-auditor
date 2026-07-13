@@ -26,7 +26,7 @@
           <v-card-subtitle>
             {{ cityRow.jurisdiction }} ·
             <a :href="cityUrl" target="_blank" rel="noopener"
-               class="text-decoration-none font-weight-medium">{{ cityRow.domain }}<v-icon size="13" class="ml-1">mdi-open-in-new</v-icon></a>
+               class="text-decoration-none font-weight-medium">{{ targetRow?.domain || cityRow.domain }}<v-icon size="13" class="ml-1">mdi-open-in-new</v-icon></a>
           </v-card-subtitle>
           <template #append>
             <div class="text-right">
@@ -432,7 +432,7 @@ async function refresh() {
 }
 
 const deepScanPrompt = computed(() => {
-  const domain = cityRow.value?.domain || ''
+  const domain = targetRow.value?.domain || cityRow.value?.domain || ''
   return `Please deep scan ${cityName.value} for TRAIGA AI compliance.\n\nDomain: ${domain}\n\nUse Claude in Chrome to:\n1. Navigate to ${domain || 'the city domain'}\n2. Extract all script sources, iframe origins, shadow-DOM widgets, visible AI disclosure text, and network request hosts\n3. POST the results to ${window.location.origin}/api/audit/chrome-capture with persist=true, city="${cityName.value}", jurisdiction="TX", domain="${domain}" (authenticate with my dashboard session)\n\nThen let me know the results, and remind me to mark the city WAF-protected in Scan Settings so the nightly scan doesn't overwrite the result.`
 })
 
