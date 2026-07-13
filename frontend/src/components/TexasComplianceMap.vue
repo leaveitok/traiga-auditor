@@ -19,8 +19,13 @@
         <polygon :points="outline" fill="currentColor" fill-opacity="0.06"
                  stroke="currentColor" stroke-opacity="0.35" :stroke-width="1.5 / zoom"
                  stroke-linejoin="round" />
-        <!-- city pins (radii counter-scaled by zoom so they stay a constant size) -->
-        <g v-for="p in pins" :key="p.city" style="cursor:pointer"
+        <!-- leader lines: from a nudged pin back to its true geographic spot -->
+        <line v-for="p in displayPins" :key="`l-${p.city}`"
+              v-show="p.nudged" :x1="p.x" :y1="p.y" :x2="p.tx" :y2="p.ty"
+              stroke="currentColor" stroke-opacity="0.28" :stroke-width="0.6 / zoom" />
+        <!-- city pins. De-overlapped so clustered cities (DFW) fan out and each is
+             clickable; radii counter-scaled by zoom so they stay a constant size. -->
+        <g v-for="p in displayPins" :key="p.city" style="cursor:pointer"
            @click="onPinClick(p)">
           <circle :cx="p.x" :cy="p.y" :r="9 / zoom" :fill="p.color" fill-opacity="0.25"
                   :stroke="p.failed ? p.color : 'none'" :stroke-width="1.5 / zoom"
@@ -33,7 +38,7 @@
         </g>
       </svg>
       <div class="text-caption text-medium-emphasis mt-1">
-        Scroll to zoom · drag to pan · click a city to open it
+        Overlapping cities fan out automatically · scroll to zoom · drag to pan
       </div>
       <!-- legend -->
       <div class="d-flex flex-wrap ga-2 mt-2">
@@ -167,6 +172,47 @@ const pins = computed(() => props.rows.flatMap((r) => {
 const unmapped = computed(() =>
   props.rows.filter(r => !TX_CITIES[norm(r.city)]).map(r => r.city))
 
+// De-overlap: cities that sit on top of each other (the DFW metroplex) are pushed
+// apart around their true positions so each pin is visible and clickable. The
+// minimum separation is proportional to the viewBox width, so it is a CONSTANT
+// on-screen gap at any zoom — and because true geographic distances are fixed in
+// SVG units, the fan tightens back toward real positions as you zoom in. A faint
+// leader line ties a nudged pin to its true spot (p.tx, p.ty).
+const displayPins = computed(() => {
+  const pts = pins.value.map(p => ({ ...p, tx: p.x, ty: p.y }))
+  if (pts.length < 2) return pts.map(p => ({ ...p, nudged: false }))
+  const minSep = 0.05 * view.w
+  const min2 = minSep * minSep
+  for (let iter = 0; iter < 80; iter++) {
+    let moved = false
+    for (let i = 0; i < pts.length; i++) {
+      for (let j = i + 1; j < pts.length; j++) {
+        let dx = pts[j].x - pts[i].x
+        let dy = pts[j].y - pts[i].y
+        let d2 = dx * dx + dy * dy
+        if (d2 === 0) {
+          // exactly coincident — nudge deterministically so they can separate
+          const a = (i * 2.399963) % (Math.PI * 2)
+          dx = Math.cos(a); dy = Math.sin(a); d2 = 1
+        }
+        if (d2 < min2) {
+          const d = Math.sqrt(d2)
+          const push = (minSep - d) / 2
+          const ux = dx / d, uy = dy / d
+          pts[i].x -= ux * push; pts[i].y -= uy * push
+          pts[j].x += ux * push; pts[j].y += uy * push
+          moved = true
+        }
+      }
+    }
+    if (!moved) break
+  }
+  return pts.map(p => ({
+    ...p,
+    nudged: Math.abs(p.x - p.tx) + Math.abs(p.y - p.ty) > 0.5,
+  }))
+})
+
 // Only show legend entries present on the map
 const legend = computed(() => {
   const present = new Set(props.rows.map(r => r.traiga_status))
@@ -194,8 +240,17 @@ function zoomAt(factor, cx, cy) {
   view.y = cy - ry * view.h
   clampView()
 }
+function pinCentroid() {
+  const ps = pins.value
+  if (!ps.length) return { x: view.x + view.w / 2, y: view.y + view.h / 2 }
+  return {
+    x: ps.reduce((a, p) => a + p.x, 0) / ps.length,
+    y: ps.reduce((a, p) => a + p.y, 0) / ps.length,
+  }
+}
 function zoomBy(factor) {
-  zoomAt(factor, view.x + view.w / 2, view.y + view.h / 2)
+  const c = pinCentroid()
+  zoomAt(factor, c.x, c.y)
 }
 function resetView() { view.x = 0; view.y = 0; view.w = W; view.h = H }
 
