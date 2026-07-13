@@ -668,6 +668,11 @@
       "ready": 0.85,
       "partial": 0.5
     },
+    "frameworks": [
+      {"id": "nist_ai_rmf", "name": "NIST AI Risk Management Framework 1.0 (+ Generative AI Profile)", "version": "1.0 / AI 600-1", "jurisdiction": "any", "mandatory": false, "role": "spine", "always_on": true, "ref_field": "nist_ref", "source_citation": "https://www.nist.gov/itl/ai-risk-management-framework"},
+      {"id": "traiga_hb149", "name": "Texas HB 149 / TRAIGA (Tex. Bus. & Com. Code Ch. 552)", "version": "enrolled; eff. 2026-01-01", "jurisdiction": "TX", "mandatory": true, "role": "home_statute", "always_on": true, "ref_field": "citation", "source_citation": "https://statutes.capitol.texas.gov/Docs/BC/htm/BC.552.htm"},
+      {"id": "iso_42001", "name": "ISO/IEC 42001:2023 (AI management system)", "version": "2023", "jurisdiction": "any", "mandatory": false, "role": "voluntary_standard", "enable_flag": "FRAMEWORK_ISO_42001_ENABLED", "default_enabled": false, "ref_field": "iso_ref", "overlap_field": "iso_overlap", "mapping_level": "Annex A objective (A.2-A.10)", "source_citation": "https://www.iso.org/standard/81230.html", "caveats": "Objective-level mapping; refine to sub-controls against the licensed standard. Voluntary per-city opt-in. Design/positioning aid, not legal advice."}
+    ],
     "controls": [
       {
         "control_id": "SH-GOV-01",
@@ -675,6 +680,8 @@
         "title": "Accountable AI official designated",
         "plain": "One named person owns AI governance for the city.",
         "nist_ref": "AI RMF GOVERN 2.1",
+        "iso_ref": "ISO/IEC 42001 A.3 Internal organization",
+        "iso_overlap": "strong",
         "evidence": "attested",
         "attest_hint": "Name the role (e.g., CIO) in the notes; update when the role changes."
       },
@@ -684,6 +691,8 @@
         "title": "AI use policy adopted",
         "plain": "The city has a written AI use policy in force.",
         "nist_ref": "AI RMF GOVERN 1.2",
+        "iso_ref": "ISO/IEC 42001 A.2 Policies related to AI",
+        "iso_overlap": "strong",
         "evidence": "attested",
         "attest_hint": "Generate a draft with the AI Use Policy button, then attest adoption with date/authority."
       },
@@ -693,6 +702,8 @@
         "title": "Staff acceptable-use rules communicated",
         "plain": "Employees know what AI tools they may and may not use.",
         "nist_ref": "AI RMF GOVERN 4.1",
+        "iso_ref": "ISO/IEC 42001 A.2 Policies / A.9 Use of AI systems",
+        "iso_overlap": "partial",
         "evidence": "attested",
         "attest_hint": "Reference the training/communication date and channel."
       },
@@ -702,6 +713,8 @@
         "title": "Governance decisions leave an audit trail",
         "plain": "Actions in the registry are logged: who did what, when.",
         "nist_ref": "AI RMF GOVERN 1.5",
+        "iso_ref": "ISO/IEC 42001 A.3 Internal org / A.4 Resources",
+        "iso_overlap": "partial",
         "evidence": "machine",
         "evaluator": "audit_trail_active"
       },
@@ -711,6 +724,8 @@
         "title": "AI inventory exists and is current",
         "plain": "The city keeps a live list of its AI systems.",
         "nist_ref": "AI RMF MAP 1.1",
+        "iso_ref": "ISO/IEC 42001 A.4 Resources for AI systems",
+        "iso_overlap": "strong",
         "evidence": "machine",
         "evaluator": "inventory_current"
       },
@@ -720,6 +735,8 @@
         "title": "Each AI system has documented purpose and owner",
         "plain": "Every AI system on the list says what it's for and who owns it.",
         "nist_ref": "AI RMF MAP 1.6",
+        "iso_ref": "ISO/IEC 42001 A.4 Resources / A.6 AI system life cycle",
+        "iso_overlap": "partial",
         "evidence": "machine",
         "evaluator": "attestation_coverage"
       },
@@ -729,6 +746,8 @@
         "title": "Public-facing AI is actively discovered",
         "plain": "The city's website is scanned for AI it may not know it has, including vendor-embedded tools.",
         "nist_ref": "AI RMF MAP 4.1 (third-party)",
+        "iso_ref": "ISO/IEC 42001 A.10 Third-party & customer relationships",
+        "iso_overlap": "partial",
         "evidence": "machine",
         "evaluator": "city_assessed"
       },
@@ -738,6 +757,8 @@
         "title": "Disclosure compliance is tested against HB 149",
         "plain": "Every public AI is checked for the state-required 'you are talking to an AI' notice.",
         "nist_ref": "GAI Profile MS-2.5 / AI RMF MEASURE 2.5",
+        "iso_ref": "ISO/IEC 42001 A.8 Information for interested parties",
+        "iso_overlap": "strong",
         "evidence": "machine",
         "evaluator": "disclosure_tested"
       },
@@ -747,6 +768,8 @@
         "title": "Monitoring runs on a recurring cadence",
         "plain": "Checks happen automatically on a schedule, not once a year.",
         "nist_ref": "AI RMF MEASURE 1.1",
+        "iso_ref": "ISO/IEC 42001 A.6 AI system life cycle (monitoring)",
+        "iso_overlap": "partial",
         "evidence": "machine",
         "evaluator": "monitoring_cadence"
       },
@@ -756,6 +779,8 @@
         "title": "Employee AI usage has visibility",
         "plain": "The city can see when staff use AI tools with city data (Sentinel), or has a stated interim process.",
         "nist_ref": "GAI Profile GV-6.2 / MEASURE 2.10",
+        "iso_ref": "ISO/IEC 42001 A.7 Data / A.9 Use of AI systems",
+        "iso_overlap": "partial",
         "evidence": "hybrid",
         "evaluator": "sentinel_active",
         "attest_hint": "If Sentinel is not yet deployed, attest the interim process (e.g., policy + spot checks)."
@@ -766,6 +791,8 @@
         "title": "Findings are tracked with statutory cure deadlines",
         "plain": "Every problem found gets a 60-day legal clock and is tracked to closure.",
         "nist_ref": "AI RMF MANAGE 1.3",
+        "iso_ref": "ISO/IEC 42001 A.5 Assessing impacts / A.6 life cycle",
+        "iso_overlap": "partial",
         "evidence": "machine",
         "evaluator": "cure_tracking"
       },
@@ -775,6 +802,8 @@
         "title": "Remediation completes within the cure window",
         "plain": "Problems get fixed before the legal deadline expires.",
         "nist_ref": "AI RMF MANAGE 2.2",
+        "iso_ref": "ISO/IEC 42001 A.6 AI system life cycle (managing risks)",
+        "iso_overlap": "partial",
         "evidence": "machine",
         "evaluator": "remediation_current"
       },
@@ -784,6 +813,8 @@
         "title": "AI incident and complaint intake exists",
         "plain": "Residents and staff have a way to report AI problems, and reports get handled.",
         "nist_ref": "GAI Profile MG-4.1",
+        "iso_ref": "ISO/IEC 42001 A.8 Information for interested parties",
+        "iso_overlap": "partial",
         "evidence": "attested",
         "attest_hint": "Reference the intake channel (311, web form, email) and the owning department."
       },
@@ -793,6 +824,8 @@
         "title": "Vendor AI is reviewed before and during use",
         "plain": "AI bought from vendors gets a look-over: what data it touches and what the contract says.",
         "nist_ref": "AI RMF MANAGE 3.1",
+        "iso_ref": "ISO/IEC 42001 A.10 Third-party & customer relationships",
+        "iso_overlap": "strong",
         "evidence": "attested",
         "attest_hint": "Reference the procurement review step or contract clause used."
       }

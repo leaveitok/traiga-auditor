@@ -44,6 +44,10 @@ SETTABLE: Dict[str, Dict[str, Any]] = {
         "type": "bool", "group": "Automated scans", "label": "Daily scan enabled",
         "help": "Run a full compliance scan automatically once per day.",
         "default": lambda: config.SCAN_SCHEDULE_ENABLED},
+    "FRAMEWORK_ISO_42001_ENABLED": {
+        "type": "bool", "group": "Compliance frameworks", "label": "ISO/IEC 42001 lens",
+        "help": "Enable the ISO/IEC 42001:2023 readiness lens + report (voluntary standard; per-city opt-in). NIST and TRAIGA are always on.",
+        "default": lambda: config.FRAMEWORK_ISO_42001_ENABLED},
     "SCAN_SCHEDULE_HOUR": {
         "type": "int", "group": "Automated scans", "label": "Daily scan hour (UTC, 0-23)",
         "min": 0, "max": 23,

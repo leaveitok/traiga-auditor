@@ -94,6 +94,10 @@ SCAN_PROXY_ONLY_FLAGGED: bool = os.environ.get("SCAN_PROXY_ONLY_FLAGGED", "false
 # Flag-gated (off by default) so the LLM/PDF workload never runs against the core
 # nightly compliance scan until deliberately enabled. See docs/AGENDA_ENGINE_DESIGN.md.
 AGENDA_ENGINE_ENABLED: bool = os.environ.get("AGENDA_ENGINE_ENABLED", "false").lower() == "true"
+# Compliance-framework crosswalk lenses. NIST + TRAIGA are always on (spine + home
+# statute); additional frameworks ship built-but-disabled and are flipped on here when
+# we enter that market. Voluntary standards (ISO 42001) are a per-city opt-in.
+FRAMEWORK_ISO_42001_ENABLED: bool = os.environ.get("FRAMEWORK_ISO_42001_ENABLED", "false").lower() == "true"
 # How far back an initial backfill scans agendas (cost control); incremental runs
 # use the per-city last-scan date. Hard cap prevents an accidental years-deep scan.
 AGENDA_LOOKBACK_MONTHS: int = int(os.environ.get("AGENDA_LOOKBACK_MONTHS", "12"))
