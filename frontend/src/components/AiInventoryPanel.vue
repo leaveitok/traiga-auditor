@@ -126,6 +126,17 @@
           </v-tooltip>
           <v-chip v-if="item.presence === 'not_reobserved'" size="x-small" color="grey"
                   variant="tonal" label class="ml-1">not re-observed</v-chip>
+          <div class="mt-1">
+            <v-tooltip :text="deploymentMeta(item.provenance).tip">
+              <template #activator="{ props }">
+                <v-chip v-bind="props" size="x-small" variant="tonal" label
+                        :color="deploymentMeta(item.provenance).color">
+                  <v-icon start size="12">{{ deploymentMeta(item.provenance).icon }}</v-icon>
+                  {{ deploymentMeta(item.provenance).label }}
+                </v-chip>
+              </template>
+            </v-tooltip>
+          </div>
         </template>
 
         <template #item.disclosure_status="{ item }">
@@ -410,21 +421,52 @@ async function downloadPack() {
   }
 }
 
-// ── Provenance display (three discovery channels) ───────────────────────────
+// ── Provenance display (WHERE the item was inventoried from) ─────────────────
+// Every discovery channel gets a distinct chip. Missing entries here previously
+// made agenda/procurement items render as "Declared" — the source is now explicit.
 const provenanceLabel = (p) => ({
-  discovered_scan: 'Discovered', discovered_sentinel: 'Staff usage', declared: 'Declared',
+  discovered_scan: 'Website scan', discovered_agenda: 'Council agenda',
+  discovered_procurement: 'Procurement', discovered_budget: 'Budget',
+  discovered_sentinel: 'Staff usage', declared: 'Declared',
 }[p] || 'Declared')
 const provenanceColor = (p) => ({
-  discovered_scan: 'indigo', discovered_sentinel: 'deep-purple', declared: 'teal',
+  discovered_scan: 'indigo', discovered_agenda: 'blue', discovered_procurement: 'cyan',
+  discovered_budget: 'light-blue', discovered_sentinel: 'deep-purple', declared: 'teal',
 }[p] || 'teal')
 const provenanceIcon = (p) => ({
-  discovered_scan: 'mdi-radar', discovered_sentinel: 'mdi-monitor-eye', declared: 'mdi-account-edit',
+  discovered_scan: 'mdi-radar', discovered_agenda: 'mdi-gavel',
+  discovered_procurement: 'mdi-file-document-outline', discovered_budget: 'mdi-cash-multiple',
+  discovered_sentinel: 'mdi-monitor-eye', declared: 'mdi-account-edit',
 }[p] || 'mdi-account-edit')
 const provenanceTip = (p) => ({
   discovered_scan: 'Found automatically by the compliance scanner (public website)',
+  discovered_agenda: 'Found in a council/EDC meeting agenda (procurement record)',
+  discovered_procurement: 'Found in an uploaded procurement / contract file',
+  discovered_budget: 'Found in the adopted budget document',
   discovered_sentinel: 'Observed by Sentinel browser DLP: staff using this AI tool on city devices',
   declared: 'Declared by your team',
 }[p] || 'Declared by your team')
+
+// ── Deployment state (IS it live, or only procured/planned?) ────────────────
+// Derived from provenance. A website-scan hit is LIVE on the public site — a real
+// TRAIGA disclosure obligation now. An agenda/budget/procurement hit is PROCURED or
+// PLANNED and may not be deployed yet, so it must NOT read as a live violation:
+// surfacing this prevents an implementation-timing gap looking like a false positive.
+const _DEPLOYMENT = {
+  discovered_scan:        { label: 'Live on site',     color: 'green',       icon: 'mdi-access-point-check',
+                            tip: 'Observed on the public website by the scanner — a live disclosure obligation.' },
+  discovered_agenda:      { label: 'Procured · verify', color: 'blue',        icon: 'mdi-clipboard-check-outline',
+                            tip: 'Found in a procurement record (agenda), not verified live. Confirm it is deployed before treating it as a live disclosure obligation.' },
+  discovered_procurement: { label: 'Procured · verify', color: 'blue',        icon: 'mdi-clipboard-check-outline',
+                            tip: 'Found in a procurement record, not verified live. Confirm it is deployed before treating it as a live disclosure obligation.' },
+  discovered_budget:      { label: 'Budgeted · verify', color: 'blue',        icon: 'mdi-clipboard-check-outline',
+                            tip: 'Found in the adopted budget — planned/funded, not verified live. Confirm it is deployed.' },
+  discovered_sentinel:    { label: 'Staff-reported',    color: 'deep-purple', icon: 'mdi-monitor-eye',
+                            tip: 'Observed in staff browser usage on city devices.' },
+  declared:               { label: 'Self-declared',     color: 'teal',        icon: 'mdi-account-check-outline',
+                            tip: 'Declared by your team.' },
+}
+const deploymentMeta = (p) => _DEPLOYMENT[p] || _DEPLOYMENT.declared
 
 // ── Sentinel usage sync (platform admin) ────────────────────────────────────
 const syncing = ref(false)
