@@ -31,7 +31,7 @@
             label="Paste agenda text" rows="5" auto-grow
             density="comfortable" prepend-icon="mdi-text" class="mb-2" />
 
-          <div class="d-flex ga-3" v-if="source === 'legistar'">
+          <div class="d-flex ga-3 flex-wrap" v-if="source === 'legistar'">
             <v-text-field v-model="since" label="From" type="date" density="comfortable"
               prepend-icon="mdi-calendar-start" />
             <v-text-field v-model="until" label="To" type="date" density="comfortable"
@@ -123,7 +123,9 @@ const prefilled      = ref(false)   // slug was auto-filled from the city's save
 // website scan, or remembered from a prior agenda run) so it is never re-typed.
 watch(open, async (isOpen) => {
   if (!isOpen) return
-  try { if (!targets.items.length) await targets.fetchTargets() } catch { /* non-fatal */ }
+  // Always refresh so a slug just detected on a scan (or remembered from a prior
+  // agenda run) is reflected immediately, not hidden behind a stale cache.
+  try { await targets.fetchTargets() } catch { /* non-fatal — fall back to cached */ }
   const want = (props.defaultCity || '').trim().toLowerCase()
   const t = targets.items.find(x => String(x.city || '').trim().toLowerCase() === want)
   if (t && t.agenda_client && !legistarClient.value.trim()) {

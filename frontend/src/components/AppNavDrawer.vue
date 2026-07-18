@@ -1,5 +1,10 @@
 <template>
-  <v-navigation-drawer v-model="drawer" :rail="rail" permanent>
+  <v-navigation-drawer
+    v-model="drawer"
+    :rail="rail && !mobile"
+    :permanent="!mobile"
+    :temporary="mobile"
+  >
 
     <!-- Logo / header -->
     <v-list-item
@@ -9,8 +14,11 @@
       nav
     >
       <template #append>
-        <v-btn :icon="rail ? 'mdi-chevron-right' : 'mdi-chevron-left'"
+        <v-btn v-if="!mobile"
+               :icon="rail ? 'mdi-chevron-right' : 'mdi-chevron-left'"
                variant="text" @click="rail = !rail" />
+        <v-btn v-else icon="mdi-close" variant="text"
+               aria-label="Close navigation" @click="drawer = false" />
       </template>
     </v-list-item>
 
@@ -26,6 +34,7 @@
         :title="item.title"
         rounded="lg"
         active-color="primary"
+        @click="onNavigate"
       />
     </v-list>
 
@@ -90,13 +99,23 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { useDisplay } from 'vuetify'
 import { useAuthStore } from '../stores/auth'
 import { useAppTheme } from '../composables/useAppTheme'
 
 const auth   = useAuthStore()
 const router = useRouter()
-const drawer = ref(true)
+// Open/closed state is owned by App.vue (it also renders the mobile app-bar
+// toggle), so the drawer and the hamburger stay in sync.
+const drawer = defineModel({ type: Boolean, default: true })
 const rail   = ref(false)
+const { mobile } = useDisplay()
+
+// On phones the drawer overlays the content — dismiss it once a destination is
+// chosen so the user lands on the page, not on the menu.
+function onNavigate() {
+  if (mobile.value) drawer.value = false
+}
 
 const { toggle: toggleTheme, isDark } = useAppTheme()
 

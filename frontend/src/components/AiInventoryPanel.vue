@@ -36,7 +36,7 @@
           <v-icon start color="primary">mdi-clipboard-list-outline</v-icon>
           AI Use-Case Inventory
         </span>
-        <div class="d-flex ga-2 align-center">
+        <div class="d-flex ga-2 align-center flex-wrap">
           <v-select v-if="!city && cityOptions.length > 1" v-model="cityFilter"
                     :items="['All cities', ...cityOptions]" density="compact"
                     variant="outlined" hide-details style="min-width: 200px" />

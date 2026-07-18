@@ -1,5 +1,5 @@
 <template>
-  <v-container fluid class="pa-6">
+  <v-container fluid class="pa-3 pa-sm-6">
 
     <!-- Back button -->
     <v-btn variant="text" prepend-icon="mdi-arrow-left" class="mb-4"

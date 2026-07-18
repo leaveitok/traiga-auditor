@@ -1,5 +1,5 @@
 <template>
-  <v-container fluid class="pa-6">
+  <v-container fluid class="pa-3 pa-sm-6">
 
     <!-- No city assigned warning -->
     <v-alert v-if="!auth.city" type="warning" class="mb-4">

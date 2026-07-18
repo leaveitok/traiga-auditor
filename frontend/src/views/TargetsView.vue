@@ -1,5 +1,5 @@
 <template>
-  <v-container fluid class="pa-6">
+  <v-container fluid class="pa-3 pa-sm-6">
     <div class="d-flex align-center justify-space-between mb-6 flex-wrap ga-3">
       <div>
         <div class="text-h5 font-weight-bold">Target Registry</div>
@@ -7,7 +7,7 @@
           Municipal websites queued for compliance auditing
         </div>
       </div>
-      <div class="d-flex ga-2">
+      <div class="d-flex ga-2 flex-wrap">
         <v-btn
           v-if="auth.isPlatformAdmin"
           color="secondary"

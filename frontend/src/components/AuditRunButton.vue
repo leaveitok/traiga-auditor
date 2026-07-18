@@ -1,6 +1,6 @@
 <template>
   <div class="d-flex flex-column ga-2" style="min-width: 220px">
-    <div class="d-flex align-center ga-3">
+    <div class="d-flex align-center ga-3 flex-wrap">
       <v-btn
         color="primary"
         prepend-icon="mdi-play-circle"

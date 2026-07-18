@@ -1,5 +1,5 @@
 <template>
-  <v-container fluid class="pa-6">
+  <v-container fluid class="pa-3 pa-sm-6">
     <div class="d-flex align-center justify-space-between mb-6 flex-wrap ga-3">
       <div>
         <div class="text-h5 font-weight-bold">Violations &amp; Cure Periods</div>
@@ -37,7 +37,7 @@
             <v-card-subtitle>{{ v.rule_id }} · {{ v.severity }}</v-card-subtitle>
           </v-card-item>
           <v-card-text class="pt-0">
-            <div class="d-flex align-center ga-2 mb-2">
+            <div class="d-flex align-center flex-wrap ga-2 mb-2">
               <ComplianceStatusChip :status="v.status" />
               <v-chip size="x-small" :color="severityColor(v.severity)" label>
                 {{ v.severity }}

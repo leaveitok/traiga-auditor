@@ -1,5 +1,5 @@
 <template>
-  <v-container fluid class="pa-6" max-width="720">
+  <v-container fluid class="pa-3 pa-sm-6" max-width="720">
     <div class="text-h5 font-weight-bold mb-2">Settings</div>
     <div class="text-caption text-medium-emphasis mb-6">
       Operational feature flags are editable below (platform admin). Other values are set via

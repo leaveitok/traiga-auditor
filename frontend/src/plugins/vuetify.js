@@ -49,5 +49,12 @@ export default createVuetify({
     VCard:   { elevation: 2, rounded: 'lg' },
     VBtn:    { variant: 'flat' },
     VChip:   { size: 'small' },
+    // Responsive tables, set once for every table in the app. Below the `sm`
+    // breakpoint Vuetify stacks each row into a labelled card instead of a wide
+    // grid, which is what makes the data views usable on a phone. Adding a new
+    // table anywhere inherits this automatically — no per-view work.
+    VDataTable:        { mobileBreakpoint: 'sm' },
+    VDataTableServer:  { mobileBreakpoint: 'sm' },
+    VDataTableVirtual: { mobileBreakpoint: 'sm' },
   },
 })

@@ -2,7 +2,7 @@
   <v-card class="fill-height">
     <v-card-title class="d-flex align-center justify-space-between">
       <span class="text-subtitle-1 font-weight-bold">Compliance Trend</span>
-      <div class="d-flex ga-2">
+      <div class="d-flex ga-2 flex-wrap">
         <v-chip size="x-small" color="primary" variant="tonal" label>
           <span class="legend-dot" style="background:#1867C0" /> Avg Score
         </v-chip>

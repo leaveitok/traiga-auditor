@@ -1,5 +1,5 @@
 <template>
-  <v-container fluid class="pa-6">
+  <v-container fluid class="pa-3 pa-sm-6">
     <div class="mb-6">
       <div class="text-h5 font-weight-bold">AI Inventory</div>
       <div class="text-caption text-medium-emphasis">

@@ -1,5 +1,5 @@
 <template>
-  <v-container fluid class="pa-6">
+  <v-container fluid class="pa-3 pa-sm-6">
     <!-- Header row -->
     <div class="d-flex align-center justify-space-between mb-6 flex-wrap ga-3">
       <div>
