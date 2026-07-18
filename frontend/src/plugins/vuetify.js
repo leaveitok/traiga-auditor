@@ -10,6 +10,14 @@ export default createVuetify({
     aliases,
     sets: { mdi },
   },
+  // Where "mobile" begins. Vuetify's DEFAULT is 'lg' (1280px), which would flip a
+  // 1366x768 laptop, a split-screen window, or a smaller monitor into the mobile
+  // overlay layout — changing the desktop design we already have. Pin it to 'md'
+  // (960px) so: >=960px keeps the existing permanent-drawer desktop UI unchanged,
+  // and only phones / portrait tablets get the overlay drawer + app bar.
+  display: {
+    mobileBreakpoint: 'md',
+  },
   theme: {
     // NOTE: themes are keyed by name. To add a new theme later, add a palette
     // here and a matching entry in src/composables/useAppTheme.js — no other
