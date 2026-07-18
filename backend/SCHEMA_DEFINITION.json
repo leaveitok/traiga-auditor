@@ -1195,5 +1195,66 @@
       }
     ],
     "privacy_link_regex": "privacy"
+  },
+  "Governance_Profile": {
+    "_comment": "Transparent, SOURCED vendor governance profile — NOT a computed risk score. Three certainty tiers: (1) statutory_exposure is DETERMINISTIC from the tool's observed function -> the TRAIGA rule_ids it implicates (reliable; needs no vendor internals or training-data knowledge). (2) per-vendor documented facts are recorded ONLY with a source_url + as_of and stay unverified_candidate; absent a source the value is 'not_published' or 'unknown' — NEVER guessed. (3) anything unobservable and undocumented is an open_question for human/vendor attestation. No composite score is produced. Add a function or a sourced fact here with JSON only — no code change.",
+    "attribute_states": [
+      "documented",
+      "not_published",
+      "unknown",
+      "attested"
+    ],
+    "statutory_exposure": {
+      "chatbot": [
+        "EXT-DISCLOSURE-PRESENCE-01",
+        "EXT-DISCLOSURE-TIMING-02",
+        "EXT-DISCLOSURE-CLARITY-03",
+        "EXT-PRIVACY-POLICY-04"
+      ],
+      "virtual_assistant": [
+        "EXT-DISCLOSURE-PRESENCE-01",
+        "EXT-DISCLOSURE-TIMING-02",
+        "EXT-DISCLOSURE-CLARITY-03",
+        "EXT-PRIVACY-POLICY-04"
+      ],
+      "conversational_ai": [
+        "EXT-DISCLOSURE-PRESENCE-01",
+        "EXT-DISCLOSURE-TIMING-02",
+        "EXT-DISCLOSURE-CLARITY-03",
+        "EXT-PRIVACY-POLICY-04"
+      ],
+      "automated_intake_widget": [
+        "EXT-DISCLOSURE-PRESENCE-01",
+        "EXT-DISCLOSURE-TIMING-02",
+        "EXT-DISCLOSURE-CLARITY-03",
+        "EXT-PRIVACY-POLICY-04"
+      ],
+      "genai_tool": [
+        "EXT-DISCLOSURE-PRESENCE-01",
+        "EXT-PRIVACY-POLICY-04"
+      ],
+      "document_processing": [
+        "EXT-PRIVACY-POLICY-04"
+      ],
+      "decision_widget": [
+        "EXT-PRIVACY-POLICY-04"
+      ],
+      "biometric": [
+        "EXT-BIOMETRIC-VISIBILITY-05",
+        "EXT-PRIVACY-POLICY-04"
+      ],
+      "facial_recognition": [
+        "EXT-BIOMETRIC-VISIBILITY-05",
+        "EXT-PRIVACY-POLICY-04"
+      ],
+      "other": []
+    },
+    "vendor_attribute_fields": {
+      "trains_on_customer_data": "one of attribute_states; if documented include source_url + as_of",
+      "data_residency": "free text if documented (source_url + as_of), else not_published/unknown",
+      "processes_regulated_data": "one of attribute_states (PII/CJIS/HIPAA); sourced or unknown",
+      "certifications": "list of {name, source_url, as_of} e.g. SOC 2, FedRAMP, StateRAMP, ISO/IEC 42001",
+      "verification_status": "unverified_candidate until a human confirms the sourced facts"
+    }
   }
 }
