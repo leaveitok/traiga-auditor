@@ -243,6 +243,28 @@
  * @property {string[]} [scopes]      - granted scopes; what the app can REACH
  * @property {number}   [user_count]
  * @property {string[]} [users]       - opt-in only
+ * @property {boolean}  [tenant_wide_admin_consent] - an admin consented for the WHOLE
+ *           tenant, so no individual employee agreed. Highest-severity signal here.
+ * @property {string}   [sign_in_audience] - Entra signInAudience. Decides whether this
+ *           app's ID is portable between cities (multi-tenant) or tenant-local.
+ */
+
+/**
+ * One application the catalog did not recognise, returned so it can be turned into a
+ * new vendor signature. App metadata only — never consenting-user identities.
+ * @typedef {Object} OAuthUnmatchedApp
+ * @property {string} [app_name]
+ * @property {string} [app_id]
+ * @property {string} [publisher]
+ * @property {string} [provider]
+ * @property {string} [scopes_joined]
+ * @property {string} [scope_sensitivity]
+ * @property {string} [user_count]
+ * @property {string} [tenant_wide_admin_consent]
+ * @property {string} [sign_in_audience]
+ * @property {('yes'|'no')} [catalog_promotable] - 'yes' only for multi-tenant apps,
+ *           whose ID means the same thing in every tenant and is therefore safe to add
+ *           to the catalog shared across all cities.
  */
 
 /**
@@ -266,6 +288,8 @@
  * @property {string[]} cities
  * @property {string[]} errors
  * @property {boolean}  [dry_run]  - true = NOTHING was written
+ * @property {OAuthUnmatchedApp[]} [unmatched] - the signature backlog from this run
+ * @property {boolean}  [unmatched_truncated] - true = more misses than were returned
  */
 
 export {}

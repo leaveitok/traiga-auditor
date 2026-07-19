@@ -47,7 +47,7 @@ Get-FileHash .\Export-EntraOAuthGrants.ps1 -Algorithm SHA256
 Expected SHA-256:
 
 ```
-d73a97d103e8869a0d2dd0f6157ff10ea62cdfaa7bd0cd8bec9aa9bd0ff4795a
+388586446d9c8e2c95c08daf82921c8948655ec57f773152224a71d98bd66b8d
 ```
 
 **Then open it in a text editor and read it.** It is deliberately plain text. You will see

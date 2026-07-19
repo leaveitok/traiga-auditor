@@ -42,3 +42,4 @@ first release." Use `git log` for anything earlier.
 | Release | Date (UTC) | Bat | Change |
 |---------|------------|-----|--------|
 | 01.1 | 2026-07-19 | ship_release_versioning.bat | Introduce release stamping: VERSION, RELEASES.md, /health release, Settings display |
+| 01.2 | 2026-07-19 | ship_oauth_partner_harvest.bat | OAuth signature harvest; recover tenant-wide + signInAudience; fix qualified-name matching via publisher |

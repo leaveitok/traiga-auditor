@@ -23,6 +23,10 @@ import re
 from typing import Any, Dict, List, Optional
 
 PROVENANCE = "discovered_procurement"
+
+# Cap on the signature-harvest list. A tenant with thousands of consented apps must not
+# turn one API response into a multi-megabyte payload; the flag below reports truncation.
+MAX_UNMATCHED_REPORTED = 200
 DEFAULT_MIN_CONFIDENCE = 0.5
 
 VENDOR_FIELDS  = ("vendor", "supplier", "vendor_name", "company", "payee")
@@ -95,6 +99,7 @@ def normalize(
     min_confidence: float = DEFAULT_MIN_CONFIDENCE,
     provenance: str = PROVENANCE,
     extra_evidence_fields: tuple = (),
+    collect_unmatched: tuple = (),
 ) -> Dict[str, Any]:
     """
     rows: parsed file/agenda rows (dicts). Pure — the orchestrator handles I/O.
@@ -103,10 +108,24 @@ def normalize(
     Reused by other channels (e.g. council-agenda award items): pass
     provenance="discovered_agenda" and extra_evidence_fields to carry that
     channel's evidence (meeting_date, item_title, source_url, action) through.
+
+    collect_unmatched: field names to carry into a returned `unmatched` list.
+
+      WHY THIS EXISTS. A row that matches no catalog entry and trips no AI keyword is
+      counted in `skipped` and then thrown away. That is fine for a customer, who only
+      wants to know what WAS found — but it discards exactly the information needed to
+      grow the catalog. When a partner city runs a discovery channel, the apps we FAILED
+      to recognise are the most valuable output of the run: each one is a candidate
+      signature, and a signature added benefits every city afterwards. Losing them costs
+      a whole round-trip with a partner who is doing us a favour.
+
+      Opt-in and empty by default, so every existing caller keeps its current behaviour
+      and payload size. Only channels that are explicitly harvesting signatures ask for it.
     """
     candidates = index.get("procurement_candidates", [])
     keywords = index.get("ai_keywords") or DEFAULT_AI_KEYWORDS
     assets: List[Dict[str, Any]] = []
+    unmatched: List[Dict[str, Any]] = []
     skipped = 0
 
     for row in rows:
@@ -161,12 +180,24 @@ def normalize(
             })
             continue
 
+        # Recognised by nothing. Keep it (opt-in) as signature-authoring material rather
+        # than only incrementing a counter — see collect_unmatched above.
+        if collect_unmatched and len(unmatched) < MAX_UNMATCHED_REPORTED:
+            rec = {k: row[k] for k in collect_unmatched if row.get(k) not in (None, "")}
+            if rec:
+                unmatched.append(rec)
         skipped += 1
 
     matched    = sum(1 for a in assets if a["asset_types"] == ["procured_ai"])
     candidates_n = sum(1 for a in assets if a["asset_types"] == ["procured_ai_candidate"])
-    return {
+    out = {
         "assets": assets,
         "skipped": skipped,
         "source_meta": {"rows": len(rows), "matched": matched, "candidates": candidates_n},
     }
+    if collect_unmatched:
+        out["unmatched"] = unmatched
+        # Say so explicitly. A silently truncated list would have us conclude a tenant
+        # only had 200 unknown apps when it had 900.
+        out["unmatched_truncated"] = skipped > len(unmatched)
+    return out

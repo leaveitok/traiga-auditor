@@ -1,6 +1,6 @@
 ---
 title: "TRAIGA Auditor — User Guide"
-subtitle: "AI Transparency & Compliance for Texas Municipalities · Version 1.3"
+subtitle: "AI Transparency & Compliance for Texas Municipalities · Version 1.4"
 date: "July 18, 2026 · For City IT, CIO, and Compliance Staff"
 ---
 
@@ -186,6 +186,18 @@ Two protections are on by default:
 Findings are recorded as **Procured · verify** — an employee consented to it, which is not
 the same as the city running it. Confirm each one before treating it as a live obligation.
 As with all record-based discovery, these never start a cure clock on their own.
+
+Two things are called out specially, because they change what you should do about them:
+
+- **Tenant-wide** — an administrator approved the application for your *entire*
+  organisation, so no individual employee ever consented to it. This is usually the most
+  significant item in a report and worth reviewing first.
+- **Applications we did not recognise** — listed separately at the end of the run. These
+  are **not findings**; we simply have no catalog entry for them, and most will be
+  ordinary business software. Use **Download for signature review** to save the list. If
+  you send it back to us, any AI tools among them become detectable for *every* city on
+  the platform, not just yours. The file contains application names and publishers only —
+  no employee identities, ever.
 
 > This channel is off until a platform administrator enables it in **Settings → Feature Flags**.
 

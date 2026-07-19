@@ -94,6 +94,11 @@ foreach ($g in $grants) {
             app_name   = $sp.DisplayName
             publisher  = $sp.PublisherName
             provider   = 'microsoft'
+            # signInAudience distinguishes a MULTI-TENANT vendor app (its appId is the
+            # same in every tenant on earth) from an app registered inside your own
+            # tenant (AzureADMyOrg — its appId means nothing anywhere else). We already
+            # read this property; emitting it lets the auditor tell the two apart.
+            sign_in_audience = $sp.SignInAudience
             scopes     = New-Object System.Collections.Generic.HashSet[string]
             _users     = New-Object System.Collections.Generic.HashSet[string]
             user_count = 0
@@ -123,6 +128,7 @@ $records = foreach ($k in $byApp.Keys) {
         app_name   = $a.app_name
         publisher  = $a.publisher
         provider   = 'microsoft'
+        sign_in_audience = $a.sign_in_audience
         scopes     = @($a.scopes)
         user_count = $a._users.Count
     }
@@ -145,7 +151,18 @@ $payload = [ordered]@{
     grants         = @($records)
 }
 
-$payload | ConvertTo-Json -Depth 6 | Out-File -FilePath $OutFile -Encoding utf8
+# ConvertTo-Json in Windows PowerShell 5.1 collapses a ONE-element array into a bare
+# object, so a tenant with a single consented app would produce  "grants": { ... }
+# instead of  "grants": [ ... ]  and the uploader would report "no grants found".
+# Forcing the array form keeps the contract stable regardless of PowerShell version or
+# how many applications the tenant happens to have.
+$json = $payload | ConvertTo-Json -Depth 6
+if ($payload.grant_count -eq 1 -and $json -notmatch '"grants"\s*:\s*\[') {
+    $json = $json -replace '("grants"\s*:\s*)(\{)', '$1[$2'
+    $json = $json -replace '(\})(\s*)$', '$1]$2'
+    Write-Host 'NOTE: normalised single-element grants array for PowerShell 5.1.' -ForegroundColor DarkGray
+}
+$json | Out-File -FilePath $OutFile -Encoding utf8
 
 Disconnect-MgGraph | Out-Null
 

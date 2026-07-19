@@ -109,6 +109,54 @@
             Recorded items appear as <strong>Procured · verify</strong> — found in a consent
             record, not observed running on your website. Confirm whether each is deployed.
           </p>
+
+          <!-- The signature backlog. This is the most valuable output of a PARTNER run:
+               every row is an app we could not identify, with what we need to add it to
+               the catalog so every city detects it from then on. -->
+          <template v-if="unmatched.length">
+            <v-divider class="my-4" />
+            <div class="d-flex align-center flex-wrap ga-2 mb-2">
+              <v-icon size="small" class="mr-1">mdi-tag-search-outline</v-icon>
+              <strong>{{ unmatched.length }} application(s) we did not recognise</strong>
+              <v-spacer />
+              <v-btn size="small" variant="tonal" prepend-icon="mdi-download"
+                     @click="downloadUnmatched">Download for signature review</v-btn>
+            </div>
+            <p class="text-caption text-medium-emphasis mb-2">
+              These are not findings — we simply have no catalog entry for them. Most will
+              be ordinary business software. Send this list back to us and any AI tools
+              among them become detectable for every city, not just yours.
+            </p>
+            <v-alert v-if="result.unmatched_truncated" type="info" variant="tonal"
+                     density="compact" class="mb-2">
+              Your tenant had more unrecognised applications than we return at once. This
+              is the first {{ unmatched.length }}.
+            </v-alert>
+            <v-table density="compact">
+              <thead>
+                <tr>
+                  <th class="text-left">Application</th>
+                  <th class="text-left">Publisher</th>
+                  <th class="text-left">Users</th>
+                  <th class="text-left">Can reach</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(u, i) in unmatched" :key="i">
+                  <td class="text-body-2">
+                    {{ u.app_name || '—' }}
+                    <v-chip v-if="u.tenant_wide_admin_consent === 'yes'" size="x-small"
+                            color="warning" variant="tonal" class="ml-1">tenant-wide</v-chip>
+                  </td>
+                  <td class="text-caption text-medium-emphasis">{{ u.publisher || '—' }}</td>
+                  <td class="text-caption">{{ u.user_count || '—' }}</td>
+                  <td class="text-caption text-medium-emphasis">
+                    {{ u.scope_sensitivity || '—' }}
+                  </td>
+                </tr>
+              </tbody>
+            </v-table>
+          </template>
         </template>
       </v-card-text>
 
@@ -181,6 +229,13 @@ async function onFile(f) {
       user_count: typeof g.user_count === 'number'
         ? g.user_count
         : (Array.isArray(g.users) ? g.users.length : null),
+      // Carried, NOT stripped. Identities are the thing we remove (below); these two are
+      // risk/attribution metadata about the APP:
+      //   tenant_wide_admin_consent - an admin approved it for everyone, so no employee
+      //     individually consented. The most serious thing an export can tell you.
+      //   sign_in_audience - decides whether this app's ID is portable to other cities.
+      tenant_wide_admin_consent: !!g.tenant_wide_admin_consent,
+      sign_in_audience: g.sign_in_audience || '',
     }))
     phase.value = 'preview'
   } catch (e) {
@@ -208,6 +263,30 @@ async function run() {
         ? 'OAuth discovery is restricted to administrators.'
         : (e.response?.data?.detail || e.message)
   }
+}
+
+/** @type {import('vue').ComputedRef<Array<Object>>} */
+const unmatched = computed(() => result.value?.unmatched || [])
+
+/**
+ * Save the unrecognised apps so they can be sent back for signature authoring.
+ * Deliberately a plain download rather than an automatic upload: the city decides what
+ * leaves their environment, and they can open the file and read it first.
+ */
+function downloadUnmatched() {
+  const payload = {
+    city: props.defaultCity,
+    generated_utc: new Date().toISOString(),
+    note: 'Applications not recognised by the AI catalog. App metadata only — contains no user identities.',
+    unmatched: unmatched.value,
+  }
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
+  const url  = URL.createObjectURL(blob)
+  const a    = document.createElement('a')
+  a.href = url
+  a.download = `unrecognised-apps-${(props.defaultCity || 'city').toLowerCase().replace(/\s+/g, '-')}.json`
+  a.click()
+  URL.revokeObjectURL(url)
 }
 
 function close() {

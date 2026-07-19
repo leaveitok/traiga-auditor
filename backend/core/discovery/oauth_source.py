@@ -85,6 +85,12 @@ def run_oauth_discovery(
         "rows":       meta.get("rows", len(rows)),
         "skipped":    result.get("skipped", 0),
         "dry_run":    dry_run,
+        # The apps we could NOT identify, carried through to the caller. This is the
+        # point of running against a partner tenant: the misses are the signature
+        # backlog, and one signature added flags that vendor for every city afterwards.
+        # Independent of dry_run — a dry run is exactly when you most want them.
+        "unmatched":  result.get("unmatched", []),
+        "unmatched_truncated": bool(result.get("unmatched_truncated")),
     }
 
     if dry_run:
@@ -119,6 +125,10 @@ def _log(repo: Any, city: str, out: Dict[str, Any], actor: str, *, dry_run: bool
                 "matched":    out.get("matched", 0),
                 "candidates": out.get("candidates", 0),
                 "rows":       out.get("rows", 0),
+                # Count only. The unmatched APP NAMES are returned to the operator but
+                # deliberately not copied into the audit log, which is retained far
+                # longer and read more widely than a discovery response.
+                "unmatched":  len(out.get("unmatched", []) or []),
             },
         )
     except Exception as exc:

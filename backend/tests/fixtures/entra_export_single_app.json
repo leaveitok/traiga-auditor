@@ -1,0 +1,18 @@
+{
+  "generated_utc": "2026-07-18T14:05:00.0000000Z",
+  "tenant_id": "00000000-0000-0000-0000-000000000000",
+  "provider": "microsoft",
+  "includes_users": false,
+  "grant_count": 1,
+  "grants": [
+    {
+      "app_id": "1950a258-227b-4e31-a9cf-717495945fc2",
+      "app_name": "ChatGPT",
+      "publisher": "OpenAI, L.L.C.",
+      "provider": "microsoft",
+      "sign_in_audience": "AzureADMultipleOrgs",
+      "scopes": ["User.Read", "openid"],
+      "user_count": 1
+    }
+  ]
+}

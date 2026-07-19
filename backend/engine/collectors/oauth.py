@@ -16,6 +16,11 @@ then no orchestrator or route can leak identities by forgetting a flag.
 
 Governance: we report what a grant can REACH (scopes -> sensitivity, from
 SCHEMA_DEFINITION.json OAuth_Scope_Sensitivity). We never compute a risk score.
+
+Signature harvest: apps we FAIL to recognise are returned as `unmatched` — the raw
+material for new catalog entries. A partner city's single export is the only way to
+learn real Entra display names, publisher strings and (for multi-tenant apps) stable
+app IDs, so throwing the misses away would waste the most valuable half of the run.
 """
 from __future__ import annotations
 
@@ -29,7 +34,68 @@ PROVENANCE = "discovered_oauth"
 # Grant fields we carry into evidence. Deliberately excludes anything user-identifying.
 _EVIDENCE_FIELDS = ("app_id", "publisher", "provider", "scopes_joined",
                     "scope_sensitivity", "scope_reaches", "user_count",
-                    "first_seen", "last_seen")
+                    "first_seen", "last_seen", "tenant_wide_admin_consent",
+                    "sign_in_audience")
+
+# Everything needed to AUTHOR a catalog signature from a real tenant observation, so a
+# partner city's single run yields a usable backlog instead of just a count. Mirrors the
+# alias shape in SCHEMA_DEFINITION.json AI_Tool_Catalog.
+_SIGNATURE_FIELDS = ("app_name", "app_id", "publisher", "provider", "scopes_joined",
+                     "scope_sensitivity", "user_count", "tenant_wide_admin_consent",
+                     "sign_in_audience", "catalog_promotable")
+
+# Entra signInAudience values meaning the application is MULTI-TENANT: the same appId
+# identifies the same vendor app in every tenant on earth, so an ID observed at one city
+# is safe and useful to promote into the shared catalog. AzureADMyOrg, by contrast, is an
+# app registered inside that one tenant — its appId is meaningless elsewhere and must
+# never be written into a catalog shared across cities.
+_MULTI_TENANT_AUDIENCES = {"azureadmultipleorgs", "azureadandpersonalmicrosoftaccount"}
+
+# Corporate legal suffixes carry no identifying information, but they DO wreck token-set
+# matching: "Grammarly, Inc." vs the catalog alias "grammarly" scores 0.5 with the suffix
+# and 1.0 without it. Stripped from the PUBLISHER only.
+_CORP_SUFFIXES = {
+    "inc", "incorporated", "llc", "l.l.c", "llp", "lp", "ltd", "limited", "co",
+    "company", "corp", "corporation", "pbc", "plc", "gmbh", "ag", "sa", "sas",
+    "bv", "nv", "pty", "srl", "spa", "oy", "ab", "as", "kk", "kg", "holdings",
+}
+
+
+def clean_publisher(publisher: str) -> str:
+    """PURE: strip trailing corporate legal suffixes from a publisher name.
+
+    WHY THIS MATTERS. Real Entra display names carry qualifiers a catalog alias never
+    does — "Grammarly for Windows", "Fireflies.ai Notetaker" — so matching on the app
+    NAME alone misses vendors we already know about. (Verified against a realistic
+    export fixture: "Grammarly for Windows" scored 0.333 against alias "grammarly" and
+    fell through as unrecognised.)
+
+    The publisher is the better signal: it is the verified company behind the app, and
+    it does not carry product qualifiers. The only thing in its way is the legal suffix.
+
+    Deliberately NOT solved by relaxing the shared matcher. The tempting fix — award a
+    match whenever the alias tokens are fully contained in the observed name — was tested
+    and rejected: it matches "grok" inside "AI Consulting Services from Grok Partners
+    LLC" and "claude" inside "Claude Monet Art Archive". Publisher matching produced zero
+    cross-vendor hits on the same test (Adobe scored 0.000 against grammarly).
+    """
+    toks = [t for t in str(publisher or "").replace(",", " ").split() if t.strip()]
+    while toks and toks[-1].strip(".").lower() in _CORP_SUFFIXES:
+        toks.pop()
+    return " ".join(toks).strip()
+
+
+def is_catalog_promotable(sign_in_audience: str, provider: str = "") -> bool:
+    """PURE: may this app's ID be promoted into the SHARED vendor catalog?
+
+    Only multi-tenant Microsoft apps qualify. Anything unknown returns False — a wrong
+    ID silently mis-attributes an app to the wrong vendor for every city that follows,
+    which is far worse than a missing one. Fail closed.
+    """
+    aud = str(sign_in_audience or "").strip().lower()
+    if not aud:
+        return False
+    return aud in _MULTI_TENANT_AUDIENCES
 
 
 def classify_scopes(scopes: List[str], rules_block: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
@@ -113,13 +179,21 @@ def normalize(grants: List[Dict[str, Any]], index: Dict[str, Any], city: str,
         count = g.get("user_count")
         if count is None:
             count = len(users) if users else ""
+        audience = str(g.get("sign_in_audience") or "").strip()
+        app_name = (g.get("app_name") or "").strip()
+        publisher_raw = (g.get("publisher") or "").strip()
         row = {
-            # The app name is the vendor signal; publisher helps disambiguate.
-            "vendor":            (g.get("app_name") or "").strip(),
-            "product":           (g.get("app_name") or "").strip(),
+            # Two independent match targets, both tried by the shared matcher (best wins):
+            #   product = the app display name  ("Grammarly for Windows")
+            #   vendor  = the cleaned publisher ("Grammarly")
+            # The publisher is what rescues vendors whose Entra display name carries a
+            # product qualifier the catalog alias does not have.
+            "vendor":            clean_publisher(publisher_raw) or app_name,
+            "product":           app_name,
+            "app_name":          app_name,
             "city":              city,
             "app_id":            str(g.get("app_id") or "").strip(),
-            "publisher":         (g.get("publisher") or "").strip(),
+            "publisher":         publisher_raw,
             "provider":          (g.get("provider") or "").strip(),
             "scopes_joined":     ", ".join(str(s) for s in scopes),
             "scope_sensitivity": cls["sensitivity"],
@@ -127,7 +201,17 @@ def normalize(grants: List[Dict[str, Any]], index: Dict[str, Any], city: str,
             "user_count":        str(count),
             "first_seen":        str(g.get("first_seen") or ""),
             "last_seen":         str(g.get("last_seen") or ""),
+            "sign_in_audience":  audience,
+            # Promotability is decided HERE, in the pure layer, so no UI or orchestrator
+            # can accidentally offer a tenant-local app ID for the shared catalog.
+            "catalog_promotable": "yes" if is_catalog_promotable(audience) else "no",
         }
+        # Tenant-wide admin consent: an administrator approved this app on behalf of the
+        # WHOLE organisation, so no individual employee ever agreed to it. It is the
+        # highest-severity thing an OAuth export can tell you, and it was previously
+        # computed by the export script and then silently dropped here.
+        if g.get("tenant_wide_admin_consent"):
+            row["tenant_wide_admin_consent"] = "yes"
         if include_users and users:
             # Opt-in only, and clearly named so it is auditable downstream.
             row["consenting_users"] = ", ".join(str(u) for u in users)
@@ -138,4 +222,8 @@ def normalize(grants: List[Dict[str, Any]], index: Dict[str, Any], city: str,
         rows, index, city_field="city", min_confidence=mc,
         provenance=PROVENANCE,
         extra_evidence_fields=extra,
+        # Harvest what we did NOT recognise. Note this deliberately never includes
+        # consenting_users: an app we cannot identify is exactly the case where leaking
+        # who used it would be least defensible.
+        collect_unmatched=_SIGNATURE_FIELDS,
     )

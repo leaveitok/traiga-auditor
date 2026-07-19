@@ -1,0 +1,92 @@
+{
+  "generated_utc": "2026-07-18T14:02:11.0000000Z",
+  "tenant_id": "00000000-0000-0000-0000-000000000000",
+  "provider": "microsoft",
+  "includes_users": false,
+  "grant_count": 9,
+  "grants": [
+    {
+      "app_id": "1950a258-227b-4e31-a9cf-717495945fc2",
+      "app_name": "ChatGPT",
+      "publisher": "OpenAI, L.L.C.",
+      "provider": "microsoft",
+      "sign_in_audience": "AzureADMultipleOrgs",
+      "scopes": ["User.Read", "openid", "profile", "email", "offline_access"],
+      "user_count": 34
+    },
+    {
+      "app_id": "b73b4b1e-9a1f-4b2c-9d3a-000000000002",
+      "app_name": "Claude for Work",
+      "publisher": "Anthropic PBC",
+      "provider": "microsoft",
+      "sign_in_audience": "AzureADMultipleOrgs",
+      "scopes": ["User.Read", "Files.Read.All", "offline_access"],
+      "user_count": 6
+    },
+    {
+      "app_id": "c1e2a3b4-0000-0000-0000-000000000003",
+      "app_name": "Otter.ai",
+      "publisher": "Otter.ai Inc.",
+      "provider": "microsoft",
+      "sign_in_audience": "AzureADMultipleOrgs",
+      "scopes": ["Calendars.Read", "OnlineMeetings.Read", "User.Read"],
+      "user_count": 11
+    },
+    {
+      "app_id": "d4f5a6b7-0000-0000-0000-000000000004",
+      "app_name": "Fireflies.ai Notetaker",
+      "publisher": "Fireflies.ai",
+      "provider": "microsoft",
+      "sign_in_audience": "AzureADMultipleOrgs",
+      "scopes": ["Calendars.ReadWrite", "OnlineMeetings.ReadWrite", "Mail.Read"],
+      "user_count": 3,
+      "tenant_wide_admin_consent": true
+    },
+    {
+      "app_id": "e5a6b7c8-0000-0000-0000-000000000005",
+      "app_name": "Grammarly for Windows",
+      "publisher": "Grammarly, Inc.",
+      "provider": "microsoft",
+      "sign_in_audience": "AzureADMultipleOrgs",
+      "scopes": ["User.Read", "openid"],
+      "user_count": 22
+    },
+    {
+      "app_id": "f6b7c8d9-0000-0000-0000-000000000006",
+      "app_name": "Jasper AI Content Platform",
+      "publisher": "Jasper AI, Inc.",
+      "provider": "microsoft",
+      "sign_in_audience": "AzureADMultipleOrgs",
+      "scopes": ["User.Read", "Files.ReadWrite.All"],
+      "user_count": 2
+    },
+    {
+      "app_id": "a7c8d9e0-0000-0000-0000-000000000007",
+      "app_name": "Read AI for Teams",
+      "publisher": "Read AI, Inc.",
+      "provider": "microsoft",
+      "sign_in_audience": "AzureADMultipleOrgs",
+      "scopes": ["OnlineMeetings.Read.All", "Calendars.Read", "User.Read.All"],
+      "user_count": 8,
+      "tenant_wide_admin_consent": true
+    },
+    {
+      "app_id": "b8d9e0f1-0000-0000-0000-000000000008",
+      "app_name": "Lewisville Permit Portal Connector",
+      "publisher": "",
+      "provider": "microsoft",
+      "sign_in_audience": "AzureADMyOrg",
+      "scopes": ["User.Read"],
+      "user_count": 140
+    },
+    {
+      "app_id": "c9e0f1a2-0000-0000-0000-000000000009",
+      "app_name": "Adobe Acrobat Sign",
+      "publisher": "Adobe Inc.",
+      "provider": "microsoft",
+      "sign_in_audience": "AzureADMultipleOrgs",
+      "scopes": ["User.Read", "Files.Read"],
+      "user_count": 61
+    }
+  ]
+}

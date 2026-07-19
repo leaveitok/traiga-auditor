@@ -87,6 +87,12 @@ class DiscoveryRunResponse(BaseModel):
                                        # vertex | vertex_partial | keyword_fallback |
                                        # keyword | preextracted | none
     dry_run:    Optional[bool] = None  # oauth: true = reported only, NOTHING written
+    # Applications the catalog did not recognise, with the fields needed to author a
+    # signature. Returned so a PARTNER city's single run produces a usable backlog
+    # instead of an unexplained "skipped: 34". Contains app/publisher metadata only —
+    # never consenting-user identities, even when include_users was granted.
+    unmatched:  Optional[List[dict]] = None
+    unmatched_truncated: Optional[bool] = None
 
 
 @router.post("/procurement", response_model=DiscoveryRunResponse)
@@ -183,6 +189,14 @@ class OAuthGrant(BaseModel):
     users:      Optional[List[str]] = None
     first_seen: Optional[str] = None
     last_seen:  Optional[str] = None
+    # An administrator consented on behalf of the ENTIRE tenant, so no individual
+    # employee ever agreed. Highest-severity signal in an export; the export script
+    # computes it and this model previously dropped it on the floor.
+    tenant_wide_admin_consent: Optional[bool] = None
+    # Entra signInAudience. Decides whether this app's ID may be promoted into the
+    # SHARED vendor catalog: multi-tenant IDs are global and portable between cities,
+    # single-tenant (AzureADMyOrg) IDs are meaningless outside the tenant that made them.
+    sign_in_audience: Optional[str] = None
 
 
 class OAuthRequest(BaseModel):
@@ -249,6 +263,8 @@ def run_oauth(
         skipped=result["skipped"], rows=result["rows"],
         cities=result["cities"], errors=result["errors"],
         dry_run=result.get("dry_run"),
+        unmatched=result.get("unmatched") or [],
+        unmatched_truncated=result.get("unmatched_truncated"),
     )
 
 
