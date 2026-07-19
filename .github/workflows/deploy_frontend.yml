@@ -31,12 +31,20 @@ jobs:
         # a package-lock generated on Windows can omit the Linux rollup binary.
         run: npm ci || { echo "npm ci failed - clean reinstall"; rm -rf node_modules package-lock.json; npm install; }
 
+      # Read the human-facing release number from the repo-root VERSION file. It has to
+      # be a separate step because an `env:` block cannot run shell substitution.
+      - name: Read release number
+        id: rel
+        run: echo "release=$(cat VERSION)" >> "$GITHUB_OUTPUT"
+
       - name: Build (Vite)
         working-directory: frontend
         # This IS the gate: a broken UI fails here and the deploy step never runs.
-        # Stamp the build with the deploy commit -> import.meta.env.VITE_BUILD_SHA.
+        # Stamp the build with the deploy commit -> import.meta.env.VITE_BUILD_SHA,
+        # and with the release number -> import.meta.env.VITE_RELEASE.
         env:
           VITE_BUILD_SHA: ${{ github.sha }}
+          VITE_RELEASE: ${{ steps.rel.outputs.release }}
         run: npm run build
 
       - name: Authenticate to Google Cloud

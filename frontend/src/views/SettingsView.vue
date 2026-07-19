@@ -59,13 +59,31 @@
       <v-card-title prepend-icon="mdi-tag-outline">Version &amp; Build</v-card-title>
       <v-card-text>
         <v-list density="compact">
+          <v-list-item title="Release">
+            <template #subtitle>
+              <span class="text-h6 font-weight-medium">{{ health.release || '—' }}</span>
+              <v-chip v-if="releaseMismatch" size="x-small" color="warning" variant="tonal"
+                      class="ml-2">frontend {{ frontendRelease }}</v-chip>
+            </template>
+          </v-list-item>
           <v-list-item title="Backend build"  :subtitle="health.version || '—'" />
           <v-list-item title="Frontend build" :subtitle="frontendBuild" />
           <v-list-item title="Environment"    :subtitle="health.environment || '—'" />
         </v-list>
         <div class="text-caption text-medium-emphasis">
+          <strong>Release</strong> is the number to quote on a support call — look it up in
+          <code>RELEASES.md</code> to find the exact change and the script that shipped it.
           Build IDs are the deployed git commit (short SHA), stamped by CI at deploy time.
+          This panel reads the <em>running</em> backend, so it is the authoritative answer to
+          "what is live?" — trust it over any file in the repo.
         </div>
+        <v-alert v-if="releaseMismatch" type="warning" variant="tonal" density="compact"
+                 class="mt-3">
+          The frontend is serving <strong>{{ frontendRelease }}</strong> but the backend is
+          running <strong>{{ health.release }}</strong>. The two halves deploy as separate CI
+          jobs, so one can succeed while the other fails or is still building. Check both
+          Actions runs before trusting anything on this dashboard.
+        </v-alert>
       </v-card-text>
     </v-card>
 
@@ -156,7 +174,7 @@
 </template>
 
 <script setup>
-import { reactive, ref, onMounted } from 'vue'
+import { reactive, ref, computed, onMounted } from 'vue'
 import { healthApi } from '../api/client'
 import { useSettingsStore } from '../stores/settings'
 import { useAuthStore } from '../stores/auth'
@@ -186,10 +204,23 @@ async function saveFlags() {
 }
 
 const health = reactive({ ok: false, ts: null, err: null, loading: false,
-                          version: null, environment: null, storage: null })
+                          release: null, version: null, environment: null, storage: null })
 
 // Frontend build id — stamped by CI (deploy_frontend.yml sets VITE_BUILD_SHA); 'dev' locally.
 const frontendBuild = (import.meta.env.VITE_BUILD_SHA || 'dev').slice(0, 12)
+// Human-facing release, baked in at build time from the repo-root VERSION file.
+const frontendRelease = import.meta.env.VITE_RELEASE || 'dev'
+
+/**
+ * Backend and frontend deploy as SEPARATE CI jobs, so they can legitimately disagree for
+ * a minute during a deploy — or indefinitely if one job went red. Surfacing the split is
+ * the whole point: a half-deployed dashboard that looks healthy is how you end up
+ * demoing a feature whose backend never shipped.
+ * Suppressed for local dev builds, where 'dev' vs a real release is expected.
+ */
+const releaseMismatch = computed(() =>
+  !!health.release && health.release !== 'dev' && frontendRelease !== 'dev' &&
+  health.release !== frontendRelease)
 
 async function checkHealth() {
   health.loading = true
@@ -198,6 +229,7 @@ async function checkHealth() {
     const res    = await healthApi.check()
     health.ok    = true
     health.ts    = new Date(res.data.timestamp).toLocaleTimeString()
+    health.release     = res.data.release
     health.version     = res.data.version
     health.environment = res.data.environment
     health.storage     = res.data.storage
