@@ -34,23 +34,35 @@ Install-Module Microsoft.Graph -Scope CurrentUser
 
 ## Step 3 — Get the script and verify it
 
-Download `Export-EntraOAuthGrants.ps1` from `tools/oauth-export/` in the TRAIGA Auditor
-repository.
+**Download it from the dashboard**, not from an email or an attachment:
 
-**Verify you received the file we published** (it is not Authenticode-signed — we do not
-hold a code-signing certificate, so we give you a checksum instead):
+> **AI Inventory → OAuth → Download script**
+
+The dashboard is the only place you should ever get this file. It always serves the
+version that matches the running system, so the script and the service that reads its
+output can never fall out of step — and you never have to wonder whether the copy someone
+sent you is current.
+
+**Verify you received the file we published.** It is not Authenticode-signed — we do not
+hold a code-signing certificate, so we publish a checksum instead. The SHA-256 is shown
+next to the download button, with a copy control. Compare it to the file you saved:
 
 ```powershell
 Get-FileHash .\Export-EntraOAuthGrants.ps1 -Algorithm SHA256
 ```
 
-Expected SHA-256:
+The checksum on screen is **computed from the exact file being served**, not typed into a
+document, so it cannot drift out of date. If the two values differ, stop and tell us — do
+not run the file.
 
-```
-388586446d9c8e2c95c08daf82921c8948655ec57f773152224a71d98bd66b8d
-```
+A note on what this does and does not prove: the checksum confirms that the file you saved
+is the file we served, so it catches corruption or truncation in transit. It is not, by
+itself, proof of our trustworthiness. That is what Step 4 is for — reading the script, and
+checking your own Entra audit logs afterwards.
 
-**Then open it in a text editor and read it.** It is deliberately plain text. You will see
+## Step 4 — Read it before you run it
+
+**Open it in a text editor and read it.** It is deliberately plain text. You will see
 it requests only these two read scopes, and calls only `Get-` (read) cmdlets:
 
 - `Application.Read.All` — read the list of enterprise applications
@@ -59,7 +71,7 @@ it requests only these two read scopes, and calls only `Get-` (read) cmdlets:
 The write versions of these permissions (`*.ReadWrite.All`) are **never requested**, so
 Entra itself will refuse any write attempt regardless of what the script does.
 
-## Step 4 — Run it
+## Step 5 — Run it
 
 ```powershell
 .\Export-EntraOAuthGrants.ps1
@@ -75,7 +87,7 @@ oauth-grants-<your-tenant-id>-<date>.json
 If you specifically want the user identities in order to go revoke a grant, add
 `-IncludeUsers`. **This makes the file employee-identifiable — handle it accordingly.**
 
-## Step 5 — Read the file before you send it
+## Step 6 — Read the file before you send it
 
 Open the JSON. Every application appears as a plain record:
 
@@ -92,7 +104,7 @@ Open the JSON. Every application appears as a plain record:
 
 That is the entire contents. Nothing else leaves your environment.
 
-## Step 6 — Upload it (dry run first)
+## Step 7 — Upload it (dry run first)
 
 In TRAIGA Auditor: **AI Inventory → Discover OAuth**, choose your city, and upload the file
 with **Dry run** left ON.
@@ -101,7 +113,7 @@ A dry run **reports what it found and writes nothing**. You see exactly which ap
 added to your inventory, and what each one can reach. Only when you are satisfied do you
 re-run with Dry run off to record them.
 
-## Step 7 — Verify us in your own logs
+## Step 8 — Verify us in your own logs
 
 You do not have to take our word for "read-only." Every call the script made appears in
 **Entra admin center → Monitoring → Audit logs / Sign-in logs** under your own account. You

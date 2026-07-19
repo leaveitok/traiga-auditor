@@ -67,5 +67,22 @@ export const useDiscoveryStore = defineStore('discovery', () => {
     }
   }
 
-  return { running, error, runProcurement, runAgenda, runOAuth }
+  /**
+   * Metadata (incl. SHA-256) for the OAuth export script this deployment serves.
+   * Never throws — the dialog must still work if the checksum cannot be read.
+   * @returns {Promise<Object|null>}
+   */
+  async function oauthScriptMeta(provider = 'microsoft') {
+    try {
+      return await GovernanceService.getOAuthExportScriptMeta(provider)
+    } catch (e) {
+      return null
+    }
+  }
+
+  const oauthScriptUrl = (provider = 'microsoft') =>
+    GovernanceService.oauthExportScriptUrl(provider)
+
+  return { running, error, runProcurement, runAgenda, runOAuth,
+           oauthScriptMeta, oauthScriptUrl }
 })

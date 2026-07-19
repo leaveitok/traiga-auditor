@@ -9,9 +9,12 @@ Channels ship incrementally; today: procurement. OAuth/network follow.
 """
 from __future__ import annotations
 
-from typing import List, Optional
+import hashlib
+import os
+from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from core.access import resolve_principal
@@ -265,6 +268,116 @@ def run_oauth(
         dry_run=result.get("dry_run"),
         unmatched=result.get("unmatched") or [],
         unmatched_truncated=result.get("unmatched_truncated"),
+    )
+
+
+# ── The export script itself, served from the backend ─────────────────────────
+# WHY THE BACKEND AND NOT A STATIC FILE. This script PRODUCES the JSON that this same
+# service PARSES. Backend and frontend deploy as separate CI jobs, so hosting the script
+# on the frontend would let the producer and the parser drift apart — a city could
+# download a script whose output shape the running API no longer understands. Serving it
+# from the backend makes that impossible by construction: the script and the code that
+# reads it are the same deployment.
+#
+# It also answers "where does a city get this in production?" — the dashboard, not an
+# email attachment — and kills a whole class of manual work: the checksum is COMPUTED
+# from the file being served, so it can never drift from a number typed into a document.
+
+_SCRIPT_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
+    os.path.abspath(__file__)))), "tools", "oauth-export")
+_SCRIPTS = {
+    "microsoft": "Export-EntraOAuthGrants.ps1",
+}
+_script_meta_cache: Dict[str, Dict[str, Any]] = {}
+
+
+def _script_path(provider: str) -> str:
+    name = _SCRIPTS.get((provider or "microsoft").strip().lower())
+    if not name:
+        raise HTTPException(status_code=404,
+                            detail=f"No export script for provider '{provider}'.")
+    path = os.path.join(_SCRIPT_DIR, name)
+    if not os.path.isfile(path):
+        # Deployment error, not user error: the file should be baked into the image.
+        raise HTTPException(status_code=500,
+                            detail="Export script missing from this deployment.")
+    return path
+
+
+def _script_meta(provider: str) -> Dict[str, Any]:
+    """Hash the file ON DISK and cache by (path, mtime, size).
+
+    Computed rather than configured, deliberately. A checksum maintained by hand in a
+    document is a checksum that eventually disagrees with the file — and a city that
+    verifies against a stale number is told, wrongly, that the file was tampered with.
+    """
+    path = _script_path(provider)
+    st = os.stat(path)
+    key = f"{path}:{st.st_mtime_ns}:{st.st_size}"
+    cached = _script_meta_cache.get(key)
+    if cached:
+        return cached
+    h = hashlib.sha256()
+    with open(path, "rb") as fh:
+        for chunk in iter(lambda: fh.read(65536), b""):
+            h.update(chunk)
+    meta = {
+        "provider":  (provider or "microsoft").lower(),
+        "filename":  os.path.basename(path),
+        "sha256":    h.hexdigest(),
+        "size_bytes": st.st_size,
+        "release":   os.environ.get("APP_RELEASE", "dev"),
+    }
+    _script_meta_cache.clear()
+    _script_meta_cache[key] = meta
+    return meta
+
+
+@router.get("/oauth/export-script/meta")
+def oauth_export_script_meta(
+    provider: str = "microsoft",
+    user: dict = Depends(get_current_user),
+    repo: GovernanceRepository = Depends(get_repository),
+):
+    """Filename, size, release and SHA-256 of the script we would serve right now.
+
+    Lets the dashboard display a checksum the city can verify against the file they
+    saved. RBAC: any authenticated user — the script contains no secrets, and the admin
+    who runs it needs to see the hash before downloading.
+    """
+    # TODO: attach verified user context for multi-tenant scoping (auth placeholder)
+    return _script_meta(provider)
+
+
+@router.get("/oauth/export-script")
+def oauth_export_script(
+    provider: str = "microsoft",
+    user: dict = Depends(get_current_user),
+    repo: GovernanceRepository = Depends(get_repository),
+):
+    """Download the read-only export script.
+
+    RBAC: platform_admin or agency_admin. Not because the contents are sensitive — the
+    city is meant to read every line — but because handing out tooling should be an
+    administrative act that we can attribute.
+    """
+    # TODO: attach verified user context for multi-tenant scoping (auth placeholder)
+    principal = resolve_principal(user, repo)
+    if not (principal.is_platform_admin or principal.is_agency_admin):
+        raise HTTPException(
+            status_code=403,
+            detail="Downloading the export script requires platform_admin or agency_admin.")
+
+    meta = _script_meta(provider)
+    # Stamp the release into the filename so a support conversation is unambiguous about
+    # which build produced a given export.
+    stem, ext = os.path.splitext(meta["filename"])
+    download_name = f"{stem}-{meta['release']}{ext}"
+    return FileResponse(
+        _script_path(provider),
+        media_type="text/plain; charset=utf-8",
+        filename=download_name,
+        headers={"X-Script-SHA256": meta["sha256"]},
     )
 
 

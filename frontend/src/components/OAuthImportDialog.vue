@@ -11,11 +11,55 @@
       <v-card-text>
         <!-- STEP 1 — choose the export file -->
         <template v-if="phase === 'select'">
+          <!-- STEP 1 — get the script from HERE, not from an email. Serving it from the
+               running backend is what guarantees the script and the code that parses its
+               output are the same deployment. -->
+          <div class="mb-4 pa-3 rounded" style="border: 1px solid rgba(128,128,128,0.3)">
+            <div class="d-flex align-center flex-wrap ga-2 mb-1">
+              <v-icon size="small" class="mr-1">mdi-numeric-1-circle-outline</v-icon>
+              <strong>Get the export script</strong>
+              <v-spacer />
+              <v-btn size="small" color="primary" variant="tonal"
+                     prepend-icon="mdi-download" :href="scriptUrl" download>
+                Download script
+              </v-btn>
+            </div>
+            <p class="text-caption text-medium-emphasis mb-2">
+              Your IT administrator runs this on their own machine, signed in as
+              themselves. It is read-only, holds no stored credential, and the sign-in
+              expires with the window — there is nothing to revoke afterwards. Always the
+              current version for this release; you never need a copy emailed to you.
+            </p>
+            <div v-if="scriptMeta" class="text-caption">
+              <div><strong>File:</strong> <code>{{ scriptMeta.filename }}</code>
+                   <span class="text-medium-emphasis">
+                     ({{ Math.round((scriptMeta.size_bytes || 0) / 102.4) / 10 }} KB ·
+                     release {{ scriptMeta.release }})</span></div>
+              <div class="d-flex align-center flex-wrap ga-1 mt-1">
+                <strong>SHA-256:</strong>
+                <code class="text-caption" style="word-break: break-all">{{ scriptMeta.sha256 }}</code>
+                <v-btn size="x-small" variant="text" icon="mdi-content-copy"
+                       @click="copyHash" />
+              </div>
+              <div class="text-medium-emphasis mt-1">
+                Verify the file you saved matches:
+                <code>Get-FileHash -Algorithm SHA256 .\{{ scriptMeta.filename }}</code>
+              </div>
+            </div>
+            <div v-else class="text-caption text-medium-emphasis">
+              Checksum unavailable — you can still download and read the script.
+            </div>
+          </div>
+
+          <div class="d-flex align-center ga-2 mb-1">
+            <v-icon size="small" class="mr-1">mdi-numeric-2-circle-outline</v-icon>
+            <strong>Upload what it produced</strong>
+          </div>
           <p class="text-body-2 mb-3">
-            Upload the JSON produced by the read-only export script your IT admin ran
-            (<code>Export-EntraOAuthGrants.ps1</code>). It lists the third-party apps staff
-            consented to; we match them against the AI catalog and record what each grant
-            can <strong>reach</strong>. Nothing is fetched from your tenant by this page.
+            The script writes a JSON file listing the third-party apps staff consented to.
+            <strong>Open and read it before uploading.</strong> We match those apps against
+            the AI catalog and record what each grant can <strong>reach</strong>. Nothing is
+            fetched from your tenant by this page.
           </p>
 
           <v-file-input
@@ -182,7 +226,7 @@
  *  - employee identities in the file are NEVER uploaded (only per-app counts), even if
  *    the admin exported them.
  */
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useDiscoveryStore } from '../stores/discovery'
 
 const open  = defineModel({ type: Boolean, default: false })
@@ -190,6 +234,19 @@ const props = defineProps({ defaultCity: { type: String, default: '' } })
 const emit  = defineEmits(['done'])
 
 const store = useDiscoveryStore()
+
+// Script download + its server-computed checksum. Fetched when the dialog opens so the
+// hash shown is always the hash of the file this deployment would hand you.
+const scriptMeta = ref(null)
+const scriptUrl  = computed(() => store.oauthScriptUrl('microsoft'))
+
+watch(open, async (isOpen) => {
+  if (isOpen && !scriptMeta.value) scriptMeta.value = await store.oauthScriptMeta('microsoft')
+}, { immediate: true })
+
+async function copyHash() {
+  try { await navigator.clipboard.writeText(scriptMeta.value?.sha256 || '') } catch { /* non-fatal */ }
+}
 
 const phase        = ref('select')
 const file         = ref(null)

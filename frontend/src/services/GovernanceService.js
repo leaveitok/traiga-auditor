@@ -221,6 +221,26 @@ const runOAuthDiscovery = (payload) =>
   // TODO: validate the caller holds write:discovery for this city (auth placeholder)
   http.post('/discovery/oauth', payload, { timeout: 120000 }).then(r => r.data)
 
+/**
+ * Metadata for the OAuth export script the backend would serve right now:
+ * { provider, filename, sha256, size_bytes, release }.
+ * The checksum is COMPUTED from the file on the server, so what the dashboard shows can
+ * never drift from what it hands you.
+ * @returns {Promise<Object>}
+ */
+const getOAuthExportScriptMeta = (provider = 'microsoft') =>
+  // TODO: attach auth token (auth placeholder)
+  http.get('/discovery/oauth/export-script/meta', { params: { provider } }).then(r => r.data)
+
+/**
+ * Absolute URL of the export-script download. Returned as a URL rather than a blob so the
+ * browser performs a normal authenticated download, and the city can see exactly where the
+ * file came from in their own network log.
+ * @returns {string}
+ */
+const oauthExportScriptUrl = (provider = 'microsoft') =>
+  `${http.defaults.baseURL}/discovery/oauth/export-script?provider=${encodeURIComponent(provider)}`
+
 const runAgendaDiscovery = (payload) =>
   // TODO: server enforces RBAC (platform_admin/agency_admin) + city scoping
   http.post('/discovery/agenda', payload, { timeout: 300000 }).then(r => r.data)
@@ -430,6 +450,8 @@ export const GovernanceService = {
   runProcurementDiscovery,
   runAgendaDiscovery,
   runOAuthDiscovery,
+  getOAuthExportScriptMeta,
+  oauthExportScriptUrl,
   // Admin settings
   getAdminSettings,
   saveAdminSettings,
