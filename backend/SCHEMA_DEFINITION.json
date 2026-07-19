@@ -254,7 +254,8 @@
           "oauth_app_ids": []
         }
       }
-    ]
+    ],
+    "_oauth_alias_note": "oauth_app_ids is intentionally EMPTY until real tenant exports supply verified IDs. We do NOT guess Entra appId GUIDs or Google client IDs — a wrong ID silently mis-attributes an app to the wrong vendor. v1 matches on app display name + publisher via the existing aliases and the AI-keyword screen; observed IDs are added here (governance-as-code) once confirmed against a real grant."
   },
   "meta": {
     "schema_name": "AI_Transparency_Auditor.GovernanceAsCode",
@@ -1255,6 +1256,70 @@
       "processes_regulated_data": "one of attribute_states (PII/CJIS/HIPAA); sourced or unknown",
       "certifications": "list of {name, source_url, as_of} e.g. SOC 2, FedRAMP, StateRAMP, ISO/IEC 42001",
       "verification_status": "unverified_candidate until a human confirms the sourced facts"
+    }
+  },
+  "OAuth_Scope_Sensitivity": {
+    "_comment": "What an OAuth grant can REACH — the governance fact for shadow-AI discovery. Rules are PATTERNS (not an enumeration) so scopes we have never seen still classify, and they cover both Microsoft Graph names (Mail.Read, Files.ReadWrite.All) and Google scope URLs (.../auth/drive, .../auth/gmail.readonly). This is a DESCRIPTION of access, not a risk score: we report 'this app can read mail and files', never a number. First matching rule wins; a write-capable scope then escalates the tier via write_escalation.",
+    "tiers": [
+      "low",
+      "medium",
+      "high"
+    ],
+    "rules": [
+      {
+        "tier": "high",
+        "pattern": "(?i)(^|[/.])(mail|gmail)([./]|$)",
+        "reaches": "mailbox contents"
+      },
+      {
+        "tier": "high",
+        "pattern": "(?i)(^|[/.])(files|drive)([./]|$)",
+        "reaches": "file/document contents"
+      },
+      {
+        "tier": "high",
+        "pattern": "(?i)(^|[/.])sites([./]|$)",
+        "reaches": "SharePoint/site contents"
+      },
+      {
+        "tier": "high",
+        "pattern": "(?i)(^|[/.])(directory|admin\\.directory)([./]|$)",
+        "reaches": "directory data (users, groups)"
+      },
+      {
+        "tier": "high",
+        "pattern": "(?i)(^|[/.])(chat|channelmessage)([./]|$)",
+        "reaches": "chat/message contents"
+      },
+      {
+        "tier": "medium",
+        "pattern": "(?i)(^|[/.])calendars?([./]|$)",
+        "reaches": "calendar"
+      },
+      {
+        "tier": "medium",
+        "pattern": "(?i)(^|[/.])contacts([./]|$)",
+        "reaches": "contacts"
+      },
+      {
+        "tier": "medium",
+        "pattern": "(?i)(^|[/.])(spreadsheets|documents|presentations|tasks|notes)([./]|$)",
+        "reaches": "specific documents/tasks"
+      },
+      {
+        "tier": "low",
+        "pattern": "(?i)^(openid|profile|email|offline_access)$",
+        "reaches": "sign-in identity only"
+      },
+      {
+        "tier": "low",
+        "pattern": "(?i)(^|[/.])(user\\.read|userinfo)([./]|$)",
+        "reaches": "basic profile"
+      }
+    ],
+    "write_escalation": {
+      "pattern": "(?i)(readwrite|\\.modify|\\.full|\\.append|write)",
+      "note": "A write-capable grant is materially different from read-only: medium -> high, low -> medium."
     }
   }
 }
