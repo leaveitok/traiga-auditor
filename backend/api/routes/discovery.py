@@ -90,6 +90,11 @@ class DiscoveryRunResponse(BaseModel):
                                        # vertex | vertex_partial | keyword_fallback |
                                        # keyword | preextracted | none
     dry_run:    Optional[bool] = None  # oauth: true = reported only, NOTHING written
+    # How the grants reached us, and anything the caller must know about completeness.
+    # source_method is echoed so an operator can tell at a glance whether a result came
+    # from the script or the browser path.
+    source_method: Optional[str] = None      # "script" | "graph_explorer"
+    source_warnings: Optional[List[str]] = None
     # Applications the catalog did not recognise, with the fields needed to author a
     # signature. Returned so a PARTNER city's single run produces a usable backlog
     # instead of an unexplained "skipped: 34". Contains app/publisher metadata only —
@@ -205,7 +210,14 @@ class OAuthGrant(BaseModel):
 class OAuthRequest(BaseModel):
     city:           str
     provider:       Optional[str] = None
-    grants:         List[OAuthGrant]
+    # METHOD A — our export script already joined everything locally.
+    grants:         List[OAuthGrant] = []
+    # METHOD B — the admin ran two GET queries in Microsoft Graph Explorer and downloaded
+    # the raw JSON. Nothing executed on their endpoint, which is the only workable path
+    # for a shop whose endpoint protection blocks PowerShell. Files may arrive in EITHER
+    # ORDER: the server identifies each by shape and performs the join, so the browser
+    # never interprets tenant data.
+    graph_files:    Optional[List[dict]] = None
     # Default DRY RUN: a pilot's first run must be able to show findings without
     # writing anything to the city's registry.
     dry_run:        bool = True
@@ -235,7 +247,51 @@ def run_oauth(
             detail="OAuth discovery requires platform_admin or agency_admin.")
     if not principal.all_cities and not principal.can_see_city(body.city):
         raise HTTPException(status_code=403, detail="City out of scope.")
-    if len(body.grants) > 5000:
+    # ── Resolve the input method ─────────────────────────────────────────────
+    # The join lives server-side (engine/collectors/graph_join) rather than in the
+    # browser, so both methods converge on identical records before any business logic
+    # sees them, and the frontend never interprets a tenant's directory data.
+    source_method = "script"
+    source_warnings: List[str] = []
+    grants_in = [g.model_dump() for g in body.grants]
+
+    if body.graph_files:
+        from engine.collectors import graph_join
+        source_method = "graph_explorer"
+        sps, perms = None, None
+        for blob in body.graph_files:
+            kind = graph_join.classify_graph_file(blob)
+            if kind == "service_principals":
+                sps = blob
+            elif kind == "permission_grants":
+                perms = blob
+        if sps is None or perms is None:
+            raise HTTPException(
+                status_code=400,
+                detail=("Both Graph Explorer downloads are required: the "
+                        "servicePrincipals result and the oauth2PermissionGrants result. "
+                        "Upload both files (order does not matter)."))
+        joined, jmeta = graph_join.join_graph_exports(sps, perms)
+        grants_in = joined
+
+        # A partial download is the dangerous failure here: it looks like a clean tenant.
+        # Say so loudly rather than reporting a confidently short list.
+        if jmeta.get("service_principals_paged") or jmeta.get("permission_grants_paged"):
+            source_warnings.append(
+                "Graph returned more results than the file contains (a nextLink was "
+                "present). This tenant is only PARTIALLY covered — see the instructions "
+                "for fetching all pages.")
+        if jmeta.get("grants_without_matching_app"):
+            source_warnings.append(
+                f"{jmeta['grants_without_matching_app']} consent record(s) referenced an "
+                "application missing from the servicePrincipals file, and were skipped. "
+                "This usually means only the first page of applications was downloaded.")
+
+    if not grants_in:
+        raise HTTPException(
+            status_code=400,
+            detail="No grants supplied. Upload the script's export, or both Graph Explorer files.")
+    if len(grants_in) > 5000:
         raise HTTPException(status_code=400, detail="Too many grants (max 5000).")
     # Employee identities are a deliberate, platform-admin-only reveal.
     if body.include_users and not principal.is_platform_admin:
@@ -247,7 +303,7 @@ def run_oauth(
 
     from core.discovery.oauth_source import run_oauth_discovery
     result = run_oauth_discovery(
-        repo, body.city, [g.model_dump() for g in body.grants],
+        repo, body.city, grants_in,
         provider=(body.provider or ""),
         dry_run=body.dry_run,
         include_users=body.include_users,
@@ -268,6 +324,8 @@ def run_oauth(
         dry_run=result.get("dry_run"),
         unmatched=result.get("unmatched") or [],
         unmatched_truncated=result.get("unmatched_truncated"),
+        source_method=source_method,
+        source_warnings=source_warnings or None,
     )
 
 

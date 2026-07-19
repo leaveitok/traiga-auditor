@@ -26,11 +26,34 @@ read-only. (Global Administrator also works, but is not required — please use 
 
 ## Step 2 — Install Microsoft's PowerShell module
 
+> **Method A only.** If you intend to use Method B (browser), skip this — Method B
+> installs nothing. Read the next section first if you are not sure which you need.
+
 This is Microsoft's own module, published and signed by Microsoft — not our code:
 
 ```powershell
 Install-Module Microsoft.Graph -Scope CurrentUser
 ```
+
+## Two ways to do this — pick one
+
+| | **Method A — run the script** | **Method B — no software runs at all** |
+|---|---|---|
+| What you run | A PowerShell script on your machine | Two read-only queries in your browser |
+| Needs | PowerShell + Microsoft's Graph module | Only a browser and your admin sign-in |
+| Best when | Your workstation permits PowerShell | **Endpoint protection, AppLocker, WDAC or Constrained Language Mode blocks scripts** |
+| Effort | One command | Two queries, two downloads |
+
+**If your endpoint protection blocks PowerShell, skip to Method B (Step 7).** That is a
+normal control and we are not going to ask you to weaken it — a wrapper that bypasses
+execution policy is the same behaviour security teams block malware for, so we do not
+ship one. Method B runs nothing on your endpoint at all.
+
+Both methods produce the same result in the dashboard.
+
+---
+
+# Method A — run the script
 
 ## Step 3 — Get the script and verify it
 
@@ -71,7 +94,41 @@ it requests only these two read scopes, and calls only `Get-` (read) cmdlets:
 The write versions of these permissions (`*.ReadWrite.All`) are **never requested**, so
 Entra itself will refuse any write attempt regardless of what the script does.
 
-## Step 5 — Run it
+## Step 5 — Unblock the file (Windows will block it otherwise)
+
+**Do not skip this. It is the most common reason the script appears not to work.**
+
+Windows attaches a hidden "downloaded from the internet" marker to any file saved from a
+browser, and PowerShell refuses to run marked scripts. The error mentions the execution
+policy, or a security warning appears asking you to confirm.
+
+Clear the marker:
+
+```powershell
+Unblock-File .\Export-EntraOAuthGrants.ps1
+```
+
+That removes the download marker from **this one file**. It does not change any policy on
+your machine and it does not affect any other script.
+
+If your organisation's execution policy still blocks it, run it for this session only —
+this affects only the current PowerShell window and reverts when you close it:
+
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned
+```
+
+**If either of these is prohibited by your policy, stop here and use Method B (Step 7)
+instead.** Do not disable a control to run our tool. We would rather you took the path
+that runs nothing.
+
+Two other things worth knowing before you run it:
+
+- **PowerShell version.** Either Windows PowerShell 5.1 or PowerShell 7 works.
+- **Endpoint protection.** Some products quarantine any downloaded `.ps1` regardless of
+  the marker. If the file disappears, that is what happened — use Method B.
+
+## Step 6 — Run it
 
 ```powershell
 .\Export-EntraOAuthGrants.ps1
@@ -87,7 +144,62 @@ oauth-grants-<your-tenant-id>-<date>.json
 If you specifically want the user identities in order to go revoke a grant, add
 `-IncludeUsers`. **This makes the file employee-identifiable — handle it accordingly.**
 
-## Step 6 — Read the file before you send it
+---
+
+# Method B — no software runs on your machine
+
+Use this if endpoint protection, AppLocker, WDAC or Constrained Language Mode prevents you
+running scripts — or if you would simply rather not run one. Everything here happens in
+Microsoft's own website, signed in as yourself. Nothing is installed and nothing executes
+on your endpoint.
+
+## Step 7 — Open Microsoft Graph Explorer
+
+Go to **<https://developer.microsoft.com/graph/graph-explorer>** and sign in with your
+admin account. This is Microsoft's own tool, not ours.
+
+## Step 8 — Run the first query and download the result
+
+Paste this into the query bar, leave the method as **GET**, and press **Run query**:
+
+```
+https://graph.microsoft.com/v1.0/servicePrincipals?$select=id,appId,displayName,publisherName,signInAudience&$top=999
+```
+
+If prompted, consent to the read permission. Then use the **download / save** control on
+the response panel to save the JSON. Call it `servicePrincipals.json`.
+
+## Step 9 — Run the second query and download that too
+
+```
+https://graph.microsoft.com/v1.0/oauth2PermissionGrants?$top=999
+```
+
+Save it as `oauth2PermissionGrants.json`.
+
+### If you see `@odata.nextLink` in the response
+
+That means your tenant has more results than one page. **The download you just saved is
+incomplete**, and an incomplete file makes a tenant look cleaner than it is — the worst
+kind of wrong answer for a compliance tool.
+
+Copy the `@odata.nextLink` URL, run it as the next query, and save that page too. Repeat
+until no `nextLink` appears. Upload every page. The dashboard will also warn you if it
+detects a partial file, but do not rely on that as your only check.
+
+## Step 10 — Upload both files
+
+In the dashboard, **AI Inventory → OAuth**, choose **Graph Explorer files** and select
+both downloads. Order does not matter — the system identifies each file by its contents.
+
+The join between the two files happens on our server, exactly as the script would have
+done it locally, so both methods produce identical results.
+
+---
+
+# Both methods — finishing up
+
+## Step 11 — Read the file before you send it
 
 Open the JSON. Every application appears as a plain record:
 
@@ -104,16 +216,16 @@ Open the JSON. Every application appears as a plain record:
 
 That is the entire contents. Nothing else leaves your environment.
 
-## Step 7 — Upload it (dry run first)
+## Step 12 — Upload it (dry run first)
 
-In TRAIGA Auditor: **AI Inventory → Discover OAuth**, choose your city, and upload the file
-with **Dry run** left ON.
+In TRAIGA Auditor: **AI Inventory → OAuth**, choose your city, and upload with **Dry run**
+left ON — the single file from Method A, or both files from Method B.
 
 A dry run **reports what it found and writes nothing**. You see exactly which apps would be
 added to your inventory, and what each one can reach. Only when you are satisfied do you
 re-run with Dry run off to record them.
 
-## Step 8 — Verify us in your own logs
+## Step 13 — Verify us in your own logs
 
 You do not have to take our word for "read-only." Every call the script made appears in
 **Entra admin center → Monitoring → Audit logs / Sign-in logs** under your own account. You

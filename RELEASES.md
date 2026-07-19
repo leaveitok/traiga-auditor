@@ -44,3 +44,4 @@ first release." Use `git log` for anything earlier.
 | 01.1 | 2026-07-19 | ship_release_versioning.bat | Introduce release stamping: VERSION, RELEASES.md, /health release, Settings display |
 | 01.2 | 2026-07-19 | ship_oauth_partner_harvest.bat | OAuth signature harvest; recover tenant-wide + signInAudience; fix qualified-name matching via publisher |
 | 01.3 | 2026-07-19 | ship_oauth_script_delivery.bat | Serve the export script from the app with a computed checksum; fix the commit guard |
+| 01.4 | 2026-07-19 | ship_oauth_two_methods.bat | Browser-only Graph Explorer path; Unblock-File fix; in-UI step-by-step instructions |

@@ -271,7 +271,13 @@
  * Request to run OAuth / shadow-AI discovery.
  * @typedef {Object} OAuthDiscoveryRequest
  * @property {string}       city
- * @property {OAuthGrant[]} grants
+ * @property {OAuthGrant[]} [grants]      - METHOD A: our export script already joined
+ *           service principals to consent records locally.
+ * @property {Object[]}     [graph_files] - METHOD B: the two raw Microsoft Graph Explorer
+ *           downloads, sent untouched and in any order. Nothing ran on the admin's
+ *           machine, which is the only workable path where endpoint protection blocks
+ *           PowerShell. The server identifies each file and performs the join, so the
+ *           browser never interprets tenant directory data.
  * @property {string}       [provider]
  * @property {boolean}      [dry_run]       - DEFAULT true: report only, write nothing
  * @property {boolean}      [include_users] - platform admin only
@@ -290,6 +296,10 @@
  * @property {boolean}  [dry_run]  - true = NOTHING was written
  * @property {OAuthUnmatchedApp[]} [unmatched] - the signature backlog from this run
  * @property {boolean}  [unmatched_truncated] - true = more misses than were returned
+ * @property {('script'|'graph_explorer')} [source_method] - how the grants reached us
+ * @property {string[]} [source_warnings] - completeness problems the SERVER detected,
+ *           e.g. a paged Graph download that covers only part of the tenant. Never
+ *           swallowed: a partial export makes a tenant look clean.
  */
 
 export {}

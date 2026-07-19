@@ -1,6 +1,6 @@
 ---
 title: "TRAIGA Auditor — User Guide"
-subtitle: "AI Transparency & Compliance for Texas Municipalities · Version 1.4"
+subtitle: "AI Transparency & Compliance for Texas Municipalities · Version 1.5"
 date: "July 18, 2026 · For City IT, CIO, and Compliance Staff"
 ---
 
@@ -163,15 +163,27 @@ This badge tells you at a glance whether a "0 found" result means "checked thoro
 Most of the AI in a city is not on the website and never went through procurement — it is a
 free tool an employee signed into with their work account. The **OAuth** tool finds it.
 
-**Nothing is connected to your tenant, and we are given no access.** Your IT administrator
-runs a small read-only export script on their own machine, signed in as themselves. It
-requests only read permissions, holds no stored credential, and the sign-in expires with the
-PowerShell window, so there is nothing left for you to revoke afterwards. The full
-instructions — including what the script does *not* do and how to verify it against a
-published checksum — are in the installation manual your administrator receives.
+**Nothing is connected to your tenant, and we are given no access.** There is no app
+registration, no client secret and no standing permission — so there is nothing for you to
+revoke afterwards.
 
-The script produces a JSON file. **Read it before you upload it.** Then, in **AI Inventory →
-OAuth**, select that file. You will see each application, its publisher, how many staff
+The dialog walks your administrator through it step by step, with every command ready to
+copy. There are **two ways to do it**, and both produce the same result:
+
+- **Run the script.** A small read-only export script, downloaded from the dashboard so it
+  always matches the running system, executed on the administrator's own machine while
+  signed in as themselves. The checksum is shown next to the download.
+- **Browser only.** Two read-only queries in **Microsoft Graph Explorer** — Microsoft's own
+  website — and the results downloaded as JSON. **Nothing installs and nothing runs on any
+  machine.** This is the path for organisations whose endpoint protection, AppLocker or
+  WDAC blocks PowerShell.
+
+We deliberately do not ship a wrapper that bypasses script-execution policy. That is the
+behaviour security teams block malware for, and we are not going to ask anyone to weaken a
+control in order to run a compliance tool — hence the browser option.
+
+Either way you end up with JSON to upload. **Read it before you upload it.** Then, in
+**AI Inventory → OAuth**, select the file (or both files, for the browser method). You will see each application, its publisher, how many staff
 consented, and what each grant can reach.
 
 Two protections are on by default:

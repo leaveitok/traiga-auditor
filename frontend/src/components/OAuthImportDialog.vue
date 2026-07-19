@@ -11,72 +11,163 @@
       <v-card-text>
         <!-- STEP 1 — choose the export file -->
         <template v-if="phase === 'select'">
-          <!-- STEP 1 — get the script from HERE, not from an email. Serving it from the
-               running backend is what guarantees the script and the code that parses its
-               output are the same deployment. -->
-          <div class="mb-4 pa-3 rounded" style="border: 1px solid rgba(128,128,128,0.3)">
-            <div class="d-flex align-center flex-wrap ga-2 mb-1">
-              <v-icon size="small" class="mr-1">mdi-numeric-1-circle-outline</v-icon>
-              <strong>Get the export script</strong>
-              <v-spacer />
-              <v-btn size="small" color="primary" variant="tonal"
-                     prepend-icon="mdi-download" :href="scriptUrl" download>
-                Download script
-              </v-btn>
+          <!-- Two supported paths. Method B exists because many municipal shops run
+               endpoint protection / AppLocker / WDAC that blocks PowerShell outright.
+               We deliberately do NOT ship a .bat that bypasses execution policy: that is
+               the behaviour security teams block malware for, and asking a city to weaken
+               a control in order to run a compliance tool is the wrong trade. -->
+          <v-tabs v-model="method" density="compact" class="mb-3">
+            <v-tab value="script">
+              <v-icon size="small" class="mr-1">mdi-powershell</v-icon>Run the script
+            </v-tab>
+            <v-tab value="graph">
+              <v-icon size="small" class="mr-1">mdi-web</v-icon>Browser only
+            </v-tab>
+          </v-tabs>
+
+          <v-alert v-if="method === 'graph'" type="info" variant="tonal" density="compact"
+                   class="mb-3">
+            Nothing installs and nothing runs on your machine. Use this if endpoint
+            protection, AppLocker or WDAC blocks PowerShell — that is a normal control and
+            we will not ask you to weaken it.
+          </v-alert>
+
+          <!-- ── METHOD A ─────────────────────────────────────────────────── -->
+          <template v-if="method === 'script'">
+            <div class="mb-3 pa-3 rounded" style="border: 1px solid rgba(128,128,128,0.3)">
+              <div class="d-flex align-center flex-wrap ga-2 mb-1">
+                <strong>1. Check your role</strong>
+              </div>
+              <p class="text-caption text-medium-emphasis mb-3">
+                You need <strong>Global Reader</strong> (or any role that can read
+                applications and directory objects). Read-only is sufficient — you never
+                need Global Administrator for this.
+              </p>
+
+              <div class="d-flex align-center flex-wrap ga-2 mb-1">
+                <strong>2. Install Microsoft's module</strong>
+              </div>
+              <CopyLine :text="cmd.install" />
+
+              <div class="d-flex align-center flex-wrap ga-2 mb-1 mt-3">
+                <strong>3. Download the script</strong>
+                <v-spacer />
+                <v-btn size="small" color="primary" variant="tonal"
+                       prepend-icon="mdi-download" :href="scriptUrl" download>
+                  Download script
+                </v-btn>
+              </div>
+              <div v-if="scriptMeta" class="text-caption">
+                <code>{{ scriptMeta.filename }}</code>
+                <span class="text-medium-emphasis">
+                  · release {{ scriptMeta.release }}</span>
+                <div class="d-flex align-center flex-wrap ga-1 mt-1">
+                  <span class="text-medium-emphasis">SHA-256:</span>
+                  <code style="word-break: break-all">{{ scriptMeta.sha256 }}</code>
+                  <v-btn size="x-small" variant="text" icon="mdi-content-copy"
+                         @click="copy(scriptMeta.sha256)" />
+                </div>
+                <CopyLine :text="cmd.hash" class="mt-1" />
+              </div>
+
+              <v-alert type="warning" variant="tonal" density="compact" class="mt-3 mb-1">
+                <strong>4. Unblock it — this step is skipped most often.</strong>
+                Windows marks anything downloaded from a browser and PowerShell refuses to
+                run marked scripts. Without this you get an execution-policy error.
+              </v-alert>
+              <CopyLine :text="cmd.unblock" />
+              <p class="text-caption text-medium-emphasis mt-1 mb-1">
+                Still blocked? This affects only the current window and reverts when you
+                close it:
+              </p>
+              <CopyLine :text="cmd.policy" />
+              <p class="text-caption text-medium-emphasis mt-1">
+                If your policy forbids either command, switch to <strong>Browser only</strong>
+                above. Do not disable a control to run our tool.
+              </p>
+
+              <div class="d-flex align-center flex-wrap ga-2 mb-1 mt-3">
+                <strong>5. Run it, then read the file it writes</strong>
+              </div>
+              <CopyLine :text="cmd.run" />
+              <p class="text-caption text-medium-emphasis mt-1">
+                Sign in as yourself and approve the read permissions. Open the JSON it
+                produces and read it before uploading — it contains only what you see there.
+              </p>
             </div>
-            <p class="text-caption text-medium-emphasis mb-2">
-              Your IT administrator runs this on their own machine, signed in as
-              themselves. It is read-only, holds no stored credential, and the sign-in
-              expires with the window — there is nothing to revoke afterwards. Always the
-              current version for this release; you never need a copy emailed to you.
+
+            <div class="d-flex align-center ga-2 mb-1">
+              <strong>6. Upload the file it produced</strong>
+            </div>
+            <v-file-input
+              v-model="file"
+              label="Select the exported .json file"
+              accept=".json,application/json"
+              prepend-icon="mdi-code-json"
+              density="comfortable"
+              :error-messages="parseError"
+              @update:model-value="onFile"
+            />
+          </template>
+
+          <!-- ── METHOD B ─────────────────────────────────────────────────── -->
+          <template v-else>
+            <div class="mb-3 pa-3 rounded" style="border: 1px solid rgba(128,128,128,0.3)">
+              <div class="mb-1"><strong>1. Open Microsoft Graph Explorer</strong></div>
+              <p class="text-caption text-medium-emphasis mb-2">
+                Microsoft's own tool, not ours. Sign in with your admin account.
+              </p>
+              <v-btn size="small" variant="tonal" prepend-icon="mdi-open-in-new"
+                     href="https://developer.microsoft.com/graph/graph-explorer"
+                     target="_blank" rel="noopener">Open Graph Explorer</v-btn>
+
+              <div class="mt-3 mb-1"><strong>2. Run this query, then save the result</strong></div>
+              <CopyLine :text="cmd.q1" />
+              <p class="text-caption text-medium-emphasis mt-1">
+                Leave the method as <strong>GET</strong>. Use the download control on the
+                response panel. Save as <code>servicePrincipals.json</code>.
+              </p>
+
+              <div class="mt-3 mb-1"><strong>3. Run this one and save it too</strong></div>
+              <CopyLine :text="cmd.q2" />
+              <p class="text-caption text-medium-emphasis mt-1">
+                Save as <code>oauth2PermissionGrants.json</code>.
+              </p>
+
+              <v-alert type="warning" variant="tonal" density="compact" class="mt-3">
+                <strong>If the response contains <code>@odata.nextLink</code></strong>, your
+                tenant has more results than one page and the file you saved is incomplete.
+                An incomplete file makes a tenant look cleaner than it is. Run the
+                <code>nextLink</code> URL as the next query, save that page too, and repeat
+                until no <code>nextLink</code> appears. Upload every page.
+              </v-alert>
+            </div>
+
+            <div class="d-flex align-center ga-2 mb-1">
+              <strong>4. Upload both files</strong>
+            </div>
+            <v-file-input
+              v-model="graphFiles"
+              label="Select both downloaded .json files"
+              accept=".json,application/json"
+              prepend-icon="mdi-code-json"
+              density="comfortable"
+              multiple
+              :error-messages="parseError"
+              @update:model-value="onGraphFiles"
+            />
+            <p class="text-caption text-medium-emphasis">
+              Order does not matter — each file is identified by its contents. They are
+              joined on our server, exactly as the script would have done locally.
             </p>
-            <div v-if="scriptMeta" class="text-caption">
-              <div><strong>File:</strong> <code>{{ scriptMeta.filename }}</code>
-                   <span class="text-medium-emphasis">
-                     ({{ Math.round((scriptMeta.size_bytes || 0) / 102.4) / 10 }} KB ·
-                     release {{ scriptMeta.release }})</span></div>
-              <div class="d-flex align-center flex-wrap ga-1 mt-1">
-                <strong>SHA-256:</strong>
-                <code class="text-caption" style="word-break: break-all">{{ scriptMeta.sha256 }}</code>
-                <v-btn size="x-small" variant="text" icon="mdi-content-copy"
-                       @click="copyHash" />
-              </div>
-              <div class="text-medium-emphasis mt-1">
-                Verify the file you saved matches:
-                <code>Get-FileHash -Algorithm SHA256 .\{{ scriptMeta.filename }}</code>
-              </div>
-            </div>
-            <div v-else class="text-caption text-medium-emphasis">
-              Checksum unavailable — you can still download and read the script.
-            </div>
-          </div>
-
-          <div class="d-flex align-center ga-2 mb-1">
-            <v-icon size="small" class="mr-1">mdi-numeric-2-circle-outline</v-icon>
-            <strong>Upload what it produced</strong>
-          </div>
-          <p class="text-body-2 mb-3">
-            The script writes a JSON file listing the third-party apps staff consented to.
-            <strong>Open and read it before uploading.</strong> We match those apps against
-            the AI catalog and record what each grant can <strong>reach</strong>. Nothing is
-            fetched from your tenant by this page.
-          </p>
-
-          <v-file-input
-            v-model="file"
-            label="Select the exported .json file"
-            accept=".json,application/json"
-            prepend-icon="mdi-code-json"
-            density="comfortable"
-            :error-messages="parseError"
-            @update:model-value="onFile"
-          />
+          </template>
 
           <v-switch
             v-model="dryRun"
             color="primary"
             density="compact"
             hide-details
+            class="mt-2"
             :label="dryRun
               ? 'Dry run — report findings only, write NOTHING'
               : 'Write results to the AI Inventory'"
@@ -96,12 +187,19 @@
         <!-- STEP 2 — preview what will be sent -->
         <template v-else-if="phase === 'preview'">
           <v-alert type="info" variant="tonal" density="compact" class="mb-3">
-            <strong>{{ grants.length }}</strong> application(s) found in the file for
-            <strong>{{ cityName }}</strong>.
+            <template v-if="method === 'script'">
+              <strong>{{ grants.length }}</strong> application(s) found in the file for
+              <strong>{{ cityName }}</strong>.
+            </template>
+            <template v-else>
+              <strong>{{ graphBlobs.length }}</strong> Graph Explorer file(s) ready for
+              <strong>{{ cityName }}</strong>. They will be identified and joined on the
+              server.
+            </template>
             {{ dryRun ? 'Dry run: nothing will be written.' : 'Results WILL be written to the inventory.' }}
           </v-alert>
 
-          <v-table density="compact" class="mb-2">
+          <v-table v-if="method === 'script'" density="compact" class="mb-2">
             <thead>
               <tr>
                 <th class="text-left">Application</th>
@@ -119,7 +217,7 @@
               </tr>
             </tbody>
           </v-table>
-          <p v-if="grants.length > 25" class="text-caption text-medium-emphasis">
+          <p v-if="method === 'script' && grants.length > 25" class="text-caption text-medium-emphasis">
             Showing the first 25 of {{ grants.length }}.
           </p>
 
@@ -147,6 +245,13 @@
 
           <v-alert v-if="result.dry_run" type="warning" variant="tonal" density="compact" class="mb-2">
             Nothing has been saved yet. Re-run with dry run switched off to record these.
+          </v-alert>
+
+          <!-- Completeness problems the SERVER detected (e.g. a paged Graph download).
+               A partial export makes a tenant look clean, so this is never swallowed. -->
+          <v-alert v-for="(w, i) in (result.source_warnings || [])" :key="i"
+                   type="warning" variant="tonal" density="compact" class="mb-2">
+            {{ w }}
           </v-alert>
 
           <p class="text-body-2 mt-3 text-medium-emphasis">
@@ -228,6 +333,7 @@
  */
 import { ref, computed, watch } from 'vue'
 import { useDiscoveryStore } from '../stores/discovery'
+import CopyLine from './CopyLine.vue'
 
 const open  = defineModel({ type: Boolean, default: false })
 const props = defineProps({ defaultCity: { type: String, default: '' } })
@@ -240,13 +346,35 @@ const store = useDiscoveryStore()
 const scriptMeta = ref(null)
 const scriptUrl  = computed(() => store.oauthScriptUrl('microsoft'))
 
+/** 'script' = run our PowerShell export. 'graph' = browser-only, nothing executes. */
+const method     = ref('script')
+const graphFiles = ref(null)
+/** Raw Graph blobs, sent untouched. The browser never interprets tenant data — the
+ *  server identifies each file and performs the join. */
+const graphBlobs = ref([])
+
+/**
+ * Every command the admin needs, in one place so the UI and the manual cannot drift.
+ * $top=999 keeps most tenants to a single page; the nextLink warning covers the rest.
+ */
+const cmd = {
+  install: 'Install-Module Microsoft.Graph -Scope CurrentUser',
+  hash:    'Get-FileHash .\\Export-EntraOAuthGrants.ps1 -Algorithm SHA256',
+  unblock: 'Unblock-File .\\Export-EntraOAuthGrants.ps1',
+  policy:  'Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned',
+  run:     '.\\Export-EntraOAuthGrants.ps1',
+  q1: 'https://graph.microsoft.com/v1.0/servicePrincipals?$select=id,appId,displayName,publisherName,signInAudience&$top=999',
+  q2: 'https://graph.microsoft.com/v1.0/oauth2PermissionGrants?$top=999',
+}
+
+async function copy(text) {
+  try { await navigator.clipboard.writeText(text || '') } catch { /* non-fatal */ }
+}
+
 watch(open, async (isOpen) => {
   if (isOpen && !scriptMeta.value) scriptMeta.value = await store.oauthScriptMeta('microsoft')
 }, { immediate: true })
 
-async function copyHash() {
-  try { await navigator.clipboard.writeText(scriptMeta.value?.sha256 || '') } catch { /* non-fatal */ }
-}
 
 const phase        = ref('select')
 const file         = ref(null)
@@ -300,13 +428,48 @@ async function onFile(f) {
   }
 }
 
+/**
+ * Read the two Graph Explorer downloads. We parse only far enough to confirm they are
+ * JSON and to reject an obviously wrong file early; CLASSIFICATION AND JOINING HAPPEN ON
+ * THE SERVER, so no directory logic lives in the browser.
+ */
+async function onGraphFiles(f) {
+  parseError.value = ''
+  graphBlobs.value = []
+  fileHasUsers.value = false
+  const picked = Array.isArray(f) ? f : (f ? [f] : [])
+  if (!picked.length) return
+  try {
+    const blobs = []
+    for (const p of picked) {
+      const data = JSON.parse(await p.text())
+      if (!data || (!Array.isArray(data.value) && !Array.isArray(data))) {
+        parseError.value = `${p.name} does not look like a Graph Explorer result (no "value" array).`
+        return
+      }
+      blobs.push(data)
+    }
+    if (blobs.length < 2) {
+      parseError.value = 'Both downloads are required: servicePrincipals and oauth2PermissionGrants.'
+      return
+    }
+    graphBlobs.value = blobs
+    provider.value = 'microsoft'
+    phase.value = 'preview'
+  } catch (e) {
+    parseError.value = `Could not read those files: ${e.message}`
+  }
+}
+
 async function run() {
   runError.value = ''
   try {
     result.value = await store.runOAuth({
       city: props.defaultCity,
       provider: provider.value || undefined,
-      grants: grants.value,
+      // Exactly one of these is populated, depending on the method chosen.
+      grants: method.value === 'script' ? grants.value : [],
+      graph_files: method.value === 'graph' ? graphBlobs.value : undefined,
       dry_run: dryRun.value,
     })
     phase.value = 'done'
@@ -350,6 +513,7 @@ function close() {
   open.value = false
   setTimeout(() => {
     phase.value = 'select'; file.value = null; grants.value = []
+    graphFiles.value = null; graphBlobs.value = []
     result.value = {}; parseError.value = ''; runError.value = ''
     fileHasUsers.value = false; dryRun.value = true
   }, 300)

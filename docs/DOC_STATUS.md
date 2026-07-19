@@ -23,7 +23,7 @@ travels with the document. Grep for `NOT IN PRODUCTION` to list them.
 | `BUNDLED_AI_FEATURE_DESIGN.md` | ⚠️ DESIGN ONLY | Detecting AI features bundled into tools cities already own. |
 | `VENDOR_ENRICHMENT_DESIGN.md` | ⚠️ DESIGN ONLY | Auto-populating vendor governance facts from cited public sources + registries. |
 | `OAUTH_DISCOVERY_DESIGN.md` | 🟡 PARTIAL | Phases 0–1b **shipped** (export-first, dry-run-by-default backend, upload dialog). Phase 2 live Microsoft sync, Phase 3 Google Reports API, and Phase 4 scheduled re-sync **not built**. |
-| `INSTALL_OAUTH_MICROSOFT.md` | ✅ SHIPPED | Step-by-step Entra export setup for a city IT admin (Phase 1). Upload is now self-serve via **AI Inventory → OAuth**. |
+| `INSTALL_OAUTH_MICROSOFT.md` | ✅ SHIPPED | Step-by-step Entra setup for a city IT admin. **Two methods**: run the script, or Graph Explorer browser-only for shops where endpoint protection blocks PowerShell. Script is downloaded from the dashboard with a server-computed checksum (no hardcoded hash). Covers `Unblock-File` / execution policy. |
 | `INSTALL_OAUTH_GOOGLE.md` | ❌ NOT WRITTEN | Google Workspace equivalent. Needed before Lewisville can run the Google side. |
 | `CITIBOT_ENRICHMENT_POC.md` | 🔬 RESEARCH | Live PoC measuring how much vendor data auto-fills vs stays manual. |
 | `ARCHITECTURE.md` | 📘 REFERENCE | System architecture. |
