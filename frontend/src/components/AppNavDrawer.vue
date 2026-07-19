@@ -41,14 +41,25 @@
     <template #append>
       <v-divider />
 
-      <!-- Statute reference link -->
+      <!-- Reference links: how to use the product, and the statute behind it.
+           The guide is a static asset in frontend/public/, so it deploys with the
+           app and needs no backend route. Regenerate it whenever the user guide
+           changes (see the update-user-guide skill). -->
       <v-list density="compact" nav>
+        <v-list-item prepend-icon="mdi-book-open-variant"
+                     title="User Guide"
+                     subtitle="How to use TRAIGA Auditor"
+                     href="/TRAIGA_Auditor_User_Guide.pdf"
+                     target="_blank"
+                     rounded="lg"
+                     @click="onNavigate" />
         <v-list-item prepend-icon="mdi-scale-balance"
                      title="Tex. Bus. &amp; Com. Code Ch. 552"
                      subtitle="Read the statute"
                      href="https://statutes.capitol.texas.gov/Docs/BC/htm/BC.552.htm"
                      target="_blank"
-                     rounded="lg" />
+                     rounded="lg"
+                     @click="onNavigate" />
       </v-list>
 
       <v-divider />

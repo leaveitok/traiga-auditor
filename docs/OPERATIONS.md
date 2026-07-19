@@ -147,6 +147,13 @@ Environment quirks (Windows dev machine):
   function runner (see any recent session's pattern); 64 tests green as of
   2026-07-07. Six modules require the real FastAPI TestClient and are
   local-only until the CI gate (H1-6) lands.
+- **In-app User Guide (keep it from going stale):** the guide is bundled as a static
+  asset at `frontend/public/TRAIGA_Auditor_User_Guide.pdf` and linked from the nav
+  drawer. Whenever `docs/USER_GUIDE.md` changes, regenerate BOTH deliverables in the
+  same commit — the `.docx` at the repo root AND that PDF:
+  `pandoc docs/USER_GUIDE.md -o TRAIGA_Auditor_User_Guide_v1.docx --toc --toc-depth=2`
+  then convert to PDF and copy it over `frontend/public/TRAIGA_Auditor_User_Guide.pdf`.
+  A guide that updates in git but not in the app is worse than no in-app guide.
 - Frontend gate: the **CI** Vite build in `deploy_frontend.yml` — this is the only
   place the production frontend build runs. It CANNOT be run from the Linux
   sandbox (the shared `node_modules` holds Windows binaries; never `npm install`
