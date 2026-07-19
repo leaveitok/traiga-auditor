@@ -15,13 +15,16 @@ travels with the document. Grep for `NOT IN PRODUCTION` to list them.
 | Doc | Status | Covers |
 |---|---|---|
 | `AGENDA_ENGINE_DESIGN.md` | ✅ SHIPPED | Council-agenda discovery: Legistar + PDF fetch, gating, LLM extraction, merge. Live. |
-| `DISCOVERY_EXPANSION_DESIGN.md` | 🟡 PARTIAL | Identity substrate, procurement + agenda channels **shipped**; OAuth/shadow-AI channel **not built**. |
+| `DISCOVERY_EXPANSION_DESIGN.md` | 🟡 PARTIAL | Identity substrate, procurement + agenda channels **shipped**; OAuth/shadow-AI channel shipped **export-first only** (no live tenant sync yet). |
 | `INVENTORY_SPEC.md` | ✅ SHIPPED | AI asset inventory model, provenance, lifecycle. |
 | `USER_GUIDE.md` | 📘 REFERENCE | End-user manual (v1.2) for the shipped product. |
 | `AGENDA_DEEP_TEXT_DESIGN.md` | ⚠️ DESIGN ONLY | Reading agenda item *documents* (not just titles) to catch embedded AI. |
 | `BUDGET_CHANNEL_DESIGN.md` | ⚠️ DESIGN ONLY | Adopted-budget discovery channel (ClearGov/OpenGov/PDF). |
 | `BUNDLED_AI_FEATURE_DESIGN.md` | ⚠️ DESIGN ONLY | Detecting AI features bundled into tools cities already own. |
 | `VENDOR_ENRICHMENT_DESIGN.md` | ⚠️ DESIGN ONLY | Auto-populating vendor governance facts from cited public sources + registries. |
+| `OAUTH_DISCOVERY_DESIGN.md` | 🟡 PARTIAL | Phases 0–1b **shipped** (export-first, dry-run-by-default backend, upload dialog). Phase 2 live Microsoft sync, Phase 3 Google Reports API, and Phase 4 scheduled re-sync **not built**. |
+| `INSTALL_OAUTH_MICROSOFT.md` | ✅ SHIPPED | Step-by-step Entra export setup for a city IT admin (Phase 1). Upload is now self-serve via **AI Inventory → OAuth**. |
+| `INSTALL_OAUTH_GOOGLE.md` | ❌ NOT WRITTEN | Google Workspace equivalent. Needed before Lewisville can run the Google side. |
 | `CITIBOT_ENRICHMENT_POC.md` | 🔬 RESEARCH | Live PoC measuring how much vendor data auto-fills vs stays manual. |
 | `ARCHITECTURE.md` | 📘 REFERENCE | System architecture. |
 | `FEATURES.md` | 📘 REFERENCE | Feature catalog. |

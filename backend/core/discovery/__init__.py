@@ -23,6 +23,10 @@ COLLECTORS = {
         "module": "core.discovery.agenda_source",
         "entry": "run_agenda_discovery",
     },
-    # "oauth":   {...}  ← flagship, next
+    "oauth": {
+        "provenance": "discovered_oauth",
+        "module": "core.discovery.oauth_source",
+        "entry": "run_oauth_discovery",
+    },
     # "network": {...}
 }

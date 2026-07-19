@@ -86,6 +86,7 @@ class DiscoveryRunResponse(BaseModel):
     extractor:  Optional[str] = None   # which extractor actually ran (agenda only):
                                        # vertex | vertex_partial | keyword_fallback |
                                        # keyword | preextracted | none
+    dry_run:    Optional[bool] = None  # oauth: true = reported only, NOTHING written
 
 
 @router.post("/procurement", response_model=DiscoveryRunResponse)
@@ -166,6 +167,89 @@ class AgendaRequest(BaseModel):
     agenda_text:     Optional[str] = None
     items:           Optional[List[AgendaItem]] = None
     min_confidence:  float = 0.5
+
+
+class OAuthGrant(BaseModel):
+    # One consented application, provider-agnostic. Produced by the customer-run export
+    # script (Door A) or a live read-only sync (Door B). NOTE: no user identities are
+    # accepted here by default — `user_count` is the privacy-preserving answer to
+    # "how many people consented"; `users` is opt-in and gated by include_users.
+    app_id:     Optional[str] = None
+    app_name:   Optional[str] = None
+    publisher:  Optional[str] = None
+    provider:   Optional[str] = None      # "microsoft" | "google"
+    scopes:     List[str] = []
+    user_count: Optional[int] = None
+    users:      Optional[List[str]] = None
+    first_seen: Optional[str] = None
+    last_seen:  Optional[str] = None
+
+
+class OAuthRequest(BaseModel):
+    city:           str
+    provider:       Optional[str] = None
+    grants:         List[OAuthGrant]
+    # Default DRY RUN: a pilot's first run must be able to show findings without
+    # writing anything to the city's registry.
+    dry_run:        bool = True
+    include_users:  bool = False
+    min_confidence: Optional[float] = None
+
+
+@router.post("/oauth", response_model=DiscoveryRunResponse)
+@limiter.limit("10/minute")
+def run_oauth(
+    request: Request,
+    body: OAuthRequest,
+    user: dict = Depends(get_current_user),
+    repo: GovernanceRepository = Depends(get_repository),
+):
+    """
+    Discover shadow AI from OAuth grants (an uploaded customer export, or a live sync)
+    → registry as provenance=discovered_oauth. Flag-gated (OAUTH_DISCOVERY_ENABLED).
+    RBAC: platform/agency admin, scoped to the city. DRY RUN by default — nothing is
+    written unless the caller explicitly asks.
+    """
+    # TODO: attach verified user context for multi-tenant scoping (auth placeholder)
+    principal = resolve_principal(user, repo)
+    if not (principal.is_platform_admin or principal.is_agency_admin):
+        raise HTTPException(
+            status_code=403,
+            detail="OAuth discovery requires platform_admin or agency_admin.")
+    if not principal.all_cities and not principal.can_see_city(body.city):
+        raise HTTPException(status_code=403, detail="City out of scope.")
+    if len(body.grants) > 5000:
+        raise HTTPException(status_code=400, detail="Too many grants (max 5000).")
+    # Employee identities are a deliberate, platform-admin-only reveal.
+    if body.include_users and not principal.is_platform_admin:
+        raise HTTPException(
+            status_code=403,
+            detail="Including consenting-user identities requires platform_admin.")
+
+    allowed_cities = None if principal.all_cities else principal.cities
+
+    from core.discovery.oauth_source import run_oauth_discovery
+    result = run_oauth_discovery(
+        repo, body.city, [g.model_dump() for g in body.grants],
+        provider=(body.provider or ""),
+        dry_run=body.dry_run,
+        include_users=body.include_users,
+        min_confidence=body.min_confidence,
+        allowed_cities=allowed_cities,
+        actor=user.get("email", "unknown"),
+    )
+    if result.get("errors") == ["oauth_discovery_disabled"]:
+        raise HTTPException(
+            status_code=503,
+            detail="OAuth discovery is disabled. Set OAUTH_DISCOVERY_ENABLED=true to enable.")
+
+    return DiscoveryRunResponse(
+        written=result["written"], matched=result["matched"],
+        candidates=result.get("candidates", 0),
+        skipped=result["skipped"], rows=result["rows"],
+        cities=result["cities"], errors=result["errors"],
+        dry_run=result.get("dry_run"),
+    )
 
 
 @router.post("/agenda", response_model=DiscoveryRunResponse)

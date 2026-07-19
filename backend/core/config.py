@@ -120,6 +120,13 @@ AGENDA_LLM_CONCURRENCY: int = int(os.environ.get("AGENDA_LLM_CONCURRENCY", "6"))
 # the agenda portal is usually a different third-party host). Sibling of SCAN_PROXY_*.
 AGENDA_PROXY_URL: str = os.environ.get("AGENDA_PROXY_URL", os.environ.get("SCAN_PROXY_URL", "")).strip()
 
+# ── OAuth / shadow-AI discovery (flagship channel; flag-gated OFF) ────────────
+# Finds AI that employees consented to via the identity provider (Microsoft Entra /
+# Google Workspace) — the AI nobody submitted for approval. Read-only by construction;
+# the FIRST run for a tenant is a DRY RUN that writes nothing. See
+# docs/OAUTH_DISCOVERY_DESIGN.md.
+OAUTH_DISCOVERY_ENABLED: bool = os.environ.get("OAUTH_DISCOVERY_ENABLED", "false").lower() == "true"
+
 # ── Storage backend selection (Firestore migration, Phase 2) ─────────────────
 # "sheets" (legacy) or "firestore". Defaults to sheets so ROLLBACK IS A CONFIG
 # CHANGE: unset/flip the env var and redeploy — no code revert needed.

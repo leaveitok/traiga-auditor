@@ -40,6 +40,11 @@ SETTABLE: Dict[str, Dict[str, Any]] = {
                 "gemini-2.5-flash-lite = GA/stable (supported through >=2026-10-16); "
                 "gemini-3.1-flash-lite = newer, cheaper.",
         "default": lambda: config.AGENDA_LLM_MODEL},
+    "OAUTH_DISCOVERY_ENABLED": {
+        "type": "bool", "group": "OAuth discovery", "label": "OAuth shadow-AI discovery enabled",
+        "help": "Find AI that staff consented to in Microsoft Entra / Google Workspace. "
+                "Read-only; a tenant's first run is a DRY RUN that writes nothing. Off by default.",
+        "default": lambda: config.OAUTH_DISCOVERY_ENABLED},
     "SCAN_SCHEDULE_ENABLED": {
         "type": "bool", "group": "Automated scans", "label": "Daily scan enabled",
         "help": "Run a full compliance scan automatically once per day.",
