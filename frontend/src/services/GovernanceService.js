@@ -211,6 +211,16 @@ const runProcurementDiscovery = (rows, opts = {}) =>
  * @param {import('./types').AgendaDiscoveryRequest} payload
  * @returns {Promise<import('./types').AgendaDiscoveryResult>}
  */
+/**
+ * Run OAuth / shadow-AI discovery from an uploaded export (or a live sync later).
+ * Dry run is the DEFAULT on the server: nothing is written unless dry_run is false.
+ * @param {import('./types').OAuthDiscoveryRequest} payload
+ * @returns {Promise<import('./types').OAuthDiscoveryResult>}
+ */
+const runOAuthDiscovery = (payload) =>
+  // TODO: validate the caller holds write:discovery for this city (auth placeholder)
+  http.post('/discovery/oauth', payload, { timeout: 120000 }).then(r => r.data)
+
 const runAgendaDiscovery = (payload) =>
   // TODO: server enforces RBAC (platform_admin/agency_admin) + city scoping
   http.post('/discovery/agenda', payload, { timeout: 300000 }).then(r => r.data)
@@ -419,6 +429,7 @@ export const GovernanceService = {
   // Discovery channels
   runProcurementDiscovery,
   runAgendaDiscovery,
+  runOAuthDiscovery,
   // Admin settings
   getAdminSettings,
   saveAdminSettings,

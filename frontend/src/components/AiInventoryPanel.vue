@@ -86,6 +86,14 @@
                      @click="agendaDialog = true">Agendas</v-btn>
             </template>
           </v-tooltip>
+          <v-tooltip location="top"
+                     text="Import the read-only OAuth export from Microsoft Entra / Google Workspace to find AI apps staff consented to. Dry run by default — writes nothing.">
+            <template #activator="{ props: tp }">
+              <v-btn v-bind="tp" variant="tonal" color="deep-purple" size="small"
+                     prepend-icon="mdi-account-key-outline"
+                     @click="oauthDialog = true">OAuth</v-btn>
+            </template>
+          </v-tooltip>
           <v-btn icon="mdi-refresh" variant="text" :loading="store.loading" @click="refresh" />
         </div>
       </v-card-title>
@@ -364,6 +372,8 @@
                              @done="onProcurementDone" />
     <AgendaDiscoveryDialog v-model="agendaDialog" :default-city="city || ''"
                            @done="onProcurementDone" />
+    <OAuthImportDialog v-model="oauthDialog" :default-city="city || ''"
+                       @done="onOAuthDone" />
 
     <v-snackbar v-model="snackbar.show" :color="snackbar.color" :timeout="3500"
                 location="bottom right">{{ snackbar.text }}</v-snackbar>
@@ -377,6 +387,7 @@ import { useAuthStore } from '../stores/auth'
 import { useCidStore } from '../stores/cid'
 import ProcurementImportDialog from './ProcurementImportDialog.vue'
 import AgendaDiscoveryDialog from './AgendaDiscoveryDialog.vue'
+import OAuthImportDialog from './OAuthImportDialog.vue'
 
 const props = defineProps({
   /** When set, the panel is locked to one city (CityDetailView embed). */
@@ -393,11 +404,23 @@ const downloadingPack = ref(false)
 // ── Procurement discovery import ────────────────────────────────────────────
 const procurementDialog = ref(false)
 const agendaDialog = ref(false)
+const oauthDialog = ref(false)
 function onProcurementDone(res) {
   snackbar.text  = `Procurement: ${res?.matched ?? 0} AI vendor(s) matched, ${res?.written ?? 0} added/updated`
   snackbar.color = 'success'
   snackbar.show  = true
   refresh()
+}
+
+/** OAuth discovery finished. A dry run wrote nothing — say so plainly rather than
+ *  implying the inventory changed. */
+function onOAuthDone(res) {
+  snackbar.text = res?.dry_run
+    ? `OAuth dry run: ${res?.matched ?? 0} matched, ${res?.candidates ?? 0} to review — nothing written`
+    : `OAuth: ${res?.matched ?? 0} AI app(s) matched, ${res?.written ?? 0} added/updated`
+  snackbar.color = res?.dry_run ? 'info' : 'success'
+  snackbar.show  = true
+  if (!res?.dry_run) refresh()
 }
 
 const cidCity = computed(() => (props.city ? cid.byCity[props.city] || null : null))

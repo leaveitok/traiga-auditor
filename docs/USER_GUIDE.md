@@ -1,6 +1,6 @@
 ---
 title: "TRAIGA Auditor — User Guide"
-subtitle: "AI Transparency & Compliance for Texas Municipalities · Version 1.2"
+subtitle: "AI Transparency & Compliance for Texas Municipalities · Version 1.3"
 date: "July 18, 2026 · For City IT, CIO, and Compliance Staff"
 ---
 
@@ -128,7 +128,7 @@ The city detail page includes tools to move from "problem found" to "fixed and d
 - **Compliance Report** — generate a formal report (executive summary, inventory, and violations with citations) for council or counsel.
 - **AI Use Policy** — generate a draft municipal AI use policy.
 - **AG Response Pack** — assemble documentation responsive to an Attorney General inquiry.
-- **Import Procurement / Sync Staff Usage / Agendas** — additional discovery inputs that widen the inventory beyond the public website.
+- **Import Procurement / Sync Staff Usage / Agendas / OAuth** — additional discovery inputs that widen the inventory beyond the public website.
 
 ## Knowing where an AI system came from — and whether it is live
 
@@ -158,6 +158,38 @@ When the scan finishes, the result shows how many items were screened and a badg
 
 This badge tells you at a glance whether a "0 found" result means "checked thoroughly and clean" or "only a light check ran" — no server logs required.
 
+## Discovering shadow AI your staff signed up for (OAuth)
+
+Most of the AI in a city is not on the website and never went through procurement — it is a
+free tool an employee signed into with their work account. The **OAuth** tool finds it.
+
+**Nothing is connected to your tenant, and we are given no access.** Your IT administrator
+runs a small read-only export script on their own machine, signed in as themselves. It
+requests only read permissions, holds no stored credential, and the sign-in expires with the
+PowerShell window, so there is nothing left for you to revoke afterwards. The full
+instructions — including what the script does *not* do and how to verify it against a
+published checksum — are in the installation manual your administrator receives.
+
+The script produces a JSON file. **Read it before you upload it.** Then, in **AI Inventory →
+OAuth**, select that file. You will see each application, its publisher, how many staff
+consented, and what each grant can reach.
+
+Two protections are on by default:
+
+- **Dry run.** The first run reports what it found and writes **nothing**. You see the
+  findings, decide whether they are right, and only then switch dry run off to record them.
+  The results panel always says plainly when nothing was written.
+- **No employee names.** Only the *number* of people who consented to each app is sent.
+  If the export was run with the optional identity flag, the names are removed in your
+  browser before anything is transmitted, and you are warned.
+
+Findings are recorded as **Procured · verify** — an employee consented to it, which is not
+the same as the city running it. Confirm each one before treating it as a live obligation.
+As with all record-based discovery, these never start a cure clock on their own.
+
+> This channel is off until a platform administrator enables it in **Settings → Feature Flags**.
+
+
 # Safe Harbor Readiness & Framework Lenses
 
 At the bottom of each city page, **TRAIGA Safe Harbor Readiness** scores the city's AI governance against the **Municipal AI Profile** — a right-sized profile of the **NIST AI Risk Management Framework** and its Generative AI Profile. This supports the reasonable-care presumption and internal-review defenses under **Tex. Bus. & Com. Code § 552.105(c)–(e)**.
@@ -182,7 +214,7 @@ When more than one framework is enabled, a **Framework lens** selector appears. 
 # Settings
 
 - **Appearance** — choose the Light or Stealth interface theme (saved per browser).
-- **Feature Flags** (platform admin) — operational toggles that apply within seconds and are written to the Audit Log: the agenda-discovery engine, the daily automated scan and its hour, and the ISO/IEC 42001 framework lens.
+- **Feature Flags** (platform admin) — operational toggles that apply within seconds and are written to the Audit Log: the agenda-discovery engine, OAuth shadow-AI discovery, the daily automated scan and its hour, and the ISO/IEC 42001 framework lens.
 - **Version & Build** — the deployed backend and frontend build identifiers and environment.
 - **Storage / Backend API / Integrations / Deployment** — reference information about the running system.
 - **API Health Check** — confirms the app can reach its backend.

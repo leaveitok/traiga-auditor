@@ -49,5 +49,23 @@ export const useDiscoveryStore = defineStore('discovery', () => {
     }
   }
 
-  return { running, error, runProcurement, runAgenda }
+  /**
+   * Run OAuth / shadow-AI discovery for one city from parsed grant records.
+   * @param {import('../services/types').OAuthDiscoveryRequest} payload
+   * @returns {Promise<import('../services/types').OAuthDiscoveryResult>}
+   */
+  async function runOAuth(payload) {
+    running.value = true
+    error.value   = null
+    try {
+      return await GovernanceService.runOAuthDiscovery(payload)
+    } catch (e) {
+      error.value = e.response?.data?.detail || e.message
+      throw e
+    } finally {
+      running.value = false
+    }
+  }
+
+  return { running, error, runProcurement, runAgenda, runOAuth }
 })

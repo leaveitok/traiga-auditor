@@ -231,4 +231,41 @@
  *             Vertex→keyword fail-open without needing GCP logs)
  */
 
+/**
+ * One consented third-party application, from an OAuth export or live sync.
+ * PRIVACY: `user_count` is the default answer to "who consented"; `users` is opt-in
+ * and platform-admin only, because it is employee-identifiable data.
+ * @typedef {Object} OAuthGrant
+ * @property {string}   [app_id]
+ * @property {string}   [app_name]
+ * @property {string}   [publisher]
+ * @property {('microsoft'|'google')} [provider]
+ * @property {string[]} [scopes]      - granted scopes; what the app can REACH
+ * @property {number}   [user_count]
+ * @property {string[]} [users]       - opt-in only
+ */
+
+/**
+ * Request to run OAuth / shadow-AI discovery.
+ * @typedef {Object} OAuthDiscoveryRequest
+ * @property {string}       city
+ * @property {OAuthGrant[]} grants
+ * @property {string}       [provider]
+ * @property {boolean}      [dry_run]       - DEFAULT true: report only, write nothing
+ * @property {boolean}      [include_users] - platform admin only
+ */
+
+/**
+ * Result of an OAuth discovery run (procurement shape + dry_run).
+ * @typedef {Object} OAuthDiscoveryResult
+ * @property {number}   written    - 0 when dry_run
+ * @property {number}   matched
+ * @property {number}   [candidates]
+ * @property {number}   skipped
+ * @property {number}   rows
+ * @property {string[]} cities
+ * @property {string[]} errors
+ * @property {boolean}  [dry_run]  - true = NOTHING was written
+ */
+
 export {}
