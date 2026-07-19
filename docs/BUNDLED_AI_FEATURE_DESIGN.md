@@ -1,5 +1,7 @@
 # Embedded / Bundled AI-Feature Detection — Design / Scope (DRAFT for review)
 
+> ⚠ **STATUS: DESIGN ONLY — NOT IN PRODUCTION.** Nothing described in this document is built or deployed. It is a proposal for review.
+
 Status: proposed, not built. Author: architecture pass, 2026-07-13.
 Prompted by CloudEagle's "AI features activating silently inside tools you already own."
 

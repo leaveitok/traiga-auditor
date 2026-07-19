@@ -1,4 +1,4 @@
-# AI Use-Case Inventory — Specification v1.0 (2026-07-06)
+# AI Use-Case Inventory — Specification v1.1 (updated 2026-07-18)
 
 ## Purpose
 
@@ -19,7 +19,7 @@ and fill in context — not to author records from memory.
 | `city` | tenancy key — RBAC scoping reuses `filter_rows` unchanged |
 | `vendor_id` / `display_name` | from fingerprint schema, or free text when declared |
 | `asset_types_json` | JSON list (chatbot, automated_intake_widget, …) |
-| `provenance` | primary/first source: `discovered_scan` \| `discovered_sentinel` \| `discovered_procurement` \| `declared` (future: `discovered_oauth`, `discovered_network`) |
+| `provenance` | primary/first source: `discovered_scan` \| `discovered_agenda` \| `discovered_procurement` \| `discovered_sentinel` \| `declared` (future: `discovered_budget`, `discovered_oauth`, `discovered_network`, `discovered_vendor_feature`) |
 | `tool_id` | canonical cross-channel id (identity resolver). Registry key is `{city}::{tool_id}` so the same tool found by multiple channels is ONE row |
 | `discovery_sources_json` | machine field: append-unioned list of every channel that found this tool `[{provenance, observed_utc, evidence}]` — the "found by scan + Sentinel + procurement" evidence |
 | `lifecycle_status` | `discovered` → `attested` → `retired` |
@@ -39,6 +39,17 @@ overwritten by a scan**. A scan can move `presence`, not `lifecycle_status`.
 **Derived at read time (never stored, so never stale):**
 - `disclosure_status` — join against open violations for (city, vendor_id):
   any open ⇒ `non_compliant`, else if scanned ⇒ `compliant`, else `not_assessed`.
+- `deployment_state` — derived from `provenance`, NOT stored: `discovered_scan`
+  ⇒ **Live on site** (observed running now — a real disclosure obligation);
+  `discovered_agenda` / `discovered_procurement` / `discovered_budget` ⇒
+  **Procured / Budgeted · verify** (found in a record, not confirmed deployed);
+  `discovered_sentinel` ⇒ **Staff-reported**; `declared` ⇒ **Self-declared**.
+  This is what stops an implementation-timing gap (bought but not yet live) from
+  reading as live non-compliance. Note the compliance math already agrees:
+  `disclosure_status` is only computed for `discovered_scan`; every other
+  provenance is `not_assessed` and never produces a violation or a cure clock.
+- `statutory_exposure` — from `Governance_Profile.statutory_exposure`, the TRAIGA
+  rules an asset's FUNCTION implicates (deterministic; needs no vendor internals).
 - `obligations` — applicable rules from `Compliance_Ruleset.External_Transparency_Module`
   (rule_id, title, citation, severity). Framework crosswalk grows by adding
   rule modules to the schema — no inventory code change (governance-as-code).
@@ -65,7 +76,10 @@ inventory write must never break a scan. No writes when the crawl failed
 ## UI
 
 - **Inventory view** (nav: "AI Inventory", all roles read): table = one row per
-  asset. Columns: asset (name + type), city, provenance chip, disclosure chip,
+  asset. Columns: asset (name + type), city, provenance chip (naming the actual
+  channel — Website scan / Council agenda / Procurement / Budget / Staff usage /
+  Declared) plus a deployment badge (*Live on site* vs *Procured · verify*),
+  disclosure chip,
   presence badge, owner, lifecycle chip, last observed. Expand row → evidence
   (page URL, matched signals, confidence) + obligations with citations.
   Actions (admin roles): **Confirm & Attest** (dialog pre-filled from
@@ -86,6 +100,10 @@ set contains the asset's city. Viewers: read-only. Unknown role: nothing.
 
 ## Out of scope v1 (explicitly)
 
-Sentinel-fed usage assets (hook point reserved via `provenance` enum),
-NIST AI RMF / ISO 42001 crosswalk modules (additive schema change later),
-bulk import/export (CSV export is v1.1), per-asset documents/contracts.
+Bulk import/export (CSV export), per-asset documents/contracts.
+
+**Shipped since v1.0:** Sentinel-fed usage assets, agenda + procurement channels,
+the NIST AI RMF / ISO 42001 crosswalk (Safe Harbor module, 3 frameworks), and the
+vendor `Governance_Profile`. Still design-only: budget channel, bundled
+vendor-AI-feature detection, and automated vendor enrichment — see
+`docs/DOC_STATUS.md` for what is live vs proposed.

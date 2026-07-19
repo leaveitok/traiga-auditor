@@ -1,5 +1,7 @@
 # Budget-Document Discovery Channel — Design / Scope (DRAFT for review)
 
+> ⚠ **STATUS: DESIGN ONLY — NOT IN PRODUCTION.** Nothing described in this document is built or deployed. It is a proposal for review.
+
 Status: proposed, not built. Author: architecture pass, 2026-07-13.
 Sibling of `AGENDA_ENGINE_DESIGN.md`, `AGENDA_DEEP_TEXT_DESIGN.md`,
 `DISCOVERY_EXPANSION_DESIGN.md`.

@@ -99,8 +99,16 @@ multi-source evidence trail):
 `network_request_regex`, `js_global_symbol`, `cookie_name_regex`. A vendor fires when
 summed weights ≥ 0.6.
 
-**Vendors as of 2026-07-11:** citibot, civicplus, repd, munibit, granicus,
-claude_ai_chatbot, elevenlabs_convai, **frase**, **unknown_chatbot**, generic_llm_chat.
+**Vendors as of 2026-07-18 (11):** citibot, civicplus, repd, munibit, granicus,
+claude_ai_chatbot, elevenlabs_convai, **frase**, **uneeq**, **unknown_chatbot**,
+generic_llm_chat.
+
+**Supporting capture (2026-07-13):** a website scan also records *site metadata* —
+agenda platform + client slug, CMS, privacy-policy URL — from
+`Site_Metadata_Signatures`, stored as unverified candidates that only fill EMPTY
+fields. The Legistar slug an operator actually runs is persisted (verified) as a
+backstop, so the Agendas dialog pre-fills it thereafter. Detection is best-effort:
+a CivicPlus-fronted city that never links its portal is covered by the backstop.
 
 **Detection gotchas (encoded in the `add-vendor-signature` skill):**
 - `dom_selector` matches distinctive **fragments**, not attribute names — the engine drops
@@ -191,13 +199,15 @@ the rule to **derive the FILES list from the git diff, never hand-type it**.
 
 ## 8. Known incidents & lessons (read before you touch anything)
 
-1. **NTFS mount truncation (SEVERE, recurring):** the Linux sandbox mount serves *truncated*
-   copies of files edited via the Windows file tools — bash `cat`/`py_compile`/`git status`
-   see cut-off content while the Windows files are intact. NEW files serve correctly. Never
-   trust sandbox `git status`/compiles for edited files; the Windows `pytest` + the blob-
-   verify in the ship `.bat` are the real gates. Validate pure logic against `/tmp`
-   reconstructions. (This is why `git status` once showed "51 files changed" that were
-   actually fine.)
+1. **NTFS mount truncation (SEVERE, recurring — ~10 files in one session):** writes to the
+   mount can truncate a file mid-way. **A truncated file can still COMPILE**: `config.py` cut
+   at a statement boundary, passed `py_compile`, and silently dropped `GOVERNANCE_STORE` and
+   every `FIRESTORE_*` setting — that would have been a production outage. A clean compile
+   proves syntax, never completeness. **Canonical recipe (safe-edit skill):**
+   `git show HEAD:file > /tmp/orig` → apply edits in Python with an asserted unique anchor →
+   `cp` to the mount → `cmp -s` → compile → check the TAIL and a sentinel symbol near the end
+   of the file. Recovery from git only works for TRACKED files — `docs/USER_GUIDE.md`
+   truncated and was unrecoverable because it had never been committed (now fixed).
 2. **git ↔ prod drift:** `deploy_frontend.bat` (manual) built the whole *working tree*, so a
    fix could go LIVE while staying uncommitted (happened with the audit-log fix). Moving both
    halves to CI (committed-source-only) closed this class. Use the `release-status` skill to
@@ -211,9 +221,33 @@ the rule to **derive the FILES list from the git diff, never hand-type it**.
    (`service_account.json`, present locally / absent in CI). Fix: the `sclient` fixture
    overrides `get_repository` with a mock. The CI gate *correctly* caught this.
 5. **Batch-script traps:** unescaped `(...)` inside an `if (...)` echo throws `.  was
-   unexpected at this time.` (use `[brackets]`); escape `&` as `^&` inside `( )` blocks; every
-   `gcloud`/`npm`/`firebase` (.cmd) call needs `call` or the script silently exits 0.
+   unexpected at this time.` (use `[brackets]`); every `gcloud`/`npm`/`firebase` (.cmd) call
+   needs `call` or the script silently exits 0. **CORRECTION (this file previously said the
+   opposite):** inside `( )` blocks use a **PLAIN `&`, never `^&`** — `^&` escapes it to a
+   literal character so the `goto`/`set` after it never runs, which produced a FALSE-GREEN
+   gate that committed a red build (2026-07-11). `^&` is only for a literal `&` in echo text.
 6. **Line-ending warnings** (`LF will be replaced by CRLF`) on commit are harmless.
+7. **Git index corruption (2026-07-13):** a stale 0-byte `.git/index.lock` plus an emptied
+   index made `git status` report EVERY tracked file as deleted and every working file as
+   untracked; `git add` then silently staged nothing. The sandbox cannot unlink the lock
+   (NTFS permissions) and the sandbox shares the SAME `.git` as Windows. Every ship `.bat`
+   now opens with a self-heal step: drop the stale lock, and if `git ls-files` counts 0,
+   delete `.git/index` and `git reset` (rebuilds from HEAD; working tree untouched).
+8. **Portal pagination beats you silently (2026-07-13):** Legistar's `/events` returns its
+   DEFAULT page — the OLDEST ~1000 events — when no date filter is sent. McKinney (Legistar
+   since 2009) therefore returned only 2009–2015, everything was filtered out client-side,
+   and the scan reported 0 in under 2 seconds. Fix: filter the window SERVER-SIDE
+   (`$filter=EventDate ge datetime'…'`). **Tell: a suspiciously FAST empty result means the
+   fetch never reached the data** — not that the gate is wrong (see discovery-triage).
+9. **Cloud Run's 300s request cap (2026-07-12):** a 12-month agenda backfill run
+   synchronously (one HTTP call per meeting, then one LLM call per item) exceeded
+   `--timeout=300` and returned 502. Fixed by making the work fit — concurrent per-meeting
+   fetch + one LLM call per meeting — not by raising the ceiling.
+10. **Un-pinned framework defaults change your UI (2026-07-18):** the mobile work relied on
+   Vuetify's default `display.mobileBreakpoint`, which is `lg` (**1280px**) — so a 1366×768
+   laptop or a split-screen window would have silently flipped to the MOBILE layout. Always
+   pin a framework default you depend on (`mobileBreakpoint: 'md'` / 960px) and ask "does
+   this change the desktop?" before shipping.
 
 ---
 
@@ -222,13 +256,19 @@ the rule to **derive the FILES list from the git diff, never hand-type it**.
 Backend env (Cloud Run): `GOVERNANCE_STORE`/`SENTINEL_STORE` (firestore),
 `FIRESTORE_PROJECT_ID`, `ADMIN_EMAILS`, `REQUIRE_AUTH=true`, `CORS_ORIGINS`,
 `SCAN_PROXY_URL` + `SCAN_PROXY_ONLY_FLAGGED`, `SENTINEL_INGEST_TOKENS`, `SCHEDULER_TOKEN`,
-`AGENDA_LLM_PROVIDER`/`AGENDA_LLM_MODEL`/`AGENDA_LLM_LOCATION`, `SCAN_SCHEDULE_*`.
+`AGENDA_ENGINE_ENABLED`, `AGENDA_LLM_PROVIDER`/`AGENDA_LLM_MODEL`/`AGENDA_LLM_LOCATION`,
+`AGENDA_FETCH_CONCURRENCY`/`AGENDA_LLM_CONCURRENCY` (keep a wide backfill inside the 300s
+cap), `AGENDA_LOOKBACK_MONTHS(_MAX)`, `RENDER_TIMEOUT_SECONDS`, `AUDIT_LEASE_STALE_SECONDS`,
+`FRAMEWORK_ISO_42001_ENABLED`, `SCAN_SCHEDULE_*`.
 Frontend (Vite, PUBLIC, in `.env`/`.env.production`): `VITE_FIREBASE_API_KEY`,
 `VITE_FIREBASE_AUTH_DOMAIN`, `VITE_FIREBASE_PROJECT_ID`, `VITE_ADMIN_EMAILS`.
 
 **Agenda LLM (Vertex/Gemini):** model default `gemini-2.5-flash-lite` (GA, supported through
 ≥2026-10-16); migration path `gemini-3.1-flash-lite`. Model + provider are UI-selectable
-(Settings). Auth via the Cloud Run SA (ADC) — no API key. Cost negligible at gated volume.
+(Settings). Auth via the Cloud Run SA (ADC) — no API key. **Pricing verified 2026-07-13:**
+2.5 Flash-Lite $0.10/M in, $0.40/M out; it RETIRES **2026-10-16**, after which 3.1 Flash-Lite
+is $0.25/$1.50 (2.5×/3.75× more). Cost stays negligible at gated volume (~$0.015 per city
+agenda scan) because gating is regex-first and the LLM is batched per meeting.
 
 ---
 
@@ -243,14 +283,20 @@ Order = **trust/integrity first, then credibility polish, then flagship + growth
    settings/scans all log; automated scans log `scan_complete` via `pipeline.py`). Closed the
    two real gaps: destructive `violations_purged` + `scorecard_row_deleted` now audit-logged
    with actor; added `scheduled_scan_triggered`. Test: test_audit_log_coverage.py.
-4. **Settings-page accuracy** — it still shows legacy Google Sheets + `localhost:8000`;
-   production is Firestore + Vertex. Cheap, high embarrassment-avoidance.
+4. ~~Settings-page accuracy~~ — **DONE**. Also DONE since: agenda engine at scale
+   (concurrent fetch + per-meeting LLM batching + server-side date window), the in-app
+   "which extractor ran" indicator, site-metadata auto-capture + agenda slug pre-fill,
+   inventory provenance + deployment badges, curated public-safety AI keywords, the sourced
+   `Governance_Profile` (no risk score), and a responsive mobile/tablet UI.
 5. **Microsoft/Google OAuth shadow-AI discovery** — THE flagship. Find AI apps employees
    OAuth'd into (Workspace/Entra grants) that IT never approved. Big build, huge value,
    agency differentiator.
 6. **Texas cohort sweep (10–20 TAGITM cities)** — grows the signature library (network
    effect) + fills cross-city vendor-prevalence data + *is* the TAGITM pitch scorecard.
-7. **Dark / stealth mode toggle** — cheap Vuetify theme; nice for the technical audience.
+7. ~~Dark / stealth mode toggle~~ — **DONE**.
+8. **Scoped but NOT built** (design docs only — see `docs/DOC_STATUS.md`): agenda deep-text
+   extraction, the adopted-budget channel, bundled vendor-AI-feature detection, and automated
+   vendor enrichment. Each has an open-decisions list awaiting a call.
 
 **Path to 9/10 (business, not code):** a second agency operating unassisted + defined
 pricing. The sweep (#6) is the concrete on-ramp; pricing/packaging has never been set.
@@ -264,15 +310,25 @@ pricing. The sweep (#6) is the concrete on-ramp; pricing/packaging has never bee
 - **release-status** — read-only drift check: deployed-but-uncommitted, committed-but-unpushed,
   unrun `ship_*.bats`.
 - **ship-it** (enhanced) — derive FILES from the git diff + the canonical gated release `.bat`.
-- Plus: scan-triage (diagnose why a city is/ isn't flagged), deploy-watch, safe-edit,
-  add-discovery-channel, compliance-report, schedule, docx/pdf/pptx/xlsx.
+- **safe-edit** (updated 2026-07-18) — git-recover → edit in /tmp → `cmp`; and the rule that
+  **compiling ≠ intact**.
+- **frontend-change** (new) — the production `vite build` CANNOT run in the sandbox (Windows
+  binaries in the shared `node_modules`; never `npm install` there); verify with
+  `@vue/compiler-sfc` script+template compile. Prefer one global Vuetify default over editing
+  N views. Pin framework defaults you depend on.
+- **discovery-triage** (new) — why an agenda/procurement/budget run returned 0: fetch →
+  window → meeting gate → award gate → extractor → matcher. Sibling of scan-triage (websites).
+- Plus: scan-triage, deploy-watch, ci-triage, add-discovery-channel, add-compliance-framework,
+  update-user-guide, cloud-setup, compliance-report, schedule, docx/pdf/pptx/xlsx.
 
 ---
 
 ## 12. How to resume with any tool
 
-Point the tool at: **this file**, then `docs/ARCHITECTURE.md`, `docs/FEATURES.md`,
-`docs/ROADMAP.md`, `PROJECT_INSTRUCTIONS.md`, and `SCHEMA_DEFINITION.json`. That's the full
-mental model. The code is the source of truth; when memory and code disagree, trust the code
-(and update this file). Everything here was true as of 2026-07-12 — re-verify present-day
-facts (models, pricing, live scan results) before asserting them.
+Point the tool at: **this file**, then `docs/DOC_STATUS.md` (what is SHIPPED vs DESIGN-ONLY
+— read this before believing any design doc), `docs/ARCHITECTURE.md`, `docs/FEATURES.md`,
+`docs/OPERATIONS.md`, `docs/ROADMAP.md`, `PROJECT_INSTRUCTIONS.md`, and
+`SCHEMA_DEFINITION.json`. That's the full mental model. The code is the source of truth; when
+memory and code disagree, trust the code (and update this file). Everything here was true as
+of **2026-07-18** — re-verify present-day facts (models, pricing, live scan results) before
+asserting them.
