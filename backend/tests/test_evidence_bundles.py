@@ -196,3 +196,25 @@ def test_inventory_csv_covers_every_provenance_channel():
 def test_missing_city_raises_lookup():
     with pytest.raises(LookupError):
         bo.assemble_city_data(_MockRepo(), "Nonexistent City")
+
+
+# ── Statute naming (TRAIGA / HB 149 must be recognisable, not just the code §) ──
+
+def test_findings_name_traiga_hb149_not_just_the_code_section():
+    """A council member or AG reviewer must see the recognisable name. HB 149 (TRAIGA) was
+    codified as Tex. Bus. & Com. Code Ch. 552, so a bare "§552.05x" is correct but opaque.
+    """
+    res = bs.build_bundle(DATA, _presets()["ag_auditor_package"])
+    v = next(s for s in res["sections"] if s["kind"] == "violations")
+    for item in v["items"]:
+        assert "TRAIGA (HB 149)" in item["citation"]
+        assert "552" in item["citation"]
+
+
+def test_cite_helper_is_idempotent_and_passes_through_non_traiga():
+    assert bs.cite("Tex. Bus. & Com. Code §552.052").startswith("TRAIGA (HB 149) ·")
+    # Never double-labels.
+    once = bs.cite("Tex. Bus. & Com. Code §552.052")
+    assert bs.cite(once) == once
+    # A different statute (e.g. SB 1964 lives in the Gov. Code) is left untouched.
+    assert bs.cite("Tex. Gov. Code §2054.001") == "Tex. Gov. Code §2054.001"

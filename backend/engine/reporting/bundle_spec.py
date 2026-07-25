@@ -51,6 +51,22 @@ CANDIDATE_NOTICE = (
 )
 
 
+def cite(citation: str) -> str:
+    """Name the statute a lay reader recognises. HB 149 (TRAIGA) was CODIFIED as Tex. Bus.
+    & Com. Code Ch. 552, so a finding that shows only "§552.05x" is correct but opaque to a
+    council member or AG reviewer. Prefix Ch.-552 citations with the recognisable name."""
+    c = str(citation or "").strip()
+    if not c:
+        return c
+    low = c.lower()
+    if "552" in c or "bus. & com" in low or "traiga" in low or "hb 149" in low:
+        # Avoid double-labelling if the source already names it.
+        if "traiga" in low or "hb 149" in low:
+            return c
+        return f"TRAIGA (HB 149) · {c}"
+    return c
+
+
 def _is_discovered(provenance: str) -> bool:
     return bool(provenance) and provenance != "declared"
 
@@ -185,7 +201,7 @@ def _sec_violations(data: Dict[str, Any], preset: Dict[str, Any]) -> Dict[str, A
         ev = v.get("evidence", {}) if isinstance(v.get("evidence"), dict) else {}
         items.append({
             "rule_id": v.get("rule_id", "—"),
-            "citation": v.get("citation", "—"),
+            "citation": cite(v.get("citation", "—")),
             "severity": str(v.get("severity", "medium")).upper(),
             "status": str(v.get("status", "")).replace("_", " ").title(),
             "first_observed": str(v.get("first_observed_utc", "") or "").split("T")[0],
@@ -227,9 +243,9 @@ def _sec_statutory_reference(data: Dict[str, Any], preset: Dict[str, Any]) -> Di
         "kind": "statutory_reference",
         "title": "Statutory Reference — TRAIGA Key Provisions",
         "items": [
-            {"citation": "Tex. Bus. & Com. Code §552.051", "text": "Scope — governmental entities deploying AI that interacts with the public."},
-            {"citation": "Tex. Bus. & Com. Code §552.052", "text": "Conspicuous disclosure of AI use to consumers."},
-            {"citation": "Tex. Bus. & Com. Code §552.053", "text": "60-day cure period before Attorney General enforcement."},
+            {"citation": "TRAIGA (HB 149) · Tex. Bus. & Com. Code §552.051", "text": "Scope — governmental entities deploying AI that interacts with the public."},
+            {"citation": "TRAIGA (HB 149) · Tex. Bus. & Com. Code §552.052", "text": "Conspicuous disclosure of AI use to consumers."},
+            {"citation": "TRAIGA (HB 149) · Tex. Bus. & Com. Code §552.053", "text": "60-day cure period before Attorney General enforcement."},
         ],
     }
 
