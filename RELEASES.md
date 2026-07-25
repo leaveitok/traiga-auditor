@@ -49,3 +49,4 @@ first release." Use `git log` for anything earlier.
 | 01.6 | 2026-07-25 | ship_evidence_room.bat | Evidence Bundles Phase 2: Evidence Room - immutable snapshots, stale detection, tombstone; auth-safe downloads |
 | 01.7 | 2026-07-25 | ship_deploy_fix.bat | Fix backend deploy red since 01.1: quote APP_RELEASE in env.yaml (YAML float coercion); surface Reports preset-load error |
 | 01.8 | 2026-07-25 | ship_deploy_fix.bat | Fix backend deploy red since 01.1: quote APP_RELEASE in env.yaml (YAML float coercion); surface Reports preset-load error |
+| 01.9 | 2026-07-25 | ship_deploy_fix.bat | Fix backend deploy red since 01.1: quote APP_RELEASE in env.yaml (YAML float coercion); surface Reports preset-load error |

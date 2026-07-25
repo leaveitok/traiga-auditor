@@ -75,24 +75,38 @@ jobs:
           docker push --all-tags \
             ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.AR_REPO }}/${{ env.IMAGE }}
 
+      # HARDENING (learned the hard way): gcloud --env-vars-file parses this as YAML and
+      # rejects any NON-STRING value with exit code 2. An UNQUOTED value gets coerced —
+      # 01.6 -> float, 24 -> int, true -> bool, empty -> null — which silently broke the
+      # backend deploy for six releases. RULE: QUOTE EVERY VALUE. The next step verifies it.
       - name: Write env.yaml
         run: |
           {
-            echo 'GOOGLE_SERVICE_ACCOUNT_FILE: /secrets/service_account.json'
-            echo 'SPREADSHEET_ID: 1kWpfVMu1GhPRU5xNBQxqu2t12h6vSfrWZufNPHUNYHk'
-            echo 'FIREBASE_PROJECT_ID: traiga-auditor'
-            echo 'ADMIN_EMAILS: leaveitok@gmail.com'
+            echo 'GOOGLE_SERVICE_ACCOUNT_FILE: "/secrets/service_account.json"'
+            echo 'SPREADSHEET_ID: "1kWpfVMu1GhPRU5xNBQxqu2t12h6vSfrWZufNPHUNYHk"'
+            echo 'FIREBASE_PROJECT_ID: "traiga-auditor"'
+            echo 'ADMIN_EMAILS: "leaveitok@gmail.com"'
             echo 'REQUIRE_AUTH: "true"'
-            echo 'CORS_ORIGINS: https://traiga-auditor.web.app,https://traiga-auditor.firebaseapp.com'
+            echo 'CORS_ORIGINS: "https://traiga-auditor.web.app,https://traiga-auditor.firebaseapp.com"'
             echo 'SCAN_CADENCE_HOURS: "24"'
-            echo 'API_HOST: 0.0.0.0'
+            echo 'API_HOST: "0.0.0.0"'
             echo 'SCAN_PROXY_ONLY_FLAGGED: "true"'
             echo 'GOVERNANCE_STORE: "firestore"'
             echo 'SENTINEL_STORE: "firestore"'
-            echo 'FIRESTORE_SENTINEL_DB: traiga-sentinel'
-            echo 'GIT_SHA: ${{ github.sha }}'
+            echo 'FIRESTORE_SENTINEL_DB: "traiga-sentinel"'
+            echo 'GIT_SHA: "${{ github.sha }}"'
             echo "APP_RELEASE: \"$(cat VERSION 2>/dev/null || echo dev)\""
           } > deploy/env.yaml
+
+      - name: Validate env.yaml (every value must be a quoted string)
+        run: |
+          # Fail loudly BEFORE gcloud if any value is not wrapped in double quotes, so an
+          # unquoted-coercion bug can never silently reach Cloud Run again. Dependency-free.
+          if grep -nE '^[A-Za-z_][A-Za-z0-9_]*:[[:space:]]*[^"[:space:]]' deploy/env.yaml; then
+            echo "::error::Unquoted value(s) in deploy/env.yaml (listed above). YAML coerces 01.6->float, 24->int, true->bool; gcloud then rejects it. Wrap every value in double quotes."
+            exit 1
+          fi
+          echo "OK: every env.yaml value is a quoted string."
 
       - name: Deploy to Cloud Run
         run: |
