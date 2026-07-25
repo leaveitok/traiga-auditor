@@ -302,4 +302,24 @@
  *           swallowed: a partial export makes a tenant look clean.
  */
 
+/**
+ * One audience preset for an evidence bundle.
+ * @typedef {Object} ReportPreset
+ * @property {string}  key
+ * @property {string}  title
+ * @property {string}  audience
+ * @property {('summary'|'medium'|'full')} depth
+ * @property {boolean} package   - true = produces a zip (report + attachments)
+ * @property {string[]} formats
+ * @property {number}  section_count
+ */
+
+/**
+ * The render-agnostic bundle model returned by /reports/preview. The UI renders this as
+ * on-brand HTML for the live preview; the backend renders the identical model to PDF/DOCX.
+ * @typedef {Object} BundleModel
+ * @property {Object}   meta      - doc_id, generated_utc, tool_release, content_sha256, ...
+ * @property {Object[]} sections  - each has a `kind` and its content
+ */
+
 export {}

@@ -25,6 +25,7 @@ firebase-admin>=6.5.0       # Firebase ID token verification (Google Auth)
 
 # ── Report generation ─────────────────────────────────────────────────────────
 python-docx>=1.1.0          # TRAIGA compliance report DOCX generation
+reportlab>=4.0.0            # Evidence-bundle PDF rendering (Reports)
 
 # ── Schema validation ─────────────────────────────────────────────────────────
 jsonschema>=4.21.0

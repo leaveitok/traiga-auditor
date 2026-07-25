@@ -323,6 +323,40 @@ const downloadReport = (city) =>
     timeout: 120000,   // report generation can take up to 2 min
   }).then(r => r.data)
 
+/**
+ * Audience presets for the Reports section (data-driven from the backend schema).
+ * @returns {Promise<{presets: import('./types').ReportPreset[]}>}
+ */
+const getReportPresets = () =>
+  // TODO: attach auth token (auth placeholder)
+  http.get('/reports/presets').then(r => r.data)
+
+/**
+ * The render-agnostic BundleModel for a live on-brand HTML preview, BEFORE any file is
+ * generated. This is what powers the preview pane — no document is produced.
+ * @returns {Promise<import('./types').BundleModel>}
+ */
+const getReportPreview = (city, preset) =>
+  http.get('/reports/preview', { params: { city, preset } }).then(r => r.data)
+
+/**
+ * Absolute URL for a single tailored document (pdf|docx). Returned as a URL so the
+ * browser performs a normal authenticated download and the city sees it in their own
+ * network log.
+ * @returns {string}
+ */
+const reportBundleUrl = (city, preset, fmt = 'pdf') =>
+  `${http.defaults.baseURL}/reports/bundle?city=${encodeURIComponent(city)}` +
+  `&preset=${encodeURIComponent(preset)}&fmt=${encodeURIComponent(fmt)}`
+
+/**
+ * Absolute URL for the full auditor package (zip: PDF + DOCX + attachments + manifest).
+ * @returns {string}
+ */
+const reportPackageUrl = (city, preset) =>
+  `${http.defaults.baseURL}/reports/package?city=${encodeURIComponent(city)}` +
+  `&preset=${encodeURIComponent(preset)}`
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Safe Harbor (Municipal AI Profile — Tex. Bus. & Com. Code § 552.105)
 // ─────────────────────────────────────────────────────────────────────────────
@@ -471,6 +505,10 @@ export const GovernanceService = {
   submitDeepScan,
   // Reports
   downloadReport,
+  getReportPresets,
+  getReportPreview,
+  reportBundleUrl,
+  reportPackageUrl,
   // Safe Harbor
   getSafeHarbor,
   attestSafeHarbor,

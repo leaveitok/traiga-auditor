@@ -53,5 +53,46 @@ export const useReportsStore = defineStore('reports', () => {
   /** @param {string} city */
   const isGenerating = (city) => generating.value === city
 
-  return { generating, error, download, isGenerating }
+  // ── Audience presets + live preview (Reports section) ────────────────────
+  const presets = ref([])
+  const presetsLoaded = ref(false)
+  const preview = ref(null)
+  const previewLoading = ref(false)
+  const previewError = ref(null)
+
+  /** Load the audience presets once. Never throws — the section must render regardless. */
+  async function loadPresets() {
+    if (presetsLoaded.value) return presets.value
+    try {
+      const res = await GovernanceService.getReportPresets()
+      presets.value = res.presets || []
+      presetsLoaded.value = true
+    } catch (e) {
+      presets.value = []
+    }
+    return presets.value
+  }
+
+  /** Fetch the BundleModel for the live HTML preview. */
+  async function loadPreview(city, preset) {
+    previewLoading.value = true
+    previewError.value = null
+    preview.value = null
+    try {
+      preview.value = await GovernanceService.getReportPreview(city, preset)
+    } catch (e) {
+      previewError.value = e.response?.data?.detail || e.message
+    } finally {
+      previewLoading.value = false
+    }
+    return preview.value
+  }
+
+  const bundleUrl = (city, preset, fmt) => GovernanceService.reportBundleUrl(city, preset, fmt)
+  const packageUrl = (city, preset) => GovernanceService.reportPackageUrl(city, preset)
+
+  return { generating, error, download, isGenerating,
+           presets, presetsLoaded, loadPresets,
+           preview, previewLoading, previewError, loadPreview,
+           bundleUrl, packageUrl }
 })

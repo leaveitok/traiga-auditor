@@ -1321,5 +1321,71 @@
       "pattern": "(?i)(readwrite|\\.modify|\\.full|\\.append|write)",
       "note": "A write-capable grant is materially different from read-only: medium -> high, low -> medium."
     }
+  },
+  "Report_Bundles": {
+    "_note": "Audience presets for the evidence-bundle engine. Adding an audience is a CONFIG change here, not code (single swap point). 'sections' is the ordered list of section builders engine/reporting/bundle_spec.py emits; 'attachments' are extra files bundled into a package preset. provenance_summary is placed right after the cover so 'what we discovered that was never declared' is the first substantive page.",
+    "section_catalogue": [
+      "cover",
+      "provenance_summary",
+      "exec_status",
+      "asset_inventory",
+      "compliance_detail",
+      "violations",
+      "recommendations",
+      "statutory_reference",
+      "methodology",
+      "attestation"
+    ],
+    "attachment_catalogue": [
+      "inventory_csv",
+      "provenance_appendix",
+      "audit_log_excerpt"
+    ],
+    "presets": {
+      "council_brief": {
+        "title": "City Council Compliance Brief",
+        "audience": "Elected officials",
+        "depth": "summary",
+        "formats": [
+          "pdf",
+          "docx"
+        ],
+        "package": false,
+        "sections": [
+          "cover",
+          "provenance_summary",
+          "exec_status",
+          "statutory_reference"
+        ],
+        "attachments": []
+      },
+      "ag_auditor_package": {
+        "title": "TRAIGA Evidence Package",
+        "audience": "Texas Attorney General / External Auditor",
+        "depth": "full",
+        "formats": [
+          "pdf",
+          "docx"
+        ],
+        "package": true,
+        "sections": [
+          "cover",
+          "provenance_summary",
+          "exec_status",
+          "asset_inventory",
+          "compliance_detail",
+          "violations",
+          "recommendations",
+          "statutory_reference",
+          "methodology",
+          "attestation"
+        ],
+        "attachments": [
+          "inventory_csv",
+          "provenance_appendix",
+          "audit_log_excerpt"
+        ]
+      }
+    }
   }
 }

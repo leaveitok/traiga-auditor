@@ -134,6 +134,7 @@ const baseItems = [
   { to: '/dashboard',  icon: 'mdi-view-dashboard',          title: 'Dashboard'      },
   { to: '/analytics',  icon: 'mdi-chart-box',               title: 'Analytics'      },
   { to: '/inventory',  icon: 'mdi-clipboard-list-outline',  title: 'AI Inventory'   },
+  { to: '/reports',    icon: 'mdi-file-document-multiple-outline', title: 'Reports'        },
   { to: '/violations', icon: 'mdi-alert-circle',            title: 'Violations'     },
   { to: '/sentinel',   icon: 'mdi-shield-lock',             title: 'Sentinel (DLP)' },
 ]

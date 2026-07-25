@@ -43,6 +43,12 @@ const routes = [
     meta: { title: 'AI Inventory', icon: 'mdi-clipboard-list-outline', requiresAuth: true },
   },
   {
+    path: '/reports',
+    name: 'Reports',
+    component: () => import('../views/ReportsView.vue'),
+    meta: { title: 'Reports', icon: 'mdi-file-document-multiple-outline', requiresAuth: true },
+  },
+  {
     path: '/sentinel',
     name: 'Sentinel',
     component: () => import('../views/SentinelView.vue'),
