@@ -46,3 +46,4 @@ first release." Use `git log` for anything earlier.
 | 01.3 | 2026-07-19 | ship_oauth_script_delivery.bat | Serve the export script from the app with a computed checksum; fix the commit guard |
 | 01.4 | 2026-07-19 | ship_oauth_two_methods.bat | Browser-only Graph Explorer path; Unblock-File fix; in-UI step-by-step instructions |
 | 01.5 | 2026-07-25 | ship_evidence_bundles.bat | Evidence Bundles Phase 1: audience presets, PDF+DOCX, package, tamper hash, Reports section |
+| 01.6 | 2026-07-25 | ship_evidence_room.bat | Evidence Bundles Phase 2: Evidence Room - immutable snapshots, stale detection, tombstone; auth-safe downloads |

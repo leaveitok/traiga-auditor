@@ -46,6 +46,7 @@ class MockGovernanceRepository:
         self._violations = list(violations or [])
         self._audit_log  = list(audit_log  or [])
         self._error_log  = list(error_log  or [])
+        self._report_snapshots = []
         self._users      = list(users      or [])
         self._agencies   = list(agencies   or [])
         self._ai_assets  = list(ai_assets  or [])
@@ -260,6 +261,36 @@ class MockGovernanceRepository:
         return row
 
     # ── Safe Harbor (Municipal AI Profile attestations) ───────────────────────
+
+    # ── Report snapshots (Evidence Room) ──────────────────────────────────────
+
+    def save_report_snapshot(self, snapshot):
+        import uuid
+        rec = dict(snapshot)
+        rec.setdefault("id", str(uuid.uuid4())[:8])
+        rec.setdefault("deleted", False)
+        self._report_snapshots.append(rec)
+        return dict(rec)
+
+    def get_report_snapshots(self, city=None):
+        rows = [r for r in self._report_snapshots if not r.get("deleted")]
+        if city:
+            rows = [r for r in rows if r.get("city") == city]
+        rows = sorted(rows, key=lambda r: r.get("generated_utc", ""), reverse=True)
+        return [{k: v for k, v in r.items() if k != "model_json"} for r in rows]
+
+    def get_report_snapshot(self, snapshot_id):
+        for r in self._report_snapshots:
+            if r.get("id") == snapshot_id and not r.get("deleted"):
+                return dict(r)
+        return None
+
+    def delete_report_snapshot(self, snapshot_id):
+        for r in self._report_snapshots:
+            if r.get("id") == snapshot_id and not r.get("deleted"):
+                r["deleted"] = True
+                return True
+        return False
 
     def get_safe_harbor(self, city: str) -> List[Dict[str, Any]]:
         return [r for r in getattr(self, "_safe_harbor", [])

@@ -339,23 +339,42 @@ const getReportPresets = () =>
 const getReportPreview = (city, preset) =>
   http.get('/reports/preview', { params: { city, preset } }).then(r => r.data)
 
-/**
- * Absolute URL for a single tailored document (pdf|docx). Returned as a URL so the
- * browser performs a normal authenticated download and the city sees it in their own
- * network log.
- * @returns {string}
- */
-const reportBundleUrl = (city, preset, fmt = 'pdf') =>
-  `${http.defaults.baseURL}/reports/bundle?city=${encodeURIComponent(city)}` +
-  `&preset=${encodeURIComponent(preset)}&fmt=${encodeURIComponent(fmt)}`
+// Downloads go through axios (NOT a plain href) so the Firebase Bearer token is attached
+// by the interceptor. A plain <a href> to /api would 401 in the deployed app, where
+// REQUIRE_AUTH is true. Each returns a Blob the store saves client-side.
 
-/**
- * Absolute URL for the full auditor package (zip: PDF + DOCX + attachments + manifest).
- * @returns {string}
- */
-const reportPackageUrl = (city, preset) =>
-  `${http.defaults.baseURL}/reports/package?city=${encodeURIComponent(city)}` +
-  `&preset=${encodeURIComponent(preset)}`
+/** Single tailored document (pdf|docx) as an authenticated Blob. */
+const downloadReportBundle = (city, preset, fmt = 'pdf') =>
+  http.get('/reports/bundle', { params: { city, preset, fmt },
+    responseType: 'blob', timeout: 120000 }).then(r => r.data)
+
+/** Full auditor package (zip) as an authenticated Blob. */
+const downloadReportPackage = (city, preset) =>
+  http.get('/reports/package', { params: { city, preset },
+    responseType: 'blob', timeout: 120000 }).then(r => r.data)
+
+// ── Evidence Room snapshots (Phase 2) ─────────────────────────────────────────
+
+/** Persist the current bundle as an immutable snapshot. Returns the stored metadata. */
+const createReportSnapshot = (city, preset) =>
+  http.post('/reports/snapshots', null, { params: { city, preset } }).then(r => r.data)
+
+/** List saved snapshots (with a `stale` flag) for a city. */
+const listReportSnapshots = (city) =>
+  http.get('/reports/snapshots', { params: { city } }).then(r => r.data)
+
+/** Re-render a saved snapshot (pdf|docx) as an authenticated Blob. */
+const downloadReportSnapshot = (id, fmt = 'pdf') =>
+  http.get(`/reports/snapshots/${id}/download`, { params: { fmt },
+    responseType: 'blob', timeout: 120000 }).then(r => r.data)
+
+/** Re-render a saved snapshot's full package (zip) as an authenticated Blob. */
+const downloadReportSnapshotPackage = (id) =>
+  http.get(`/reports/snapshots/${id}/package`, { responseType: 'blob', timeout: 120000 }).then(r => r.data)
+
+/** Tombstone a snapshot (platform admin only). */
+const deleteReportSnapshot = (id) =>
+  http.delete(`/reports/snapshots/${id}`).then(r => r.data)
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Safe Harbor (Municipal AI Profile — Tex. Bus. & Com. Code § 552.105)
@@ -507,8 +526,13 @@ export const GovernanceService = {
   downloadReport,
   getReportPresets,
   getReportPreview,
-  reportBundleUrl,
-  reportPackageUrl,
+  downloadReportBundle,
+  downloadReportPackage,
+  createReportSnapshot,
+  listReportSnapshots,
+  downloadReportSnapshot,
+  downloadReportSnapshotPackage,
+  deleteReportSnapshot,
   // Safe Harbor
   getSafeHarbor,
   attestSafeHarbor,

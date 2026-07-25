@@ -88,11 +88,82 @@ export const useReportsStore = defineStore('reports', () => {
     return preview.value
   }
 
-  const bundleUrl = (city, preset, fmt) => GovernanceService.reportBundleUrl(city, preset, fmt)
-  const packageUrl = (city, preset) => GovernanceService.reportPackageUrl(city, preset)
+  // ── Authenticated downloads (blob → browser save) ────────────────────────
+  // Fetch via the service (token attached) then trigger a client-side download. A plain
+  // href would 401 in the deployed app where auth is required.
+  function _save(blob, filename) {
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const busy = ref(false)
+  const actionError = ref(null)
+
+  function _fname(city, preset, fmt) {
+    const c = (city || 'city').replace(/\s+/g, '_')
+    return `${c}_${preset}.${fmt}`
+  }
+
+  async function downloadBundle(city, preset, fmt) {
+    busy.value = true; actionError.value = null
+    try { _save(await GovernanceService.downloadReportBundle(city, preset, fmt), _fname(city, preset, fmt)) }
+    catch (e) { actionError.value = e.response?.data?.detail || e.message }
+    finally { busy.value = false }
+  }
+  async function downloadPackage(city, preset) {
+    busy.value = true; actionError.value = null
+    try { _save(await GovernanceService.downloadReportPackage(city, preset), `${(city||'city').replace(/\s+/g,'_')}_Evidence_Package.zip`) }
+    catch (e) { actionError.value = e.response?.data?.detail || e.message }
+    finally { busy.value = false }
+  }
+
+  // ── Evidence Room snapshots ──────────────────────────────────────────────
+  const snapshots = ref([])
+  const snapshotsLoading = ref(false)
+
+  async function loadSnapshots(city) {
+    if (!city) { snapshots.value = []; return [] }
+    snapshotsLoading.value = true
+    try {
+      const res = await GovernanceService.listReportSnapshots(city)
+      snapshots.value = res.snapshots || []
+    } catch (e) { snapshots.value = [] }
+    finally { snapshotsLoading.value = false }
+    return snapshots.value
+  }
+  async function saveSnapshot(city, preset) {
+    busy.value = true; actionError.value = null
+    try { await GovernanceService.createReportSnapshot(city, preset); await loadSnapshots(city); return true }
+    catch (e) { actionError.value = e.response?.data?.detail || e.message; return false }
+    finally { busy.value = false }
+  }
+  async function downloadSnapshot(id, fmt, city, preset) {
+    busy.value = true; actionError.value = null
+    try { _save(await GovernanceService.downloadReportSnapshot(id, fmt), _fname(city, preset, fmt)) }
+    catch (e) { actionError.value = e.response?.data?.detail || e.message }
+    finally { busy.value = false }
+  }
+  async function downloadSnapshotPackage(id, city) {
+    busy.value = true; actionError.value = null
+    try { _save(await GovernanceService.downloadReportSnapshotPackage(id), `${(city||'city').replace(/\s+/g,'_')}_Evidence_Package.zip`) }
+    catch (e) { actionError.value = e.response?.data?.detail || e.message }
+    finally { busy.value = false }
+  }
+  async function removeSnapshot(id, city) {
+    busy.value = true; actionError.value = null
+    try { await GovernanceService.deleteReportSnapshot(id); await loadSnapshots(city); return true }
+    catch (e) { actionError.value = e.response?.data?.detail || e.message; return false }
+    finally { busy.value = false }
+  }
 
   return { generating, error, download, isGenerating,
            presets, presetsLoaded, loadPresets,
            preview, previewLoading, previewError, loadPreview,
-           bundleUrl, packageUrl }
+           busy, actionError, downloadBundle, downloadPackage,
+           snapshots, snapshotsLoading, loadSnapshots, saveSnapshot,
+           downloadSnapshot, downloadSnapshotPackage, removeSnapshot }
 })

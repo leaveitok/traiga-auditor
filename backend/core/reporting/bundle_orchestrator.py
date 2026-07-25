@@ -210,3 +210,142 @@ def build_package(repo: Any, city: str, preset_key: str, schema: Dict[str, Any],
 
 def media_type(fmt: str) -> str:
     return _MEDIA.get(fmt, "application/octet-stream")
+
+
+# ── Snapshots (Evidence Room — Phase 2) ──────────────────────────────────────
+# A snapshot freezes the render-agnostic BundleModel. Any format re-renders from it
+# deterministically, and the stored content hash proves the findings are unchanged. No
+# blob store is needed in beta because the frozen model is small JSON; the ArtifactStore
+# abstraction (design doc) is where prod would additionally persist rendered bytes to GCS.
+
+import uuid as _uuid
+
+
+def _inv_csv_from_model(model: Dict[str, Any]) -> bytes:
+    """Rebuild the inventory CSV from the FROZEN model's asset_inventory section, so a
+    snapshot package is fully self-contained (no live repo access, byte-reproducible)."""
+    inv = next((s for s in model.get("sections", []) if s.get("kind") == "asset_inventory"), None)
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow(["Vendor / System", "Type", "Source (provenance)", "Confidence", "Status", "Location"])
+    for r in (inv or {}).get("rows", []):
+        w.writerow([r.get("vendor", ""), r.get("type", ""), r.get("source", ""),
+                    r.get("confidence", ""), r.get("status", ""), r.get("location", "")])
+    return buf.getvalue().encode("utf-8")
+
+
+def _prov_appendix_from_model(model: Dict[str, Any]) -> bytes:
+    prov = next((s for s in model.get("sections", []) if s.get("kind") == "provenance_summary"), None)
+    inv = next((s for s in model.get("sections", []) if s.get("kind") == "asset_inventory"), None)
+    lines = ["PROVENANCE APPENDIX", "=" * 60]
+    if prov:
+        lines += [prov.get("headline", ""), ""]
+        for r in prov.get("rows", []):
+            lines.append(f"  {r.get('source','')}: {r.get('count','')} "
+                         f"({'discovered' if r.get('discovered') else 'declared'})")
+        lines.append("")
+    for r in (inv or {}).get("rows", []):
+        lines.append(f"- {r.get('vendor','')}  [{r.get('source','')}]  status={r.get('status','')}")
+    return "\n".join(lines).encode("utf-8")
+
+
+def build_package_from_model(model: Dict[str, Any]) -> bytes:
+    """Zip a bundle from a FROZEN model alone: PDF + DOCX + attachments (derived from the
+    model) + a manifest carrying the content hash. Used to re-render a saved snapshot's
+    package with no live data, so the evidence is reproducible from what was stored."""
+    meta = model["meta"]
+    doc_id = meta["doc_id"]
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr(f"{doc_id}.pdf", render_pdf.render(model))
+        z.writestr(f"{doc_id}.docx", render_docx.render(model))
+        if any(s.get("kind") == "asset_inventory" for s in model.get("sections", [])):
+            z.writestr("attachments/inventory.csv", _inv_csv_from_model(model))
+            z.writestr("attachments/provenance_appendix.txt", _prov_appendix_from_model(model))
+        z.writestr("MANIFEST.json", json.dumps({
+            "doc_id": doc_id, "city": meta.get("city"), "audience": meta.get("audience"),
+            "generated_utc": meta.get("generated_utc"), "tool_release": meta.get("tool_release"),
+            "content_sha256": meta.get("content_sha256"),
+        }, indent=2).encode("utf-8"))
+    return buf.getvalue()
+
+
+def create_snapshot(repo: Any, city: str, preset_key: str, schema: Dict[str, Any],
+                    actor: str = "unknown", tool_release: str = "dev") -> Dict[str, Any]:
+    """Build a bundle and persist it as an immutable snapshot. Returns the stored metadata
+    (without the frozen model_json). TODO: enforce write:reports for the city."""
+    model = build_model(repo, city, preset_key, schema, tool_release=tool_release)
+    meta = model["meta"]
+    record = {
+        "id": str(_uuid.uuid4())[:8],
+        "city": city,
+        "preset": preset_key,
+        "audience": meta.get("audience", ""),
+        "title": meta.get("preset_title", ""),
+        "generated_utc": meta.get("generated_utc", ""),
+        "generated_by": actor,
+        "tool_release": tool_release,
+        "content_sha256": meta.get("content_sha256", ""),
+        "source_fingerprint": meta.get("source_fingerprint", ""),
+        "model_json": json.dumps(model),
+    }
+    saved = repo.save_report_snapshot(record)
+    return {k: v for k, v in saved.items() if k != "model_json"}
+
+
+def list_snapshots(repo: Any, city: Optional[str] = None) -> List[Dict[str, Any]]:
+    """Snapshot metadata + a `stale` flag. A snapshot is stale when the city's live source
+    data no longer matches the fingerprint captured at generation — i.e. a scan or a
+    declaration changed the findings since. Live fingerprints are computed once per city."""
+    rows = repo.get_report_snapshots(city)
+    live_fp_cache: Dict[str, Optional[str]] = {}
+
+    def _live_fp(c: str) -> Optional[str]:
+        if c not in live_fp_cache:
+            try:
+                from engine.reporting import bundle_spec
+                live_fp_cache[c] = bundle_spec.source_fingerprint(assemble_city_data(repo, c))
+            except Exception:
+                live_fp_cache[c] = None
+        return live_fp_cache[c]
+
+    out = []
+    for r in rows:
+        lf = _live_fp(r.get("city", ""))
+        r = dict(r)
+        r["stale"] = bool(lf is not None and r.get("source_fingerprint") and r["source_fingerprint"] != lf)
+        out.append(r)
+    return out
+
+
+def _snapshot_model(repo: Any, snapshot_id: str) -> Optional[Dict[str, Any]]:
+    snap = repo.get_report_snapshot(snapshot_id)
+    if not snap:
+        return None
+    mj = snap.get("model_json")
+    if isinstance(mj, str):
+        try:
+            return json.loads(mj)
+        except Exception:
+            return None
+    return mj if isinstance(mj, dict) else None
+
+
+def render_snapshot(repo: Any, snapshot_id: str, fmt: str) -> Optional[bytes]:
+    """Re-render a saved snapshot to pdf|docx from its frozen model. Deterministic."""
+    model = _snapshot_model(repo, snapshot_id)
+    if model is None:
+        return None
+    return render_single(model, fmt)
+
+
+def render_snapshot_package(repo: Any, snapshot_id: str) -> Optional[bytes]:
+    model = _snapshot_model(repo, snapshot_id)
+    if model is None:
+        return None
+    return build_package_from_model(model)
+
+
+def snapshot_doc_id(repo: Any, snapshot_id: str) -> str:
+    model = _snapshot_model(repo, snapshot_id)
+    return (model or {}).get("meta", {}).get("doc_id", snapshot_id)

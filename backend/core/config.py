@@ -23,6 +23,7 @@ SHEET_VIOLATIONS = "Violations"
 SHEET_AUDIT_LOG  = "AuditLog"
 SHEET_ERROR_LOG  = "ErrorLog"
 SHEET_USERS      = "Users"
+SHEET_REPORT_SNAPSHOTS = "ReportSnapshots"
 
 # Admin emails (comma-separated) — these users can audit all cities
 ADMIN_EMAILS: list = [e.strip() for e in os.environ.get("ADMIN_EMAILS", "leaveitok@gmail.com").split(",") if e.strip()]

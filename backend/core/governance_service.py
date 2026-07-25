@@ -322,3 +322,36 @@ class GovernanceRepository(Protocol):
                       granted_cities: List[str]) -> Dict[str, Any]:
         """Create (agency_id None) or update an agency's name + city grant."""
         ...
+
+    # ── Report snapshots (Evidence Room) ──────────────────────────────────────
+
+    def save_report_snapshot(self, snapshot: Dict[str, Any]) -> Dict[str, Any]:
+        """Persist an IMMUTABLE evidence snapshot.
+
+        A snapshot freezes the render-agnostic BundleModel (as `model_json`) plus its
+        integrity hash (`content_sha256`) and a `source_fingerprint` of the data it was
+        built from. Storing the frozen model — not rendered bytes — means any format can
+        be re-rendered on demand, byte-content-verifiable against the hash, with no blob
+        store required in beta. Assigns `id` if absent. Append-only: never mutated after
+        save. Returns the stored record.
+
+        TODO: enforce role check — the caller must hold write:reports for the city.
+        """
+        ...
+
+    def get_report_snapshots(self, city: Optional[str] = None) -> List[Dict[str, Any]]:
+        """List snapshot METADATA (WITHOUT the heavy `model_json`), newest first,
+        excluding soft-deleted (tombstoned) records. Route-level RBAC scopes rows to the
+        principal's visible cities."""
+        ...
+
+    def get_report_snapshot(self, snapshot_id: str) -> Optional[Dict[str, Any]]:
+        """Return one snapshot INCLUDING the frozen `model_json`, or None if it does not
+        exist or has been tombstoned."""
+        ...
+
+    def delete_report_snapshot(self, snapshot_id: str) -> bool:
+        """SOFT-delete (tombstone) a snapshot — evidence is never hard-removed, so an
+        auditor can always be shown that a record existed. Audit-logged by the caller.
+        Returns True if a snapshot was tombstoned."""
+        ...

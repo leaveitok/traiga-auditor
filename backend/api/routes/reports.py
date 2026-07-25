@@ -13,7 +13,7 @@ import sys
 import tempfile
 import traceback as _tb
 import uuid
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
@@ -267,3 +267,124 @@ def generate_report(
             os.unlink(data_path)
         except OSError:
             pass
+
+
+# ── Snapshots (Evidence Room — Phase 2) ──────────────────────────────────────
+
+@router.post("/snapshots")
+def create_snapshot(
+    city: str,
+    preset: str,
+    user: dict = Depends(get_current_user),
+    repo: GovernanceRepository = Depends(get_repository),
+):
+    """Generate a bundle and PERSIST it as an immutable snapshot (frozen model + hash).
+    City-scoped; audit-logged. Returns the stored metadata."""
+    _require_city_scope(user, repo, city)
+    schema = rule_loader.load_schema()
+    presets = (schema.get("Report_Bundles", {}) or {}).get("presets", {})
+    if preset not in presets:
+        raise HTTPException(status_code=404, detail=f"Unknown preset '{preset}'.")
+    try:
+        meta = bo.create_snapshot(repo, city, preset, schema,
+                                  actor=user.get("email", "unknown"), tool_release=_release())
+    except LookupError:
+        raise HTTPException(status_code=404, detail=f"No data for '{city}'. Run an audit first.")
+    try:
+        repo.append_audit_log(event="report_snapshot_saved", city_count=1, failures=0,
+                              details={"actor": user.get("email", "unknown"), "city": city,
+                                       "preset": preset, "snapshot_id": meta.get("id"),
+                                       "content_sha256": meta.get("content_sha256"),
+                                       "summary": f"Evidence snapshot saved for {city} ({preset})"})
+    except Exception as exc:
+        print(f"[reports] WARN: could not audit-log snapshot save: {exc}")
+    return meta
+
+
+@router.get("/snapshots")
+def list_snapshots(
+    city: Optional[str] = None,
+    user: dict = Depends(get_current_user),
+    repo: GovernanceRepository = Depends(get_repository),
+):
+    """List saved snapshots (newest first) with a `stale` flag. Scoped to visible cities.
+    A specific city must be in scope; without a city, an agency user sees only theirs."""
+    principal = resolve_principal(user, repo)
+    if city and not (principal.all_cities or principal.can_see_city(city)):
+        raise HTTPException(status_code=403, detail="City out of scope.")
+    rows = bo.list_snapshots(repo, city)
+    if not principal.all_cities:
+        allowed = principal.cities or set()
+        rows = [r for r in rows if r.get("city") in allowed]
+    return {"snapshots": rows}
+
+
+def _snapshot_in_scope_or_404(user, repo, snapshot_id):
+    snap = repo.get_report_snapshot(snapshot_id)
+    if not snap:
+        raise HTTPException(status_code=404, detail="Snapshot not found.")
+    principal = resolve_principal(user, repo)
+    if not (principal.all_cities or principal.can_see_city(snap.get("city", ""))):
+        raise HTTPException(status_code=403, detail="Snapshot out of scope.")
+    return snap
+
+
+@router.get("/snapshots/{snapshot_id}/download")
+def download_snapshot(
+    snapshot_id: str,
+    fmt: str = "pdf",
+    user: dict = Depends(get_current_user),
+    repo: GovernanceRepository = Depends(get_repository),
+):
+    """Re-render a saved snapshot from its FROZEN model (deterministic, hash-stable)."""
+    if fmt not in ("pdf", "docx"):
+        raise HTTPException(status_code=400, detail="fmt must be pdf or docx.")
+    _snapshot_in_scope_or_404(user, repo, snapshot_id)
+    data = bo.render_snapshot(repo, snapshot_id, fmt)
+    if data is None:
+        raise HTTPException(status_code=404, detail="Snapshot has no stored model.")
+    fn = f"{bo.snapshot_doc_id(repo, snapshot_id)}.{fmt}"
+    return Response(content=data, media_type=bo.media_type(fmt),
+                    headers={"Content-Disposition": f'attachment; filename="{fn}"'})
+
+
+@router.get("/snapshots/{snapshot_id}/package")
+def download_snapshot_package(
+    snapshot_id: str,
+    user: dict = Depends(get_current_user),
+    repo: GovernanceRepository = Depends(get_repository),
+):
+    """Re-render the full package (zip) from the frozen snapshot model."""
+    snap = _snapshot_in_scope_or_404(user, repo, snapshot_id)
+    data = bo.render_snapshot_package(repo, snapshot_id)
+    if data is None:
+        raise HTTPException(status_code=404, detail="Snapshot has no stored model.")
+    safe = str(snap.get("city", "city")).replace(" ", "_").replace("/", "_")
+    return Response(content=data, media_type=bo.media_type("zip"),
+                    headers={"Content-Disposition": f'attachment; filename="{safe}_Evidence_Package.zip"'})
+
+
+@router.delete("/snapshots/{snapshot_id}")
+def delete_snapshot(
+    snapshot_id: str,
+    user: dict = Depends(get_current_user),
+    repo: GovernanceRepository = Depends(get_repository),
+):
+    """SOFT-delete (tombstone) a snapshot. Platform admin only; audit-logged. Evidence is
+    never hard-removed — the record is marked deleted, not destroyed."""
+    principal = resolve_principal(user, repo)
+    if not principal.is_platform_admin:
+        raise HTTPException(status_code=403, detail="Deleting a snapshot requires platform_admin.")
+    snap = repo.get_report_snapshot(snapshot_id)
+    ok = repo.delete_report_snapshot(snapshot_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Snapshot not found.")
+    try:
+        repo.append_audit_log(event="report_snapshot_deleted", city_count=1, failures=0,
+                              details={"actor": user.get("email", "unknown"),
+                                       "city": (snap or {}).get("city", ""),
+                                       "snapshot_id": snapshot_id,
+                                       "summary": f"Evidence snapshot {snapshot_id} tombstoned"})
+    except Exception as exc:
+        print(f"[reports] WARN: could not audit-log snapshot delete: {exc}")
+    return {"deleted": True, "snapshot_id": snapshot_id}

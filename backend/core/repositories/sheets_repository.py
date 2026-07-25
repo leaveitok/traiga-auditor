@@ -98,6 +98,11 @@ HEADERS: Dict[str, List[str]] = {
     "Agencies": [
         "id", "name", "granted_cities", "created_utc",
     ],
+    config.SHEET_REPORT_SNAPSHOTS: [
+        "id", "city", "preset", "audience", "title", "generated_utc",
+        "generated_by", "tool_release", "content_sha256", "source_fingerprint",
+        "model_json", "deleted",
+    ],
 }
 
 
@@ -604,6 +609,59 @@ class SheetsRepository:
         self._upsert_by_key("AIAssets", "asset_key", key,
                             {k: str(v) for k, v in merged.items()})
         return merged
+
+    # ── Report snapshots (Evidence Room) ──────────────────────────────────────
+
+    def save_report_snapshot(self, snapshot: Dict[str, Any]) -> Dict[str, Any]:
+        """Append-only persist of an immutable evidence snapshot. model_json is a JSON
+        string (a few KB) — well within a Sheets cell. TODO: enforce write:reports."""
+        import uuid
+        rec = dict(snapshot)
+        rec.setdefault("id", str(uuid.uuid4())[:8])
+        rec.setdefault("deleted", False)
+        row = {
+            "id": str(rec["id"]),
+            "city": str(rec.get("city", "")),
+            "preset": str(rec.get("preset", "")),
+            "audience": str(rec.get("audience", "")),
+            "title": str(rec.get("title", "")),
+            "generated_utc": str(rec.get("generated_utc", "")),
+            "generated_by": str(rec.get("generated_by", "")),
+            "tool_release": str(rec.get("tool_release", "")),
+            "content_sha256": str(rec.get("content_sha256", "")),
+            "source_fingerprint": str(rec.get("source_fingerprint", "")),
+            "model_json": rec.get("model_json", "") if isinstance(rec.get("model_json"), str)
+                          else json.dumps(rec.get("model_json", {})),
+            "deleted": "false",
+        }
+        self._append_row(config.SHEET_REPORT_SNAPSHOTS, row)
+        return rec
+
+    def _snapshot_rows(self) -> List[Dict[str, Any]]:
+        return self._cached_read(config.SHEET_REPORT_SNAPSHOTS, ttl=15)
+
+    def get_report_snapshots(self, city: Optional[str] = None) -> List[Dict[str, Any]]:
+        rows = [r for r in self._snapshot_rows() if str(r.get("deleted", "")).lower() != "true"]
+        if city:
+            rows = [r for r in rows if r.get("city") == city]
+        rows = sorted(rows, key=lambda r: r.get("generated_utc", ""), reverse=True)
+        return [{k: v for k, v in r.items() if k != "model_json"} for r in rows]
+
+    def get_report_snapshot(self, snapshot_id: str) -> Optional[Dict[str, Any]]:
+        for r in self._snapshot_rows():
+            if r.get("id") == snapshot_id and str(r.get("deleted", "")).lower() != "true":
+                return dict(r)
+        return None
+
+    def delete_report_snapshot(self, snapshot_id: str) -> bool:
+        """Tombstone — evidence is never hard-removed."""
+        existing = self.get_report_snapshot(snapshot_id)
+        if not existing:
+            return False
+        self._invalidate(config.SHEET_REPORT_SNAPSHOTS)
+        self._upsert_by_key(config.SHEET_REPORT_SNAPSHOTS, "id", snapshot_id,
+                            {**{k: str(v) for k, v in existing.items()}, "deleted": "true"})
+        return True
 
     # ── Durable run state ─────────────────────────────────────────────────────
     # ROLLBACK-PATH COMPROMISE: Sheets is the emergency rollback backend

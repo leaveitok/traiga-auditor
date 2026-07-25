@@ -47,6 +47,7 @@ COLL_SCORECARD  = "scorecard"
 COLL_VIOLATIONS = "violations"
 COLL_AUDIT_LOG  = "audit_log"
 COLL_ERROR_LOG  = "error_log"
+COLL_REPORT_SNAPSHOTS = "report_snapshots"
 COLL_USERS      = "users"
 COLL_AGENCIES   = "agencies"
 COLL_AI_ASSETS  = "ai_assets"
@@ -397,6 +398,61 @@ class FirestoreRepository:
         }
         ref.set(self._stringify(doc))
         return {**doc, "granted_cities": list(granted_cities)}
+
+    # ── Report snapshots (Evidence Room) ──────────────────────────────────────
+
+    def save_report_snapshot(self, snapshot: Dict[str, Any]) -> Dict[str, Any]:
+        """Immutable snapshot as a Firestore doc keyed by id. model_json (frozen
+        BundleModel) is a few KB — well within the 1 MB doc limit. Append-only.
+        TODO: enforce write:reports for the city (auth placeholder)."""
+        rec = dict(snapshot)
+        rec.setdefault("id", str(uuid.uuid4())[:8])
+        rec.setdefault("deleted", False)
+        doc = {
+            "id":                 str(rec["id"]),
+            "city":               str(rec.get("city", "")),
+            "preset":             str(rec.get("preset", "")),
+            "audience":           str(rec.get("audience", "")),
+            "title":              str(rec.get("title", "")),
+            "generated_utc":      str(rec.get("generated_utc", "")),
+            "generated_by":       str(rec.get("generated_by", "")),
+            "tool_release":       str(rec.get("tool_release", "")),
+            "content_sha256":     str(rec.get("content_sha256", "")),
+            "source_fingerprint": str(rec.get("source_fingerprint", "")),
+            "model_json":         rec.get("model_json", "") if isinstance(rec.get("model_json"), str)
+                                  else json.dumps(rec.get("model_json", {})),
+            "deleted":            "false",
+        }
+        self._db.collection(COLL_REPORT_SNAPSHOTS).document(_doc_id(doc["id"])).set(doc)
+        return rec
+
+    def get_report_snapshots(self, city: Optional[str] = None) -> List[Dict[str, Any]]:
+        # TODO: scope to requesting user's jurisdiction (auth placeholder)
+        q = self._db.collection(COLL_REPORT_SNAPSHOTS)
+        if city:
+            q = q.where("city", "==", city)
+        rows = [d.to_dict() for d in q.stream()]
+        rows = [r for r in rows if str(r.get("deleted", "")).lower() != "true"]
+        rows.sort(key=lambda r: r.get("generated_utc", ""), reverse=True)
+        return [{k: v for k, v in r.items() if k != "model_json"} for r in rows]
+
+    def get_report_snapshot(self, snapshot_id: str) -> Optional[Dict[str, Any]]:
+        snap = self._db.collection(COLL_REPORT_SNAPSHOTS).document(_doc_id(snapshot_id)).get()
+        if not snap.exists:
+            return None
+        d = snap.to_dict()
+        if str(d.get("deleted", "")).lower() == "true":
+            return None
+        return d
+
+    def delete_report_snapshot(self, snapshot_id: str) -> bool:
+        """Tombstone — evidence is never hard-removed."""
+        ref = self._db.collection(COLL_REPORT_SNAPSHOTS).document(_doc_id(snapshot_id))
+        snap = ref.get()
+        if not snap.exists or str((snap.to_dict() or {}).get("deleted", "")).lower() == "true":
+            return False
+        ref.update({"deleted": "true"})
+        return True
 
     # ── AI Use-Case Inventory ─────────────────────────────────────────────────
 
