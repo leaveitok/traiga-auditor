@@ -31,6 +31,9 @@
         </v-card>
 
         <div class="text-overline mb-2">2 · Audience</div>
+        <v-alert v-if="store.presetsError" type="warning" variant="tonal" density="compact" class="mb-3">
+          {{ store.presetsError }}
+        </v-alert>
         <v-card v-for="p in store.presets" :key="p.key"
                 :variant="preset === p.key ? 'flat' : 'outlined'"
                 :color="preset === p.key ? 'primary' : undefined"

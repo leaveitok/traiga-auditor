@@ -91,7 +91,7 @@ jobs:
             echo 'SENTINEL_STORE: "firestore"'
             echo 'FIRESTORE_SENTINEL_DB: traiga-sentinel'
             echo 'GIT_SHA: ${{ github.sha }}'
-            echo "APP_RELEASE: $(cat VERSION)"
+            echo "APP_RELEASE: \"$(cat VERSION 2>/dev/null || echo dev)\""
           } > deploy/env.yaml
 
       - name: Deploy to Cloud Run

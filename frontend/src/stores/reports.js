@@ -56,6 +56,7 @@ export const useReportsStore = defineStore('reports', () => {
   // ── Audience presets + live preview (Reports section) ────────────────────
   const presets = ref([])
   const presetsLoaded = ref(false)
+  const presetsError = ref(null)
   const preview = ref(null)
   const previewLoading = ref(false)
   const previewError = ref(null)
@@ -63,12 +64,19 @@ export const useReportsStore = defineStore('reports', () => {
   /** Load the audience presets once. Never throws — the section must render regardless. */
   async function loadPresets() {
     if (presetsLoaded.value) return presets.value
+    presetsError.value = null
     try {
       const res = await GovernanceService.getReportPresets()
       presets.value = res.presets || []
       presetsLoaded.value = true
     } catch (e) {
       presets.value = []
+      // Surface it — a silent empty audience list looks like a broken product. The most
+      // common real cause is the backend not being deployed (endpoint 404), which is
+      // exactly how the 01.1–01.6 deploy gap first showed up.
+      presetsError.value = e.response?.status === 404
+        ? 'The Reports API is not available on the server yet (endpoint not found). The backend may be a release behind — check Settings → Version & Build.'
+        : (e.response?.data?.detail || e.message || 'Could not load report audiences.')
     }
     return presets.value
   }
@@ -161,7 +169,7 @@ export const useReportsStore = defineStore('reports', () => {
   }
 
   return { generating, error, download, isGenerating,
-           presets, presetsLoaded, loadPresets,
+           presets, presetsLoaded, presetsError, loadPresets,
            preview, previewLoading, previewError, loadPreview,
            busy, actionError, downloadBundle, downloadPackage,
            snapshots, snapshotsLoading, loadSnapshots, saveSnapshot,
