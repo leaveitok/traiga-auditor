@@ -30,11 +30,12 @@ export const useSafeHarborStore = defineStore('safeharbor', () => {
     await fetchReadiness(city)   // re-derive scores after every change
   }
 
-  async function downloadStatement(city) {
-    const blob = await GovernanceService.downloadAlignmentStatement(city)
+  async function downloadStatement(city, framework) {
+    const blob = await GovernanceService.downloadAlignmentStatement(city, framework)
     const a = document.createElement('a')
     a.href = URL.createObjectURL(blob)
-    a.download = `${city.replace(/ /g, '_')}_Alignment_Statement.docx`
+    const tag = framework && framework !== 'nist_ai_rmf' ? `_${framework}` : ''
+    a.download = `${city.replace(/ /g, '_')}${tag}_Alignment_Statement.docx`
     a.click()
     URL.revokeObjectURL(a.href)
   }

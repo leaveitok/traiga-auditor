@@ -254,7 +254,7 @@ async function clearAttest(control) {
 async function downloadStatement() {
   downloading.value = true
   try {
-    await store.downloadStatement(props.city)
+    await store.downloadStatement(props.city, lens.value)
   } finally {
     downloading.value = false
   }

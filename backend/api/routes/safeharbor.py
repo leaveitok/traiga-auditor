@@ -129,10 +129,15 @@ def attest_control(
 @router.get("/{city}/statement")
 def alignment_statement(
     city: str,
+    framework: str = "nist_ai_rmf",
     repo: GovernanceRepository = Depends(get_repository),
     user: dict = Depends(get_current_user),
 ):
-    """Generate the NIST AI RMF Alignment Statement (.docx) for a city."""
+    """Generate the Alignment Statement (.docx) for a city, as a lens over ONE framework.
+
+    Defaults to the NIST spine (unchanged behavior). Any other framework must be in the
+    registry AND enabled (Settings flag) AND actually mapped onto the controls — otherwise
+    we fall back to NIST rather than emit a half-labelled document."""
     principal = resolve_principal(user, repo)
     _require_read(principal, city)
     module = _module()
@@ -140,10 +145,22 @@ def alignment_statement(
     attestations = repo.get_safe_harbor(city)
     result = evaluate_profile(module, ctx, attestations)
 
+    # Resolve the requested framework from the registry, honoring its enable-flag.
+    from core import config as _cfg
+    def _enabled(f):
+        return bool(f.get("always_on") or (f.get("enable_flag") and getattr(_cfg, f["enable_flag"], False)))
+    fw = next((f for f in module.get("frameworks", [])
+               if f.get("id") == framework and _enabled(f)), None)
+    # Fall back to NIST if unknown/disabled, or if the framework isn't mapped on controls.
+    if not fw or not (fw.get("ref_field") and any(c.get(fw["ref_field"]) for c in module.get("controls", []))):
+        fw = next(f for f in module["frameworks"] if f["id"] == "nist_ai_rmf")
+
+    safe = city.replace(' ', '_')
+    tag = "" if fw["id"] == "nist_ai_rmf" else f"_{fw['id']}"
     path = os.path.join(tempfile.mkdtemp(prefix="safeharbor_"),
-                        f"{city.replace(' ', '_')}_Alignment_Statement.docx")
+                        f"{safe}{tag}_Alignment_Statement.docx")
     try:
-        _build_statement_docx(path, city, module, result, ctx)
+        _build_statement_docx(path, city, module, result, ctx, fw)
     except Exception as exc:
         raise HTTPException(status_code=500,
                             detail=f"Statement generation failed: {type(exc).__name__}: {exc}")
@@ -169,7 +186,8 @@ _STATUS_LABEL = {"satisfied": "Satisfied", "failing": "Not satisfied", "open": "
 
 
 def _build_statement_docx(path: str, city: str, module: Dict[str, Any],
-                          result: Dict[str, Any], ctx: Dict[str, Any]) -> None:
+                          result: Dict[str, Any], ctx: Dict[str, Any],
+                          fw: Dict[str, Any] = None) -> None:
     from docx import Document
     from docx.shared import Pt, RGBColor
     from docx.enum.text import WD_ALIGN_PARAGRAPH
@@ -183,7 +201,10 @@ def _build_statement_docx(path: str, city: str, module: Dict[str, Any],
             run.font.color.rgb = NAVY
         return p
 
-    title = doc.add_heading(f"NIST AI RMF Alignment Statement — {city}", level=0)
+    fw = fw or next(f for f in module["frameworks"] if f["id"] == "nist_ai_rmf")
+    is_nist = fw["id"] == "nist_ai_rmf"
+    fw_short = "NIST AI RMF" if is_nist else fw.get("name", fw["id"])
+    title = doc.add_heading(f"{fw_short} Alignment Statement — {city}", level=0)
     for run in title.runs:
         run.font.color.rgb = NAVY
 
@@ -191,6 +212,18 @@ def _build_statement_docx(path: str, city: str, module: Dict[str, Any],
     meta = doc.add_paragraph()
     meta.add_run(f"{module.get('profile_name')} v{module.get('profile_version')}  ·  "
                  f"Generated {now.strftime('%B %d, %Y')} (UTC)  ·  TRAIGA Auditor").italic = True
+
+    if not is_nist:
+        b = doc.add_paragraph()
+        b.add_run("Framework lens. ").bold = True
+        b.add_run(
+            f"This statement re-expresses the SAME municipal AI assessment as a {fw.get('name')} "
+            f"lens. The underlying evidence and satisfied/unsatisfied results are identical to the "
+            f"NIST profile; only the mapping and labels change. Source: {fw.get('source_citation','')}.")
+        if fw.get("caveats"):
+            cav = doc.add_paragraph()
+            cav.add_run("Caveats. ").bold = True
+            cav.add_run(fw["caveats"]).italic = True
 
     h("Purpose and Legal Basis", 1)
     lb = module.get("legal_basis", {})
@@ -238,12 +271,21 @@ def _build_statement_docx(path: str, city: str, module: Dict[str, Any],
     ct = doc.add_table(rows=1, cols=5)
     ct.style = "Light Grid Accent 1"
     hdr = ct.rows[0].cells
-    for i, txt in enumerate(("Control", "NIST reference", "Status", "Basis", "Evidence / attestation")):
+    ref_hdr = "NIST reference" if is_nist else f"{fw_short} reference"
+    for i, txt in enumerate(("Control", ref_hdr, "Status", "Basis", "Evidence / attestation")):
         hdr[i].text = txt
+    # Map control_id -> schema control (to read the framework ref/overlap fields).
+    by_id = {c["control_id"]: c for c in module.get("controls", [])}
+    ref_field = fw.get("ref_field", "nist_ref")
+    ov_field = fw.get("overlap_field")
     for c in result["controls"]:
         r = ct.add_row().cells
         r[0].text = f"{c['control_id']} — {c['title']}"
-        r[1].text = c.get("nist_ref", "")
+        sc = by_id.get(c["control_id"], {})
+        ref = sc.get(ref_field) or c.get("nist_ref", "")
+        if ov_field and sc.get(ov_field):
+            ref = f"{ref}  (overlap: {sc[ov_field]})"
+        r[1].text = ref
         r[2].text = _STATUS_LABEL.get(c["status"], c["status"])
         r[3].text = ("Machine-verified from platform data" if c["basis"] == "machine"
                      else "Human attestation" if c["basis"] == "attested"

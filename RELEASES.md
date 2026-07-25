@@ -51,3 +51,4 @@ first release." Use `git log` for anything earlier.
 | 01.8 | 2026-07-25 | ship_deploy_fix.bat | Fix backend deploy red since 01.1: quote APP_RELEASE in env.yaml (YAML float coercion); surface Reports preset-load error |
 | 01.9 | 2026-07-25 | ship_deploy_fix.bat | Fix backend deploy red since 01.1: quote APP_RELEASE in env.yaml (YAML float coercion); surface Reports preset-load error |
 | 01.10 | 2026-07-25 | ship_hardening_and_citation.bat | Quote all env.yaml values + validate step (deploy hardening); name TRAIGA/HB 149 on findings |
+| 01.11 | 2026-07-25 | ship_sb1964_lens.bat | SB 1964 government AI code-of-ethics lens: 14-control crosswalk, setting, framework-parameterized Alignment Statement (no engine change) |

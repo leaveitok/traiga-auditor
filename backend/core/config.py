@@ -99,6 +99,10 @@ AGENDA_ENGINE_ENABLED: bool = os.environ.get("AGENDA_ENGINE_ENABLED", "false").l
 # statute); additional frameworks ship built-but-disabled and are flipped on here when
 # we enter that market. Voluntary standards (ISO 42001) are a per-city opt-in.
 FRAMEWORK_ISO_42001_ENABLED: bool = os.environ.get("FRAMEWORK_ISO_42001_ENABLED", "false").lower() == "true"
+# Texas SB 1964 government AI code-of-ethics lens. Unlike ISO (voluntary, off by default),
+# SB 1964 is a MANDATORY Texas statute that applies to every municipal (government) target,
+# so it defaults ON. Operator can still disable via Settings.
+FRAMEWORK_SB1964_ENABLED: bool = os.environ.get("FRAMEWORK_SB1964_ENABLED", "true").lower() == "true"
 # How far back an initial backfill scans agendas (cost control); incremental runs
 # use the per-city last-scan date. Hard cap prevents an accidental years-deep scan.
 AGENDA_LOOKBACK_MONTHS: int = int(os.environ.get("AGENDA_LOOKBACK_MONTHS", "12"))

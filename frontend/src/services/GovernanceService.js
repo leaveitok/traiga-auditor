@@ -389,9 +389,11 @@ const attestSafeHarbor = (city, controlId, status = 'attested', notes = '') =>
   http.post(`/safeharbor/${encodeURIComponent(city)}/attest`,
             { control_id: controlId, status, notes }).then(r => r.data)
 
-/** Download the NIST AI RMF Alignment Statement (.docx) as a Blob. */
-const downloadAlignmentStatement = (city) =>
+/** Download the Alignment Statement (.docx) as a Blob, as a lens over ONE framework.
+ *  Defaults to the NIST spine; pass a framework id (e.g. 'sb1964') for that variant. */
+const downloadAlignmentStatement = (city, framework) =>
   http.get(`/safeharbor/${encodeURIComponent(city)}/statement`, {
+    params: framework ? { framework } : undefined,
     responseType: 'blob',
     timeout: 120000,
   }).then(r => r.data)

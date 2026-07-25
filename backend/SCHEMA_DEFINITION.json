@@ -945,6 +945,21 @@
         "mapping_level": "Annex A objective (A.2-A.10)",
         "source_citation": "https://www.iso.org/standard/81230.html",
         "caveats": "Objective-level mapping; refine to sub-controls against the licensed standard. Voluntary per-city opt-in. Design/positioning aid, not legal advice."
+      },
+      {
+        "id": "sb1964",
+        "name": "Texas SB 1964 — Government AI Code of Ethics (Tex. Gov. Code)",
+        "version": "89R (2025); eff. 2025-09-01",
+        "jurisdiction": "TX",
+        "mandatory": true,
+        "role": "government_statute",
+        "enable_flag": "FRAMEWORK_SB1964_ENABLED",
+        "default_enabled": true,
+        "ref_field": "sb1964_ref",
+        "overlap_field": "sb1964_overlap",
+        "mapping_level": "ethics-code dimension (DIR rulemaking pending)",
+        "source_citation": "https://capitol.texas.gov/tlodocs/89R/analysis/pdf/SB01964S.pdf",
+        "caveats": "SB 1964 directs DIR to establish the AI code of ethics BY RULE; implementing rules were still in development, so this dimension-level mapping must be revisited when DIR rules publish. Data-privacy and fairness dimensions are only partially covered — the platform does not assess model bias or privacy controls. Design/positioning aid, not legal advice; counsel review required before any compliance representation."
       }
     ],
     "controls": [
@@ -957,7 +972,9 @@
         "iso_ref": "ISO/IEC 42001 A.3 Internal organization",
         "iso_overlap": "strong",
         "evidence": "attested",
-        "attest_hint": "Name the role (e.g., CIO) in the notes; update when the role changes."
+        "attest_hint": "Name the role (e.g., CIO) in the notes; update when the role changes.",
+        "sb1964_ref": "SB 1964 ethics code — Accountability (named AI ownership)",
+        "sb1964_overlap": "strong"
       },
       {
         "control_id": "SH-GOV-02",
@@ -968,7 +985,9 @@
         "iso_ref": "ISO/IEC 42001 A.2 Policies related to AI",
         "iso_overlap": "strong",
         "evidence": "attested",
-        "attest_hint": "Generate a draft with the AI Use Policy button, then attest adoption with date/authority."
+        "attest_hint": "Generate a draft with the AI Use Policy button, then attest adoption with date/authority.",
+        "sb1964_ref": "SB 1964 ethics code — adoption of an AI code of ethics",
+        "sb1964_overlap": "strong"
       },
       {
         "control_id": "SH-GOV-03",
@@ -979,7 +998,9 @@
         "iso_ref": "ISO/IEC 42001 A.2 Policies / A.9 Use of AI systems",
         "iso_overlap": "partial",
         "evidence": "attested",
-        "attest_hint": "Reference the training/communication date and channel."
+        "attest_hint": "Reference the training/communication date and channel.",
+        "sb1964_ref": "SB 1964 ethics code — Accountability / human oversight (staff use)",
+        "sb1964_overlap": "partial"
       },
       {
         "control_id": "SH-GOV-04",
@@ -990,7 +1011,9 @@
         "iso_ref": "ISO/IEC 42001 A.3 Internal org / A.4 Resources",
         "iso_overlap": "partial",
         "evidence": "machine",
-        "evaluator": "audit_trail_active"
+        "evaluator": "audit_trail_active",
+        "sb1964_ref": "SB 1964 ethics code — Accountability (decision records)",
+        "sb1964_overlap": "strong"
       },
       {
         "control_id": "SH-MAP-01",
@@ -1001,7 +1024,9 @@
         "iso_ref": "ISO/IEC 42001 A.4 Resources for AI systems",
         "iso_overlap": "strong",
         "evidence": "machine",
-        "evaluator": "inventory_current"
+        "evaluator": "inventory_current",
+        "sb1964_ref": "SB 1964 — AI system inventory (statutory mandate)",
+        "sb1964_overlap": "strong"
       },
       {
         "control_id": "SH-MAP-02",
@@ -1012,7 +1037,9 @@
         "iso_ref": "ISO/IEC 42001 A.4 Resources / A.6 AI system life cycle",
         "iso_overlap": "partial",
         "evidence": "machine",
-        "evaluator": "attestation_coverage"
+        "evaluator": "attestation_coverage",
+        "sb1964_ref": "SB 1964 — inventory: documented purpose + risk assessment",
+        "sb1964_overlap": "strong"
       },
       {
         "control_id": "SH-MAP-03",
@@ -1023,7 +1050,9 @@
         "iso_ref": "ISO/IEC 42001 A.10 Third-party & customer relationships",
         "iso_overlap": "partial",
         "evidence": "machine",
-        "evaluator": "city_assessed"
+        "evaluator": "city_assessed",
+        "sb1964_ref": "SB 1964 — inventory completeness (active discovery)",
+        "sb1964_overlap": "strong"
       },
       {
         "control_id": "SH-MEA-01",
@@ -1034,7 +1063,9 @@
         "iso_ref": "ISO/IEC 42001 A.8 Information for interested parties",
         "iso_overlap": "strong",
         "evidence": "machine",
-        "evaluator": "disclosure_tested"
+        "evaluator": "disclosure_tested",
+        "sb1964_ref": "SB 1964 ethics code — Transparency",
+        "sb1964_overlap": "strong"
       },
       {
         "control_id": "SH-MEA-02",
@@ -1045,7 +1076,9 @@
         "iso_ref": "ISO/IEC 42001 A.6 AI system life cycle (monitoring)",
         "iso_overlap": "partial",
         "evidence": "machine",
-        "evaluator": "monitoring_cadence"
+        "evaluator": "monitoring_cadence",
+        "sb1964_ref": "SB 1964 ethics code — Regular evaluation",
+        "sb1964_overlap": "strong"
       },
       {
         "control_id": "SH-MEA-03",
@@ -1057,7 +1090,9 @@
         "iso_overlap": "partial",
         "evidence": "hybrid",
         "evaluator": "sentinel_active",
-        "attest_hint": "If Sentinel is not yet deployed, attest the interim process (e.g., policy + spot checks)."
+        "attest_hint": "If Sentinel is not yet deployed, attest the interim process (e.g., policy + spot checks).",
+        "sb1964_ref": "SB 1964 — inventory completeness (employee AI visibility)",
+        "sb1964_overlap": "partial"
       },
       {
         "control_id": "SH-MAN-01",
@@ -1068,7 +1103,9 @@
         "iso_ref": "ISO/IEC 42001 A.5 Assessing impacts / A.6 life cycle",
         "iso_overlap": "partial",
         "evidence": "machine",
-        "evaluator": "cure_tracking"
+        "evaluator": "cure_tracking",
+        "sb1964_ref": "SB 1964 ethics code — Accountability (issue tracking)",
+        "sb1964_overlap": "partial"
       },
       {
         "control_id": "SH-MAN-02",
@@ -1079,7 +1116,9 @@
         "iso_ref": "ISO/IEC 42001 A.6 AI system life cycle (managing risks)",
         "iso_overlap": "partial",
         "evidence": "machine",
-        "evaluator": "remediation_current"
+        "evaluator": "remediation_current",
+        "sb1964_ref": "SB 1964 ethics code — Accountability (remediation)",
+        "sb1964_overlap": "partial"
       },
       {
         "control_id": "SH-MAN-03",
@@ -1090,7 +1129,9 @@
         "iso_ref": "ISO/IEC 42001 A.8 Information for interested parties",
         "iso_overlap": "partial",
         "evidence": "attested",
-        "attest_hint": "Reference the intake channel (311, web form, email) and the owning department."
+        "attest_hint": "Reference the intake channel (311, web form, email) and the owning department.",
+        "sb1964_ref": "SB 1964 ethics code — Human oversight (incident/complaint intake)",
+        "sb1964_overlap": "partial"
       },
       {
         "control_id": "SH-MAN-04",
@@ -1101,7 +1142,9 @@
         "iso_ref": "ISO/IEC 42001 A.10 Third-party & customer relationships",
         "iso_overlap": "strong",
         "evidence": "attested",
-        "attest_hint": "Reference the procurement review step or contract clause used."
+        "attest_hint": "Reference the procurement review step or contract clause used.",
+        "sb1964_ref": "SB 1964 — procurement review + risk assessment",
+        "sb1964_overlap": "strong"
       }
     ]
   },

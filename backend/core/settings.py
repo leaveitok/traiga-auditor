@@ -53,6 +53,10 @@ SETTABLE: Dict[str, Dict[str, Any]] = {
         "type": "bool", "group": "Compliance frameworks", "label": "ISO/IEC 42001 lens",
         "help": "Enable the ISO/IEC 42001:2023 readiness lens + report (voluntary standard; per-city opt-in). NIST and TRAIGA are always on.",
         "default": lambda: config.FRAMEWORK_ISO_42001_ENABLED},
+    "FRAMEWORK_SB1964_ENABLED": {
+        "type": "bool", "group": "Compliance frameworks", "label": "Texas SB 1964 lens",
+        "help": "Enable the Texas SB 1964 government AI code-of-ethics readiness lens + report (mandatory TX government statute; applies to every Texas city, on by default). NIST and TRAIGA are always on.",
+        "default": lambda: config.FRAMEWORK_SB1964_ENABLED},
     "SCAN_SCHEDULE_HOUR": {
         "type": "int", "group": "Automated scans", "label": "Daily scan hour (UTC, 0-23)",
         "min": 0, "max": 23,
