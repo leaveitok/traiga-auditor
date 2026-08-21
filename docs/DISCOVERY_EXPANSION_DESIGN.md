@@ -190,6 +190,13 @@ all orchestrators are integration-tested with a fake source client + MockRepo.
   `/servicePrincipals`, `/oauth2PermissionGrants`, app role assignments) and
   Google Workspace (Admin SDK `tokens`/`token.list`, Marketplace apps). These
   list every third-party app a user or admin granted access to.
+- **Shipped acquisition (v1):** customer-run **exports**, not a live API connection, so
+  no tenant credentials are stored. Microsoft 365: a read-only PowerShell export script
+  *or* two browser-only Microsoft Graph Explorer queries. Google Workspace: the Admin
+  console **App access control → Accessed apps → Download list** CSV. Each is parsed
+  server-side into the common grant shape (`engine/collectors/google_oauth.py` for the
+  Google CSV, `graph_join.py` for the Graph files); the Admin SDK `tokens.list` path
+  above stays a future option.
 - **Auth/deps (SECURITY-SENSITIVE — see §7):** read-only, least-privilege scopes
   (`Application.Read.All` / `Directory.Read.All` on Entra;
   `admin.directory.token.readonly` on Google). Tenant admin consent required.

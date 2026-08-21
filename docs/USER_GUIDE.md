@@ -1,7 +1,7 @@
 ---
 title: "TRAIGA Auditor — User Guide"
-subtitle: "AI Transparency & Compliance for Texas Municipalities · Version 1.5"
-date: "July 18, 2026 · For City IT, CIO, and Compliance Staff"
+subtitle: "AI Transparency & Compliance for Texas Municipalities · Version 1.6"
+date: "August 21, 2026 · For City IT, CIO, and Compliance Staff"
 ---
 
 # About TRAIGA Auditor
@@ -168,23 +168,29 @@ registration, no client secret and no standing permission — so there is nothin
 revoke afterwards.
 
 The dialog walks your administrator through it step by step, with every command ready to
-copy. There are **two ways to do it**, and both produce the same result:
+copy. Pick your identity provider at the top — **Microsoft 365** or **Google Workspace** —
+and follow the steps for it. All paths produce the same result:
 
 - **Run the script.** A small read-only export script, downloaded from the dashboard so it
   always matches the running system, executed on the administrator's own machine while
   signed in as themselves. The checksum is shown next to the download.
-- **Browser only.** Two read-only queries in **Microsoft Graph Explorer** — Microsoft's own
-  website — and the results downloaded as JSON. **Nothing installs and nothing runs on any
-  machine.** This is the path for organisations whose endpoint protection, AppLocker or
-  WDAC blocks PowerShell.
+- **Browser only (Microsoft 365).** Two read-only queries in **Microsoft Graph Explorer** —
+  Microsoft's own website — and the results downloaded as JSON. **Nothing installs and
+  nothing runs on any machine.** This is the path for organisations whose endpoint
+  protection, AppLocker or WDAC blocks PowerShell.
+- **Google Workspace.** No script and nothing to install. A Super Admin opens **Security →
+  Access and data control → API controls → App access control**, opens the **Accessed apps**
+  tab, and clicks **Download list** to export a CSV of every app staff have consented to.
+  Upload that single file.
 
 We deliberately do not ship a wrapper that bypasses script-execution policy. That is the
 behaviour security teams block malware for, and we are not going to ask anyone to weaken a
 control in order to run a compliance tool — hence the browser option.
 
 Either way you end up with JSON to upload. **Read it before you upload it.** Then, in
-**AI Inventory → OAuth**, select the file (or both files, for the browser method). You will see each application, its publisher, how many staff
-consented, and what each grant can reach.
+**AI Inventory → OAuth**, choose your city and provider tab, and select the file — one file
+for the script or Google Workspace methods, both files for the Microsoft browser method. You
+will see each application, its publisher, how many staff consented, and what each grant can reach.
 
 Two protections are on by default:
 
