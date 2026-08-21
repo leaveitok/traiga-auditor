@@ -80,9 +80,14 @@ export const useDiscoveryStore = defineStore('discovery', () => {
     }
   }
 
-  const oauthScriptUrl = (provider = 'microsoft') =>
-    GovernanceService.oauthExportScriptUrl(provider)
+  /**
+   * The OAuth export script as an authenticated Blob. The endpoint is auth-guarded, so this
+   * must go through the service's axios client (which attaches the token), not a plain href.
+   */
+  async function downloadOAuthScript(provider = 'microsoft') {
+    return await GovernanceService.getOAuthExportScript(provider)
+  }
 
   return { running, error, runProcurement, runAgenda, runOAuth,
-           oauthScriptMeta, oauthScriptUrl }
+           oauthScriptMeta, downloadOAuthScript }
 })

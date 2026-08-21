@@ -233,13 +233,14 @@ const getOAuthExportScriptMeta = (provider = 'microsoft') =>
   http.get('/discovery/oauth/export-script/meta', { params: { provider } }).then(r => r.data)
 
 /**
- * Absolute URL of the export-script download. Returned as a URL rather than a blob so the
- * browser performs a normal authenticated download, and the city can see exactly where the
- * file came from in their own network log.
- * @returns {string}
+ * The OAuth export script as an authenticated Blob. Fetched through the axios client (NOT a
+ * plain <a href>) so the Firebase Bearer token is attached by the interceptor — the endpoint
+ * is auth-guarded (REQUIRE_AUTH), so a bare href download 401s in production.
+ * @returns {Promise<Blob>}
  */
-const oauthExportScriptUrl = (provider = 'microsoft') =>
-  `${http.defaults.baseURL}/discovery/oauth/export-script?provider=${encodeURIComponent(provider)}`
+const getOAuthExportScript = (provider = 'microsoft') =>
+  http.get('/discovery/oauth/export-script', { params: { provider },
+    responseType: 'blob' }).then(r => r.data)
 
 const runAgendaDiscovery = (payload) =>
   // TODO: server enforces RBAC (platform_admin/agency_admin) + city scoping
@@ -506,7 +507,7 @@ export const GovernanceService = {
   runAgendaDiscovery,
   runOAuthDiscovery,
   getOAuthExportScriptMeta,
-  oauthExportScriptUrl,
+  getOAuthExportScript,
   // Admin settings
   getAdminSettings,
   saveAdminSettings,

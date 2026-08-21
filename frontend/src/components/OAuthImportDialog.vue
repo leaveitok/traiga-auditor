@@ -53,10 +53,12 @@
                 <strong>3. Download the script</strong>
                 <v-spacer />
                 <v-btn size="small" color="primary" variant="tonal"
-                       prepend-icon="mdi-download" :href="scriptUrl" download>
+                       prepend-icon="mdi-download" :loading="scriptDownloading"
+                       @click="downloadScript">
                   Download script
                 </v-btn>
               </div>
+              <div v-if="scriptError" class="text-caption text-error mb-1">{{ scriptError }}</div>
               <div v-if="scriptMeta" class="text-caption">
                 <code>{{ scriptMeta.filename }}</code>
                 <span class="text-medium-emphasis">
@@ -345,7 +347,8 @@ const store = useDiscoveryStore()
 // Script download + its server-computed checksum. Fetched when the dialog opens so the
 // hash shown is always the hash of the file this deployment would hand you.
 const scriptMeta = ref(null)
-const scriptUrl  = computed(() => store.oauthScriptUrl('microsoft'))
+const scriptDownloading = ref(false)
+const scriptError       = ref('')
 
 /** 'script' = run our PowerShell export. 'graph' = browser-only, nothing executes. */
 const method     = ref('script')
@@ -370,6 +373,28 @@ const cmd = {
 
 async function copy(text) {
   try { await navigator.clipboard.writeText(text || '') } catch { /* non-fatal */ }
+}
+
+/**
+ * Download the export script through the authenticated API client, then save the Blob.
+ * A plain <a href> can't carry the Firebase Bearer token, so the auth-guarded endpoint
+ * would 401 — this fetches with the token attached and hands the file to the browser.
+ */
+async function downloadScript() {
+  scriptError.value = ''
+  scriptDownloading.value = true
+  try {
+    const blob = await store.downloadOAuthScript('microsoft')
+    const name = scriptMeta.value?.filename || 'Export-EntraOAuthGrants.ps1'
+    const url  = URL.createObjectURL(blob)
+    const a    = document.createElement('a')
+    a.href = url; a.download = name; a.click()
+    URL.revokeObjectURL(url)
+  } catch (e) {
+    scriptError.value = `Could not download the script: ${e.response?.data?.detail || e.message}`
+  } finally {
+    scriptDownloading.value = false
+  }
 }
 
 watch(open, async (isOpen) => {
