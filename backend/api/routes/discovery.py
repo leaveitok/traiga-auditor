@@ -218,6 +218,10 @@ class OAuthRequest(BaseModel):
     # ORDER: the server identifies each by shape and performs the join, so the browser
     # never interprets tenant data.
     graph_files:    Optional[List[dict]] = None
+    # METHOD C (Google Workspace) — the admin downloaded the "Accessed apps" list as a
+    # CSV from Admin console → Security → API controls → App access control. The whole
+    # export is one file (app, users, scopes), parsed server-side into the same shape.
+    google_csv:     Optional[str] = None
     # Default DRY RUN: a pilot's first run must be able to show findings without
     # writing anything to the city's registry.
     dry_run:        bool = True
@@ -287,10 +291,26 @@ def run_oauth(
                 "application missing from the servicePrincipals file, and were skipped. "
                 "This usually means only the first page of applications was downloaded.")
 
+    if body.google_csv:
+        from engine.collectors import google_oauth
+        source_method = "google_export"
+        grants_in, gmeta = google_oauth.parse_google_export(body.google_csv)
+        if not gmeta.get("header_ok"):
+            raise HTTPException(
+                status_code=400,
+                detail=("This does not look like a Google \"Accessed apps\" export. In the "
+                        "Admin console go to Security → API controls → App access control → "
+                        "Accessed apps → Download list, and upload that CSV."))
+        if gmeta.get("unreadable_rows"):
+            source_warnings.append(
+                f"{gmeta['unreadable_rows']} row(s) in the export could not be read and were "
+                "skipped. If that is more than a handful, re-download the list.")
+
     if not grants_in:
         raise HTTPException(
             status_code=400,
-            detail="No grants supplied. Upload the script's export, or both Graph Explorer files.")
+            detail="No grants supplied. Upload the script's export, both Graph Explorer "
+                   "files, or a Google \"Accessed apps\" CSV.")
     if len(grants_in) > 5000:
         raise HTTPException(status_code=400, detail="Too many grants (max 5000).")
     # Employee identities are a deliberate, platform-admin-only reveal.

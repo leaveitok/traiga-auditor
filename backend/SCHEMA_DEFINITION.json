@@ -253,6 +253,47 @@
           ],
           "oauth_app_ids": []
         }
+      },
+      {
+        "tool_id": "gamma",
+        "display_name": "Gamma",
+        "category": "productivity_ai",
+        "aliases": {
+          "sentinel_site_ids": [
+            "gamma"
+          ],
+          "domains": [
+            "gamma.app",
+            "gamma.com"
+          ],
+          "procurement_names": [
+            "gamma"
+          ],
+          "product_names": [
+            "gamma.com.ai"
+          ],
+          "oauth_app_ids": []
+        }
+      },
+      {
+        "tool_id": "midjourney",
+        "display_name": "Midjourney",
+        "category": "productivity_ai",
+        "aliases": {
+          "sentinel_site_ids": [
+            "midjourney"
+          ],
+          "domains": [
+            "midjourney.com"
+          ],
+          "procurement_names": [
+            "midjourney"
+          ],
+          "product_names": [
+            "midjourney"
+          ],
+          "oauth_app_ids": []
+        }
       }
     ],
     "_oauth_alias_note": "oauth_app_ids is intentionally EMPTY until real tenant exports supply verified IDs. We do NOT guess Entra appId GUIDs or Google client IDs — a wrong ID silently mis-attributes an app to the wrong vendor. v1 matches on app display name + publisher via the existing aliases and the AI-keyword screen; observed IDs are added here (governance-as-code) once confirmed against a real grant."

@@ -23,6 +23,9 @@
             <v-tab value="graph">
               <v-icon size="small" class="mr-1">mdi-web</v-icon>Browser only
             </v-tab>
+            <v-tab value="google">
+              <v-icon size="small" class="mr-1">mdi-google</v-icon>Google Workspace
+            </v-tab>
           </v-tabs>
 
           <v-alert v-if="method === 'graph'" type="info" variant="tonal" density="compact"
@@ -164,6 +167,52 @@
             </p>
           </template>
 
+          <!-- ── GOOGLE WORKSPACE ── -->
+          <template v-if="method === 'google'">
+            <v-alert type="info" variant="tonal" density="compact" class="mb-3">
+              No script and nothing to install. Google's Admin console exports the whole
+              list of apps your users have granted access to, as one CSV.
+            </v-alert>
+            <div class="mb-3 pa-3 rounded" style="border: 1px solid rgba(128,128,128,0.3)">
+              <div class="mb-1"><strong>1. Check your role</strong></div>
+              <p class="text-caption text-medium-emphasis mb-3">
+                You need <strong>Super Admin</strong>, or an admin role with the
+                <strong>API controls</strong> privilege. Read-only is sufficient.
+              </p>
+              <div class="mb-1"><strong>2. Open the app access list</strong></div>
+              <p class="text-caption text-medium-emphasis mb-1">
+                In the Admin console: <strong>Security → Access and data control →
+                API controls → App access control</strong>, then open the
+                <strong>Accessed apps</strong> tab — the apps your users have actually
+                consented to.
+              </p>
+              <div class="mt-3 mb-1"><strong>3. Download the list</strong></div>
+              <p class="text-caption text-medium-emphasis mb-1">
+                At the top of the <strong>Accessed apps</strong> list, click
+                <strong>Download list</strong> and save the CSV. It contains each app, its
+                client ID, how many users granted it, and the scopes — no employee
+                identities.
+              </p>
+            </div>
+
+            <div class="d-flex align-center ga-2 mb-1">
+              <strong>4. Upload the CSV</strong>
+            </div>
+            <v-file-input
+              v-model="googleFile"
+              label="Select the downloaded .csv file"
+              accept=".csv,text/csv"
+              prepend-icon="mdi-file-delimited-outline"
+              density="comfortable"
+              :error-messages="parseError"
+              @update:model-value="onGoogleFile"
+            />
+            <p class="text-caption text-medium-emphasis">
+              The file is read in your browser and parsed on our server — only per-app
+              counts and scopes are used, never who consented.
+            </p>
+          </template>
+
           <v-switch
             v-model="dryRun"
             color="primary"
@@ -193,10 +242,15 @@
               <strong>{{ grants.length }}</strong> application(s) found in the file for
               <strong>{{ cityName }}</strong>.
             </template>
-            <template v-else>
+            <template v-else-if="method === 'graph'">
               <strong>{{ graphBlobs.length }}</strong> Graph Explorer file(s) ready for
               <strong>{{ cityName }}</strong>. They will be identified and joined on the
               server.
+            </template>
+            <template v-else>
+              Google export ready for <strong>{{ cityName }}</strong>
+              (~<strong>{{ googleRowEstimate }}</strong> app(s)). It will be parsed and
+              matched on the server.
             </template>
             {{ dryRun ? 'Dry run: nothing will be written.' : 'Results WILL be written to the inventory.' }}
           </v-alert>
@@ -357,6 +411,12 @@ const graphFiles = ref(null)
  *  server identifies each file and performs the join. */
 const graphBlobs = ref([])
 
+/** Google Workspace: the raw "Accessed apps" CSV text, parsed server-side (the browser
+ *  never re-implements the export format). */
+const googleFile        = ref(null)
+const googleCsv         = ref('')
+const googleRowEstimate = ref(0)
+
 /**
  * Every command the admin needs, in one place so the UI and the manual cannot drift.
  * $top=999 keeps most tenants to a single page; the nextLink warning covers the rest.
@@ -487,6 +547,33 @@ async function onGraphFiles(f) {
   }
 }
 
+/**
+ * Read the Google "Accessed apps" CSV. We keep the raw text and send it to the server,
+ * which owns parsing; a light header check rejects an obviously wrong file early.
+ */
+async function onGoogleFile(f) {
+  parseError.value = ''
+  googleCsv.value = ''
+  googleRowEstimate.value = 0
+  const picked = Array.isArray(f) ? f[0] : f
+  if (!picked) return
+  try {
+    const text = await picked.text()
+    const firstLine = (text.split(/\r?\n/, 1)[0] || '')
+    if (!/App Name/i.test(firstLine) || !/Requested Services/i.test(firstLine)) {
+      parseError.value =
+        'This does not look like a Google "Accessed apps" export. Use Download list on that page.'
+      return
+    }
+    googleCsv.value = text
+    googleRowEstimate.value = text.split(/\r?\n/).filter(l => l.trim()).length - 1
+    provider.value = 'google'
+    phase.value = 'preview'
+  } catch (e) {
+    parseError.value = `Could not read this file: ${e.message}`
+  }
+}
+
 async function run() {
   runError.value = ''
   try {
@@ -496,6 +583,7 @@ async function run() {
       // Exactly one of these is populated, depending on the method chosen.
       grants: method.value === 'script' ? grants.value : [],
       graph_files: method.value === 'graph' ? graphBlobs.value : undefined,
+      google_csv: method.value === 'google' ? googleCsv.value : undefined,
       dry_run: dryRun.value,
     })
     phase.value = 'done'
@@ -540,6 +628,7 @@ function close() {
   setTimeout(() => {
     phase.value = 'select'; file.value = null; grants.value = []
     graphFiles.value = null; graphBlobs.value = []
+    googleFile.value = null; googleCsv.value = ''; googleRowEstimate.value = 0
     result.value = {}; parseError.value = ''; runError.value = ''
     fileHasUsers.value = false; dryRun.value = true
   }, 300)
