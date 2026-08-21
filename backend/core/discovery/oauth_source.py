@@ -57,6 +57,14 @@ def run_oauth_discovery(
     if not settings.get_bool(repo, "OAUTH_DISCOVERY_ENABLED"):
         return _disabled_result("oauth_discovery_disabled")
 
+    # Fail-secure attribution: findings must belong to a SPECIFIC city. A blank city
+    # would let every row be skipped and reported as "0 matched", indistinguishable
+    # from "this city is clean" — the exact false-negative this channel must never
+    # produce.
+    if not (city or "").strip():
+        return {"written": 0, "matched": 0, "candidates": 0, "skipped": 0, "rows": 0,
+                "cities": [], "errors": ["city_required"], "dry_run": dry_run}
+
     # Fail-secure tenancy: an agency user can only write assets for its own cities.
     if allowed_cities is not None and city not in allowed_cities:
         return _disabled_result("city_out_of_scope")

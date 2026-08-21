@@ -372,7 +372,7 @@
                              @done="onProcurementDone" />
     <AgendaDiscoveryDialog v-model="agendaDialog" :default-city="city || ''"
                            @done="onProcurementDone" />
-    <OAuthImportDialog v-model="oauthDialog" :default-city="city || ''"
+    <OAuthImportDialog v-model="oauthDialog" :default-city="city || (cityFilter && cityFilter !== 'All cities' ? cityFilter : '')"
                        @done="onOAuthDone" />
 
     <v-snackbar v-model="snackbar.show" :color="snackbar.color" :timeout="3500"

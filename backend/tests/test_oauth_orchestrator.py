@@ -98,3 +98,14 @@ def test_identities_not_persisted_by_default():
     oauth_source.run_oauth_discovery(repo, "City of Testville", grants, dry_run=False)
     blob = json.dumps(repo.get_ai_assets())
     assert "alice@city.gov" not in blob and "bob@city.gov" not in blob
+
+
+
+def test_blank_city_is_refused_not_reported_clean():
+    """A blank city must be REFUSED, never silently skipped and reported as 0 matched
+    (which reads as 'this city is clean' — the false-negative this channel must avoid)."""
+    repo = _repo()
+    out = oauth_source.run_oauth_discovery(repo, "   ", _grants(), dry_run=True)
+    assert out["errors"] == ["city_required"]
+    assert out["matched"] == 0 and out["rows"] == 0
+    assert out["written"] == 0

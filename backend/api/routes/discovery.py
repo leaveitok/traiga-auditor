@@ -311,6 +311,11 @@ def run_oauth(
         allowed_cities=allowed_cities,
         actor=user.get("email", "unknown"),
     )
+    if result.get("errors") == ["city_required"]:
+        raise HTTPException(
+            status_code=400,
+            detail="Select a city before importing this export — findings must be "
+                   "attributed to a specific city.")
     if result.get("errors") == ["oauth_discovery_disabled"]:
         raise HTTPException(
             status_code=503,

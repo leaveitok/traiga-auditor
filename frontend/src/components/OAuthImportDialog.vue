@@ -312,8 +312,9 @@
       <v-card-actions>
         <v-spacer />
         <v-btn variant="text" @click="close">{{ phase === 'done' ? 'Close' : 'Cancel' }}</v-btn>
+        <span v-if="phase === 'preview' && !defaultCity" class="text-caption text-medium-emphasis mr-2">Select a specific city in the inventory filter first.</span>
         <v-btn v-if="phase === 'preview'" color="primary" :loading="store.running"
-               @click="run">
+               :disabled="!defaultCity" @click="run">
           {{ dryRun ? 'Run dry run' : 'Write to inventory' }}
         </v-btn>
       </v-card-actions>
