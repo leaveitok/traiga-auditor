@@ -116,7 +116,7 @@
           </template>
 
           <!-- ── METHOD B ─────────────────────────────────────────────────── -->
-          <template v-else>
+          <template v-else-if="method === 'graph'">
             <div class="mb-3 pa-3 rounded" style="border: 1px solid rgba(128,128,128,0.3)">
               <div class="mb-1"><strong>1. Open Microsoft Graph Explorer</strong></div>
               <p class="text-caption text-medium-emphasis mb-2">
