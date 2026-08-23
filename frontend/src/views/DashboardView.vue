@@ -50,9 +50,12 @@
     <!-- Summary KPI cards -->
     <v-row class="mb-4">
       <v-col v-for="kpi in kpis" :key="kpi.label" cols="6" sm="4" md="3">
-        <v-card :color="kpi.color" variant="tonal" class="text-center pa-4">
-          <div class="text-h4 font-weight-bold">{{ kpi.value }}</div>
-          <div class="text-caption font-weight-medium">{{ kpi.label }}</div>
+        <!-- Flat stat tile (docs/DESIGN_SYSTEM.md): surface + hairline come from
+             the global VCard defaults; the NUMERAL carries the semantic color,
+             never the tile background. -->
+        <v-card class="text-center pa-4">
+          <div class="text-h4 font-weight-bold" :class="`text-${kpi.color}`">{{ kpi.value }}</div>
+          <div class="text-caption font-weight-medium text-medium-emphasis">{{ kpi.label }}</div>
         </v-card>
       </v-col>
     </v-row>

@@ -72,16 +72,18 @@
 
               <!-- Deep Scan — shown when a city could not be assessed (scan failed / blocked) -->
               <v-btn v-if="['not_assessed','scan_failed'].includes(cityRow.traiga_status)"
-                color="warning" variant="elevated"
+                color="warning" variant="flat"
                 prepend-icon="mdi-magnify-scan"
                 @click="deepScanDialog = true"
               >
                 Deep Scan
               </v-btn>
 
+              <!-- Quiet outlined secondaries: Re-Audit (AuditRunButton) is the
+                   view's one filled primary (docs/DESIGN_SYSTEM.md). -->
               <template v-else>
                 <v-btn
-                  color="primary" variant="elevated"
+                  color="primary" variant="outlined"
                   prepend-icon="mdi-file-document-outline"
                   :loading="generatingReport"
                   @click="downloadReport"
@@ -89,7 +91,7 @@
                   Compliance Report
                 </v-btn>
                 <v-btn
-                  color="teal" variant="elevated"
+                  color="primary" variant="outlined"
                   prepend-icon="mdi-shield-check-outline"
                   :loading="generatingPolicy"
                   @click="downloadPolicy"
@@ -168,7 +170,7 @@
                   <v-chip size="x-small"
                           :color="asset.verification_status === 'verified' ? 'success' : 'warning'"
                           label>
-                    {{ asset.verification_status || 'unverified' }}
+                    {{ verificationLabel(asset.verification_status) }}
                   </v-chip>
                 </template>
               </v-list-item>
@@ -561,6 +563,14 @@ const citationUrl = (citation) => {
 }
 
 const fmtDate = (iso) => iso ? new Date(iso).toLocaleDateString() : '—'
+
+/** Humanize machine verification states - a raw enum (unverified_candidate)
+ *  must never reach the UI (crisp-pass rule; found in the 2026-08-23 audit). */
+const verificationLabel = (s) => ({
+  verified: 'Verified',
+  unverified: 'Unverified',
+  unverified_candidate: 'Unverified candidate',
+}[s] || (s ? String(s).replace(/_/g, ' ') : 'Unverified'))
 
 const parseDays = (val) => {
   if (val === null || val === undefined || val === '' || val === 'None') return null

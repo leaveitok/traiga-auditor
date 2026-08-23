@@ -1,7 +1,7 @@
 ---
 title: "TRAIGA Auditor — User Guide"
-subtitle: "AI Transparency & Compliance for Texas Municipalities · Version 1.6"
-date: "August 21, 2026 · For City IT, CIO, and Compliance Staff"
+subtitle: "AI Transparency & Compliance for Texas Municipalities · Version 1.7"
+date: "August 23, 2026 · For City IT, CIO, and Compliance Staff"
 ---
 
 # About TRAIGA Auditor
@@ -128,7 +128,7 @@ The city detail page includes tools to move from "problem found" to "fixed and d
 - **Compliance Report** — generate a formal report (executive summary, inventory, and violations with citations) for council or counsel.
 - **AI Use Policy** — generate a draft municipal AI use policy.
 - **AG Response Pack** — assemble documentation responsive to an Attorney General inquiry.
-- **Import Procurement / Sync Staff Usage / Agendas / OAuth** — additional discovery inputs that widen the inventory beyond the public website.
+- **Add Data menu** — the four additional discovery inputs that widen the inventory beyond the public website now live in one **Add Data** dropdown next to *Declare AI System*: **Sync Staff Usage** (Sentinel telemetry), **Import Procurement** (vendor/spend/contract files), **Scan Agendas** (council/EDC agendas), and **OAuth Export** (Microsoft Entra / Google Workspace, dry run by default). Same permissions and behavior as the former individual buttons.
 
 ## Knowing where an AI system came from — and whether it is live
 

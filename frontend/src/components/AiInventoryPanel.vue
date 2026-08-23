@@ -1,31 +1,33 @@
 <template>
   <div>
     <!-- ── KPI strip: the "needs attestation" count is the to-do list ────── -->
+    <!-- Flat stat tiles (docs/DESIGN_SYSTEM.md): surface + hairline from the
+         global VCard defaults; the NUMERAL carries the semantic color. -->
     <v-row dense class="mb-4">
       <v-col cols="6" md="3">
-        <v-card variant="tonal" color="primary" class="text-center pa-3">
-          <div class="text-h4 font-weight-bold">{{ store.active.length }}</div>
-          <div class="text-caption">AI Systems</div>
+        <v-card class="text-center pa-3">
+          <div class="text-h4 font-weight-bold text-primary">{{ store.active.length }}</div>
+          <div class="text-caption text-medium-emphasis">AI Systems</div>
         </v-card>
       </v-col>
       <v-col cols="6" md="3">
-        <v-card variant="tonal" :color="store.needsAttestation ? 'warning' : 'success'"
-                class="text-center pa-3">
-          <div class="text-h4 font-weight-bold">{{ store.needsAttestation }}</div>
-          <div class="text-caption">Need Attestation</div>
+        <v-card class="text-center pa-3">
+          <div class="text-h4 font-weight-bold"
+               :class="store.needsAttestation ? 'text-warning' : 'text-success'">{{ store.needsAttestation }}</div>
+          <div class="text-caption text-medium-emphasis">Need Attestation</div>
         </v-card>
       </v-col>
       <v-col cols="6" md="3">
-        <v-card variant="tonal" color="success" class="text-center pa-3">
-          <div class="text-h4 font-weight-bold">{{ store.attested }}</div>
-          <div class="text-caption">Attested</div>
+        <v-card class="text-center pa-3">
+          <div class="text-h4 font-weight-bold text-success">{{ store.attested }}</div>
+          <div class="text-caption text-medium-emphasis">Attested</div>
         </v-card>
       </v-col>
       <v-col cols="6" md="3">
-        <v-card variant="tonal" :color="store.undisclosed ? 'error' : 'success'"
-                class="text-center pa-3">
-          <div class="text-h4 font-weight-bold">{{ store.undisclosed }}</div>
-          <div class="text-caption">Open Violations</div>
+        <v-card class="text-center pa-3">
+          <div class="text-h4 font-weight-bold"
+               :class="store.undisclosed ? 'text-error' : 'text-success'">{{ store.undisclosed }}</div>
+          <div class="text-caption text-medium-emphasis">Open Violations</div>
         </v-card>
       </v-col>
     </v-row>
@@ -51,49 +53,45 @@
               </v-chip>
             </template>
           </v-tooltip>
-          <v-btn v-if="city" color="primary" variant="tonal" size="small"
+          <v-btn v-if="city" color="primary" variant="outlined" size="small"
                  prepend-icon="mdi-file-send-outline"
                  :loading="downloadingPack" @click="downloadPack">
             AG Response Pack
           </v-btn>
-          <v-btn v-if="canWrite" color="primary" variant="tonal" size="small"
+          <v-btn v-if="canWrite" color="primary" variant="flat" size="small"
                  prepend-icon="mdi-plus"
                  @click="openDeclare">Declare AI System</v-btn>
-          <!-- Inside-out discovery: merge Sentinel staff-usage telemetry into the registry -->
-          <v-tooltip v-if="auth.isPlatformAdmin" location="bottom" max-width="320"
-                     text="Pull Sentinel browser-DLP telemetry and add staff AI usage (ChatGPT, Claude, Gemini...) to the registry as discovered assets.">
-            <template #activator="{ props: tp }">
-              <v-btn v-bind="tp" variant="tonal" color="deep-purple" size="small"
-                     prepend-icon="mdi-monitor-eye" :loading="syncing"
-                     @click="syncSentinel">Sync Staff Usage</v-btn>
+          <!-- All four discovery channels live in ONE quiet menu (docs/
+               DESIGN_SYSTEM.md: OV Blue is the only interactive color; one
+               filled primary per toolbar). The former per-button tooltips are
+               now the menu items' subtitles - same words, same permissions,
+               same click handlers. -->
+          <v-menu location="bottom end">
+            <template #activator="{ props: mp }">
+              <v-btn v-bind="mp" color="primary" variant="outlined" size="small"
+                     prepend-icon="mdi-database-import-outline"
+                     append-icon="mdi-menu-down">Add Data</v-btn>
             </template>
-          </v-tooltip>
-          <!-- Procurement discovery: match an uploaded vendor/spend/contract file -->
-          <v-tooltip v-if="auth.canManage" location="bottom" max-width="320"
-                     text="Match an uploaded vendor / spend / contract file against the AI tool catalog and add procured AI to the registry.">
-            <template #activator="{ props: tp }">
-              <v-btn v-bind="tp" variant="tonal" color="teal" size="small"
-                     prepend-icon="mdi-file-document-multiple-outline"
-                     @click="procurementDialog = true">Import Procurement</v-btn>
-            </template>
-          </v-tooltip>
-          <!-- Council-agenda discovery -->
-          <v-tooltip v-if="auth.canManage" location="bottom" max-width="320"
-                     text="Scan a city's council/EDC agendas (Legistar, PDF, or pasted text) for awarded AI contracts.">
-            <template #activator="{ props: tp }">
-              <v-btn v-bind="tp" variant="tonal" color="indigo" size="small"
-                     prepend-icon="mdi-gavel"
-                     @click="agendaDialog = true">Agendas</v-btn>
-            </template>
-          </v-tooltip>
-          <v-tooltip location="top"
-                     text="Import the read-only OAuth export from Microsoft Entra / Google Workspace to find AI apps staff consented to. Dry run by default — writes nothing.">
-            <template #activator="{ props: tp }">
-              <v-btn v-bind="tp" variant="tonal" color="deep-purple" size="small"
-                     prepend-icon="mdi-account-key-outline"
-                     @click="oauthDialog = true">OAuth</v-btn>
-            </template>
-          </v-tooltip>
+            <v-list density="compact" min-width="320">
+              <v-list-subheader>Discovery channels</v-list-subheader>
+              <v-list-item v-if="auth.isPlatformAdmin" prepend-icon="mdi-monitor-eye"
+                           title="Sync Staff Usage" :disabled="syncing"
+                           subtitle="Sentinel browser-DLP telemetry into the registry"
+                           @click="syncSentinel" />
+              <v-list-item v-if="auth.canManage" prepend-icon="mdi-file-document-multiple-outline"
+                           title="Import Procurement"
+                           subtitle="Match a vendor / spend / contract file"
+                           @click="procurementDialog = true" />
+              <v-list-item v-if="auth.canManage" prepend-icon="mdi-gavel"
+                           title="Scan Agendas"
+                           subtitle="Council / EDC agendas for awarded AI"
+                           @click="agendaDialog = true" />
+              <v-list-item prepend-icon="mdi-account-key-outline"
+                           title="OAuth Export"
+                           subtitle="Microsoft Entra / Google Workspace - dry run by default"
+                           @click="oauthDialog = true" />
+            </v-list>
+          </v-menu>
           <v-btn icon="mdi-refresh" variant="text" :loading="store.loading" @click="refresh" />
         </div>
       </v-card-title>
