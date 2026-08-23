@@ -70,4 +70,13 @@ onMounted(() => auth.init())
 .ov-lockup {
   font-family: 'Montserrat', 'Roboto', sans-serif !important;
 }
+
+/* Stealth contrast (UI-3c): Vuetify's tonal variant paints currentColor at
+   var(--v-activated-opacity) (~12%), which reads as DISABLED on the navy
+   surfaces (found in the 2026-08-23 live audit). Raise the underlay presence
+   for tonal chips/buttons in Stealth ONLY - Light is untouched. */
+.v-theme--stealth .v-chip--variant-tonal .v-chip__underlay,
+.v-theme--stealth .v-btn--variant-tonal .v-btn__underlay {
+  opacity: 0.26;
+}
 </style>

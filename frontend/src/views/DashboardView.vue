@@ -47,8 +47,17 @@
       </div>
     </div>
 
-    <!-- Summary KPI cards -->
+    <!-- Summary KPI cards. While the first summary load is in flight the row
+         renders skeleton tiles at the same footprint, so the page does not
+         jump when the numbers land (UI-3c). -->
     <v-row class="mb-4">
+      <template v-if="store.loading && !kpis.length">
+        <v-col v-for="n in 8" :key="`kpi-skeleton-${n}`" cols="6" sm="4" md="3">
+          <v-card class="text-center pa-4">
+            <v-skeleton-loader type="heading" class="mx-auto" />
+          </v-card>
+        </v-col>
+      </template>
       <v-col v-for="kpi in kpis" :key="kpi.label" cols="6" sm="4" md="3">
         <!-- Flat stat tile (docs/DESIGN_SYSTEM.md): surface + hairline come from
              the global VCard defaults; the NUMERAL carries the semantic color,
@@ -90,6 +99,9 @@
         @click:row="(_, { item }) => $router.push(`/city/${encodeURIComponent(item.city)}`)"
         style="cursor: pointer"
       >
+        <template #loading>
+          <v-skeleton-loader type="table-row@6" />
+        </template>
         <template #item.traiga_status="{ item }">
           <ComplianceStatusChip :status="item.traiga_status" />
         </template>

@@ -102,6 +102,11 @@
 
       <v-data-table :headers="headers" :items="visibleAssets" :loading="store.loading"
                     item-value="asset_key" show-expand density="comfortable" hover>
+        <!-- Skeleton rows instead of a bare progress bar while the registry
+             loads (UI-3c; same pattern as AnalyticsView). -->
+        <template #loading>
+          <v-skeleton-loader type="table-row@6" />
+        </template>
         <template #item.display_name="{ item }">
           <div class="font-weight-medium">{{ item.display_name || item.vendor_id || 'Unknown' }}</div>
           <div class="text-caption text-medium-emphasis">

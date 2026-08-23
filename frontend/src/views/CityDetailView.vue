@@ -14,8 +14,11 @@
 
     <template v-if="cityRow">
 
-      <!-- ── Hero header ── -->
-      <v-card class="mb-6" :color="bandColor" variant="tonal">
+      <!-- ── Hero header ── neutral surface (flat + hairline from the global
+           defaults); STATUS color lives in the avatar, the status chip, and
+           the score numeral - never in a tinted band or the city name
+           (UI-3c; docs/DESIGN_SYSTEM.md). -->
+      <v-card class="mb-6">
         <v-card-item>
           <template #prepend>
             <v-avatar :color="bandColor" size="56">
@@ -42,7 +45,7 @@
                 </div>
               </template>
               <template v-else>
-                <div class="text-h3 font-weight-bold">{{ cityRow.compliance_score }}</div>
+                <div class="text-h3 font-weight-bold" :class="`text-${bandColor}`">{{ cityRow.compliance_score }}</div>
                 <div class="text-caption text-medium-emphasis">Compliance Score</div>
               </template>
             </div>
