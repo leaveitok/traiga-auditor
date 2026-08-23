@@ -45,7 +45,7 @@
                 </div>
               </template>
               <template v-else>
-                <div class="text-h3 font-weight-bold" :class="`text-${bandColor}`">{{ cityRow.compliance_score }}</div>
+                <div class="text-h3 font-weight-bold" :class="`text-${bandColor}`"><OvCountUp :value="cityRow.compliance_score" /></div>
                 <div class="text-caption text-medium-emphasis">Compliance Score</div>
               </template>
             </div>
@@ -377,6 +377,7 @@ import { useRoute } from 'vue-router'
 import { useScorecardStore } from '../stores/scorecard'
 import { useViolationsStore } from '../stores/violations'
 import ComplianceStatusChip from '../components/ComplianceStatusChip.vue'
+import OvCountUp from '../components/OvCountUp.vue'
 import CurePeriodGauge from '../components/CurePeriodGauge.vue'
 import AuditRunButton from '../components/AuditRunButton.vue'
 import { liveDaysLeft } from '../utils/cure'

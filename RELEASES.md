@@ -59,3 +59,4 @@ first release." Use `git log` for anything earlier.
 | 01.16 | 2026-08-23 | ship_crisp_toolbars_tiles.bat | UI-3b: Add Data menu consolidation, flat stat tiles everywhere, outlined city-detail actions, humanized verification labels, user guide v1.7 |
 | 01.17 | 2026-08-23 | ship_crisp_stealth_states.bat | UI-3c: stealth tonal-contrast fix, neutral city-detail header (score carries band color), skeleton loading rows + KPI skeleton tiles |
 | 01.18 | 2026-08-23 | ship_pin_webstack.bat | PIN-1: pin fastapi/starlette/pydantic/slowapi as a set - local can no longer drift from the CI-proven window (2026-08-23 422 incident) |
+| 01.19 | 2026-08-23 | ship_ui_delight.bat | UI-6: delight pass - 150ms route motion, count-up stat numerals, DESIGN_SYSTEM v1.1 Motion and data-viz honesty - sparklines deferred to the KPI history store |

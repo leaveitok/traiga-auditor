@@ -62,8 +62,8 @@
         <!-- Flat stat tile (docs/DESIGN_SYSTEM.md): surface + hairline come from
              the global VCard defaults; the NUMERAL carries the semantic color,
              never the tile background. -->
-        <v-card class="text-center pa-4">
-          <div class="text-h4 font-weight-bold" :class="`text-${kpi.color}`">{{ kpi.value }}</div>
+        <v-card class="text-center pa-4 h-100 d-flex flex-column justify-center">
+          <div class="text-h4 font-weight-bold" :class="`text-${kpi.color}`"><OvCountUp :value="kpi.value" /></div>
           <div class="text-caption font-weight-medium text-medium-emphasis">{{ kpi.label }}</div>
         </v-card>
       </v-col>
@@ -208,6 +208,7 @@ import CurePeriodGauge from '../components/CurePeriodGauge.vue'
 import AddCityDialog from '../components/AddCityDialog.vue'
 import TexasComplianceMap from '../components/TexasComplianceMap.vue'
 import CureCountdownPanel from '../components/CureCountdownPanel.vue'
+import OvCountUp from '../components/OvCountUp.vue'
 import { liveDaysLeft } from '../utils/cure'
 import { useReportsStore } from '../stores/reports'
 

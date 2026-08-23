@@ -11,7 +11,15 @@
     <AppNavDrawer v-if="showNav" v-model="drawer" />
 
     <v-main>
-      <router-view />
+      <!-- UI-6 restrained motion: 150ms fade + 4px rise between views. mode
+           out-in so two pages never overlap; prefers-reduced-motion disables
+           it entirely (CSS below). Purely presentational - the component tree
+           per route is unchanged. -->
+      <router-view v-slot="{ Component }">
+        <transition name="ov-view" mode="out-in">
+          <component :is="Component" />
+        </transition>
+      </router-view>
     </v-main>
   </v-app>
 </template>
@@ -78,5 +86,22 @@ onMounted(() => auth.init())
 .v-theme--stealth .v-chip--variant-tonal .v-chip__underlay,
 .v-theme--stealth .v-btn--variant-tonal .v-btn__underlay {
   opacity: 0.26;
+}
+
+/* Restrained motion (UI-6; docs/DESIGN_SYSTEM.md - Motion): one speed, 150ms,
+   ease-out, opacity/transform only - never layout properties. View swaps fade
+   and rise 4px; card hover states ease instead of snapping. */
+.ov-view-enter-active { transition: opacity 0.15s ease-out, transform 0.15s ease-out; }
+.ov-view-leave-active { transition: opacity 0.1s ease-in; }
+.ov-view-enter-from { opacity: 0; transform: translateY(4px); }
+.ov-view-leave-to { opacity: 0; }
+.v-card { transition: border-color 0.15s ease-out, box-shadow 0.15s ease-out; }
+
+/* Motion is a preference, not a requirement (WCAG 2.3.3). */
+@media (prefers-reduced-motion: reduce) {
+  .ov-view-enter-active,
+  .ov-view-leave-active,
+  .v-card { transition: none !important; }
+  .ov-view-enter-from { transform: none; }
 }
 </style>

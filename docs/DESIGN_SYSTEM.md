@@ -46,6 +46,27 @@ error `#E57368`, background `#0B1620`, surface `#12202E`.
    `src/plugins/vuetify.js` defaults/tokens or one `App.vue` style block; view
    files are not edited for theme (frontend-change skill rule).
 
+## Motion & data-viz honesty (v1.1 — added by the delight pass, TRAIGA UI-6 / GovAssist GA-UI-2)
+
+7. **One speed: 150ms ease-out, opacity/transform only.** View swaps fade + rise
+   4px (the `ov-view` transition in `App.vue`); card hover states ease at the
+   same speed. Nothing bounces, nothing travels further than 4px, and
+   `prefers-reduced-motion: reduce` disables all of it (WCAG 2.3.3).
+8. **Stat numerals count up (500ms, ease-out cubic) — presentation only.**
+   `OvCountUp.vue` animates the paint, never the value; non-numeric values
+   render verbatim with no animation, and reduced-motion snaps straight to the
+   final figure.
+9. **No sparklines until there is real data to draw.** Neither backend stores
+   historical snapshots, so a trend line would be fabricated — on a governance
+   product that is disqualifying — and with today's tenant sizes even honest
+   distribution mini-charts are 3–6 bars, too thin to inform. Decision
+   2026-08-23: charts in stat tiles wait for the KPI history store (a backend
+   snapshot-per-scan slice). When that ships, any chart must be real data and
+   must carry a label saying what it shows.
+
+`OvCountUp.vue` is a hand-synced twin in both repos
+(`frontend/src/components/`), same no-runtime-dependency rule as `vuetify.js`.
+
 ## Sync procedure
 
 When a token changes: update this file FIRST, then apply to both repos'
@@ -55,4 +76,6 @@ values in either repo disagree with this file, this file wins — fix the repo.
 ## Deliberately out of scope (v1)
 
 Typography scale changes, component redesigns, spacing system, dark-mode for the
-GovAssist console. Candidates for later slices; see the UI slice plan.
+GovAssist console, and **sparklines of any kind** (blocked on the KPI history
+store per rule 9). Candidates for later
+slices; see the UI slice plan.
