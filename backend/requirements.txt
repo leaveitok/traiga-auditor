@@ -1,9 +1,16 @@
 # AI Transparency Auditor v2 — backend dependencies
 
 # ── API framework ─────────────────────────────────────────────────────────────
-fastapi>=0.111.0
+# The web stack is PINNED as a set (2026-08-23). '>=' let the local env drift to
+# an old fastapi while CI resolved a new one: fastapi 0.115.x cannot resolve
+# PEP-563 string annotations through slowapi's @limiter.limit wrapper, so body
+# models silently became QUERY params -> 9 tests failed 422 loc ["query","packet"]
+# locally while CI stayed green. Same lesson as playwright below: local and CI
+# must install the SAME proven window. Bump all four together, tests green first.
+fastapi==0.141.1
+starlette==1.6.0            # fastapi's ASGI core - pinned with it (transitive '>=' drift is still drift)
+pydantic==2.10.4
 uvicorn[standard]>=0.29.0
-pydantic>=2.7.0
 python-dotenv>=1.0.0
 
 # ── Google Sheets backend ─────────────────────────────────────────────────────
@@ -15,6 +22,10 @@ google-auth-httplib2>=0.2.0
 google-cloud-firestore>=2.16.0
 
 # ── Crawler (live audits) ─────────────────────────────────────────────────────
+# WINDOWS DEV BOXES: do NOT `pip install -r` this file wholesale — playwright pins
+# greenlet==3.0.3, which has no cp313 Windows wheel, so pip attempts an MSVC source
+# build and fails (PROJECT_BRAIN.md lesson 13). The crawler runs only in the Cloud
+# Run image; locally install the named web-stack pins above instead.
 playwright==1.44.0          # MUST match Dockerfile base image (mcr.microsoft.com/playwright/python:v1.44.0-jammy). '>=' let pip pull a newer playwright whose browser revision is absent from the image -> BrowserType.launch failed in Cloud Run (2026-07-04).
 playwright-stealth>=1.0.0   # Cloudflare/WAF bypass: pip install playwright-stealth
 requests>=2.31.0
@@ -31,7 +42,7 @@ reportlab>=4.0.0            # Evidence-bundle PDF rendering (Reports)
 jsonschema>=4.21.0
 
 # ── Rate limiting ─────────────────────────────────────────────────────────────
-slowapi>=0.1.9             # In-memory rate limiting for FastAPI (no Redis needed for MVP)
+slowapi==0.1.10            # In-memory rate limiting (no Redis for MVP). Pinned WITH the fastapi set above - its decorator is the other half of the 2026-08-23 422 bug pair.
 
 # ── Scheduling ────────────────────────────────────────────────────────────────
 apscheduler>=3.10.0        # Automated periodic compliance scans (AsyncIOScheduler)

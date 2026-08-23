@@ -58,3 +58,4 @@ first release." Use `git log` for anything earlier.
 | 01.15 | 2026-08-23 | ship_inventory_badges.bat | UI-3a: uniform Source-column badge stack in AI Inventory; PROJECT_BRAIN lessons 11-12 (bat-template provenance, fastapi 422 drift) |
 | 01.16 | 2026-08-23 | ship_crisp_toolbars_tiles.bat | UI-3b: Add Data menu consolidation, flat stat tiles everywhere, outlined city-detail actions, humanized verification labels, user guide v1.7 |
 | 01.17 | 2026-08-23 | ship_crisp_stealth_states.bat | UI-3c: stealth tonal-contrast fix, neutral city-detail header (score carries band color), skeleton loading rows + KPI skeleton tiles |
+| 01.18 | 2026-08-23 | ship_pin_webstack.bat | PIN-1: pin fastapi/starlette/pydantic/slowapi as a set - local can no longer drift from the CI-proven window (2026-08-23 422 incident) |

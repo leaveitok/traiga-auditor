@@ -270,6 +270,18 @@ the rule to **derive the FILES list from the git diff, never hand-type it**.
    pitfall: a minimal UNdecorated route tests healthy even when the app 422s — probe
    the decorated shape. Follow-up candidate: pin fastapi/starlette/pydantic in
    requirements.txt (same instinct as `playwright==1.44.0`).
+13. **Never `pip install -r requirements.txt` wholesale on the Windows dev box
+   (found 2026-08-23, first PIN-1 ship attempt):** `playwright==1.44.0` pins
+   `greenlet==3.0.3`, which ships no Windows wheel for Python 3.13 — pip falls back
+   to a C++ source build and dies on `error: Microsoft Visual C++ 14.0 or greater is
+   required`. It worked in the Linux sandbox (gcc builds greenlet fine), so this is a
+   Windows-only gap. The crawler runs ONLY in the Cloud Run image
+   (`playwright/python:v1.44.0-jammy`), so playwright never needs to exist locally.
+   Rule: align the local env by installing the NAMED pinned packages
+   (`pip install fastapi==… starlette==… pydantic==… slowapi==…`), never `-r` the
+   whole file on Windows. Encoded in `ship_pin_webstack.bat` step [2/7] and a
+   comment in `requirements.txt`. The gate worked: the bat exited before stamping,
+   nothing was committed.
 
 ---
 
