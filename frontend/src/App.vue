@@ -59,4 +59,15 @@ onMounted(() => auth.init())
   /* Long links/domains in tables and cards */
   a { overflow-wrap: anywhere; }
 }
+
+/* OpticVector Design System v1: Montserrat marks STRUCTURE (page/card titles,
+   the nav lockup); body copy stays on Roboto for data density. !important is
+   deliberate - Vuetify's typography utilities set font-family with equal
+   specificity and this stylesheet must win regardless of load order. */
+.v-card-title,
+.v-toolbar-title,
+.text-h4, .text-h5, .text-h6,
+.ov-lockup {
+  font-family: 'Montserrat', 'Roboto', sans-serif !important;
+}
 </style>

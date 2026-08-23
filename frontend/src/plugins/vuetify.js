@@ -24,15 +24,25 @@ export default createVuetify({
     // code changes needed (nav toggle + Settings render from that list).
     defaultTheme: 'light',
     themes: {
+      // OpticVector Design System v1 (shared with the GovAssist console).
+      // primary = OV Blue, the ONLY interactive color; navy is chrome;
+      // 'accent' is this module's product accent (Auditor teal) - used for
+      // the brand lockup and module badges, never for buttons.
+      // Status colors stay SEMANTIC (compliant green / in-cure amber /
+      // non-compliant red) and match the GovAssist palette exactly, so the
+      // two products read as siblings side by side in a demo.
       light: {
         colors: {
-          primary:    '#1565C0',   // City-grade navy blue
-          secondary:  '#37474F',
-          success:    '#2E7D32',   // Compliant green
-          warning:    '#F57F17',   // In-cure amber
-          error:      '#B71C1C',   // Non-compliant / expired red
-          info:       '#0277BD',
-          background: '#F5F7FA',
+          primary:    '#3E9BE0',   // OpticVector blue - buttons, links, focus
+          'primary-darken-1': '#2F83C4',
+          secondary:  '#0F1E2D',   // OpticVector navy - chrome
+          navy:       '#0F1E2D',   // custom: app bar / dark surfaces
+          accent:     '#1F9C8C',   // TRAIGA Auditor module accent (teal)
+          success:    '#1A7F5A',   // Compliant green
+          warning:    '#B45309',   // In-cure amber
+          error:      '#C0392B',   // Non-compliant / expired red
+          info:       '#3E9BE0',
+          background: '#F6F8FA',
           surface:    '#FFFFFF',
         },
       },
@@ -41,20 +51,24 @@ export default createVuetify({
       stealth: {
         dark: true,
         colors: {
-          primary:    '#4FA3F7',   // brighter navy for dark surfaces
-          secondary:  '#90A4AE',
-          success:    '#4CAF50',
-          warning:    '#FFB300',
-          error:      '#EF5350',
-          info:       '#42A5F5',
-          background: '#0E1116',    // near-black slate
-          surface:    '#171B22',    // cards / panels
+          primary:    '#66B5EC',   // OV blue brightened for dark surfaces
+          secondary:  '#93AABF',
+          navy:       '#0F1E2D',
+          accent:     '#3FC1AD',   // Auditor teal brightened for dark
+          success:    '#43C08A',
+          warning:    '#F2B33D',
+          error:      '#E57368',
+          info:       '#66B5EC',
+          background: '#0B1620',    // navy-black (navy family, was neutral slate)
+          surface:    '#12202E',    // cards / panels
         },
       },
     },
   },
   defaults: {
-    VCard:   { elevation: 2, rounded: 'lg' },
+    // Flat cards with a hairline border instead of Material elevation - the
+    // single highest-leverage "modern" move; every card in the app inherits.
+    VCard:   { elevation: 0, rounded: 'lg', border: true },
     VBtn:    { variant: 'flat' },
     VChip:   { size: 'small' },
     // Responsive tables, set once for every table in the app. Below the `sm`

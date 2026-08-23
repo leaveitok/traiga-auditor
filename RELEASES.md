@@ -53,3 +53,4 @@ first release." Use `git log` for anything earlier.
 | 01.10 | 2026-07-25 | ship_hardening_and_citation.bat | Quote all env.yaml values + validate step (deploy hardening); name TRAIGA/HB 149 on findings |
 | 01.11 | 2026-07-25 | ship_sb1964_lens.bat | SB 1964 government AI code-of-ethics lens: 14-control crosswalk, setting, framework-parameterized Alignment Statement (no engine change) |
 | 01.12 | 2026-08-21 | ship_oauth_google_docs.bat | Docs: Google Workspace OAuth channel - user guide v1.6 (md/docx/in-app PDF), DISCOVERY_EXPANSION_DESIGN acquisition, INVENTORY_SPEC discovered_oauth |
+| 01.13 | 2026-08-23 | ship_ov_retheme.bat | UI-1: OpticVector retheme - OV palette both themes, flat hairline cards, Montserrat structural type, OV favicon, docs/DESIGN_SYSTEM.md |
