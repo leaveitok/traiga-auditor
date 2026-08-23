@@ -248,6 +248,28 @@ the rule to **derive the FILES list from the git diff, never hand-type it**.
    laptop or a split-screen window would have silently flipped to the MOBILE layout. Always
    pin a framework default you depend on (`mobileBreakpoint: 'md'` / 960px) and ask "does
    this change the desktop?" before shipping.
+11. **Never template a new ship bat from an OLD bat (found 2026-08-23):** two ships
+   (01.13/01.14) were modeled on `ship_stealth_theme.bat` — a pre-01.3 bat — and so
+   re-imported two failure classes the ship-it skill had ALREADY documented and fixed:
+   a `set BAD=1`-inside-`for` flag that never trips its guard (ship-it gotcha #2 — use
+   a marker FILE), and `fc /b` byte-compares that false-positive on every cmd-written
+   file because git stores LF while cmd writes CRLF (gotcha #4 — use
+   `git diff --quiet HEAD -- "<file>"`). Net effect: the blob-verify gate printed
+   MISMATCH on VERSION/RELEASES.md yet pushed anyway — advisory, not a gate. (The
+   pushed blobs were independently verified intact, so nothing bad shipped.) Decision:
+   old bats stay as-is; every NEW bat starts from the ship-it skill's canonical
+   template, never from an existing `ship_*.bat`. First conforming example:
+   `ship_inventory_badges.bat`.
+12. **Unpinned local deps age out of the CI-proven window (2026-08-23):** local
+   fastapi 0.115.6 (Dec 2024) could not resolve PEP-563 string annotations through
+   slowapi's `@limiter.limit` wrapper, so Pydantic BODY models on limiter routes were
+   classified as QUERY params — nine local 422s (`loc: ["query","packet"]`) while CI,
+   which installs current fastapi fresh on every push, stayed green. **Tell: 422 with
+   `loc ["query", <body param>]` on a limiter route = check the LOCAL fastapi version
+   first, not the code.** Fix: upgrade fastapi (`fix_fastapi_upgrade.bat`). Probe
+   pitfall: a minimal UNdecorated route tests healthy even when the app 422s — probe
+   the decorated shape. Follow-up candidate: pin fastapi/starlette/pydantic in
+   requirements.txt (same instinct as `playwright==1.44.0`).
 
 ---
 

@@ -123,18 +123,19 @@
         </template>
 
         <template #item.provenance="{ item }">
-          <v-tooltip :text="provenanceTip(item.provenance)">
-            <template #activator="{ props }">
-              <v-chip v-bind="props" size="small" variant="tonal" label
-                      :color="provenanceColor(item.provenance)">
-                <v-icon start size="14">{{ provenanceIcon(item.provenance) }}</v-icon>
-                {{ provenanceLabel(item.provenance) }}
-              </v-chip>
-            </template>
-          </v-tooltip>
-          <v-chip v-if="item.presence === 'not_reobserved'" size="x-small" color="grey"
-                  variant="tonal" label class="ml-1">not re-observed</v-chip>
-          <div class="mt-1">
+          <!-- Crisp-pass rule (docs/DESIGN_SYSTEM.md): badge stacks use ONE chip
+               size and a fixed 2px rhythm, left-aligned - mixed sizes and inline
+               drift read as clutter in a dense table. -->
+          <div class="d-flex flex-column align-start" style="row-gap: 2px">
+            <v-tooltip :text="provenanceTip(item.provenance)">
+              <template #activator="{ props }">
+                <v-chip v-bind="props" size="x-small" variant="tonal" label
+                        :color="provenanceColor(item.provenance)">
+                  <v-icon start size="12">{{ provenanceIcon(item.provenance) }}</v-icon>
+                  {{ provenanceLabel(item.provenance) }}
+                </v-chip>
+              </template>
+            </v-tooltip>
             <v-tooltip :text="deploymentMeta(item.provenance).tip">
               <template #activator="{ props }">
                 <v-chip v-bind="props" size="x-small" variant="tonal" label
@@ -144,6 +145,8 @@
                 </v-chip>
               </template>
             </v-tooltip>
+            <v-chip v-if="item.presence === 'not_reobserved'" size="x-small" color="grey"
+                    variant="tonal" label>not re-observed</v-chip>
           </div>
         </template>
 

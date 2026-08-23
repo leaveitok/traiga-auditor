@@ -55,3 +55,4 @@ first release." Use `git log` for anything earlier.
 | 01.12 | 2026-08-21 | ship_oauth_google_docs.bat | Docs: Google Workspace OAuth channel - user guide v1.6 (md/docx/in-app PDF), DISCOVERY_EXPANSION_DESIGN acquisition, INVENTORY_SPEC discovered_oauth |
 | 01.13 | 2026-08-23 | ship_ov_retheme.bat | UI-1: OpticVector retheme - OV palette both themes, flat hairline cards, Montserrat structural type, OV favicon, docs/DESIGN_SYSTEM.md |
 | 01.14 | 2026-08-23 | ship_ov_lockup.bat | UI-2: OV monogram + OpticVector-TRAIGA Auditor lockup with GOVERN chip in the nav drawer |
+| 01.15 | 2026-08-23 | ship_inventory_badges.bat | UI-3a: uniform Source-column badge stack in AI Inventory; PROJECT_BRAIN lessons 11-12 (bat-template provenance, fastapi 422 drift) |
