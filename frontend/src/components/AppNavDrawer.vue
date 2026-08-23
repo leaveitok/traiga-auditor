@@ -6,13 +6,24 @@
     :temporary="mobile"
   >
 
-    <!-- Logo / header -->
-    <v-list-item
-      prepend-icon="mdi-shield-star"
-      title="TRAIGA Auditor"
-      subtitle="AI Transparency · Texas HB 149"
-      nav
-    >
+    <!-- Brand lockup: OV monogram (lens ring + V) + module identity.
+         The ring uses currentColor so it adapts to light/stealth themes; the
+         V stays OV Blue. Teal GOVERN chip = the Auditor's module accent -
+         accents mark identity, never actions (docs/DESIGN_SYSTEM.md). -->
+    <v-list-item nav>
+      <template #prepend>
+        <svg viewBox="-170 -170 340 340" width="28" height="28" role="img"
+             aria-label="OpticVector" style="margin-right: 12px; flex-shrink: 0">
+          <circle cx="0" cy="0" r="128" fill="none" stroke="currentColor" stroke-width="24" />
+          <path d="M -58,-40 L 0,74 L 58,-40" fill="none" stroke="#3E9BE0"
+                stroke-width="34" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+      </template>
+      <v-list-item-title class="ov-lockup font-weight-bold">TRAIGA Auditor</v-list-item-title>
+      <v-list-item-subtitle class="d-flex align-center" style="gap: 6px">
+        OpticVector
+        <v-chip size="x-small" color="accent" variant="tonal" label>GOVERN</v-chip>
+      </v-list-item-subtitle>
       <template #append>
         <v-btn v-if="!mobile"
                :icon="rail ? 'mdi-chevron-right' : 'mdi-chevron-left'"

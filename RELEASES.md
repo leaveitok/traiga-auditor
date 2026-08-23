@@ -54,3 +54,4 @@ first release." Use `git log` for anything earlier.
 | 01.11 | 2026-07-25 | ship_sb1964_lens.bat | SB 1964 government AI code-of-ethics lens: 14-control crosswalk, setting, framework-parameterized Alignment Statement (no engine change) |
 | 01.12 | 2026-08-21 | ship_oauth_google_docs.bat | Docs: Google Workspace OAuth channel - user guide v1.6 (md/docx/in-app PDF), DISCOVERY_EXPANSION_DESIGN acquisition, INVENTORY_SPEC discovered_oauth |
 | 01.13 | 2026-08-23 | ship_ov_retheme.bat | UI-1: OpticVector retheme - OV palette both themes, flat hairline cards, Montserrat structural type, OV favicon, docs/DESIGN_SYSTEM.md |
+| 01.14 | 2026-08-23 | ship_ov_lockup.bat | UI-2: OV monogram + OpticVector-TRAIGA Auditor lockup with GOVERN chip in the nav drawer |
