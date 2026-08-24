@@ -3,7 +3,9 @@
     <!-- Mobile/tablet top bar. On small screens the nav drawer is a TEMPORARY
          overlay, so this bar carries the only way to reach navigation. Hidden on
          desktop, where the drawer is permanent and always visible. -->
-    <v-app-bar v-if="showNav && mobile" density="compact" flat border>
+    <!-- UI-7: navy chrome in both themes (DESIGN_SYSTEM rule 1) - the bar
+         matches the drawer so mobile carries the same brand frame. -->
+    <v-app-bar v-if="showNav && mobile" density="compact" flat color="navy">
       <v-app-bar-nav-icon aria-label="Open navigation" @click="drawer = !drawer" />
       <v-app-bar-title class="text-body-1 font-weight-medium">TRAIGA Auditor</v-app-bar-title>
     </v-app-bar>

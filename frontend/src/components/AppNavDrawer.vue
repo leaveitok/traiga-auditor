@@ -1,9 +1,14 @@
 <template>
+  <!-- UI-7: the drawer is NAVY CHROME in BOTH themes (DESIGN_SYSTEM rule 1) -
+       a light theme lightens the WORKSPACE, never the chrome. Matches the
+       CivicRoute console rail so the two products read as one platform. -->
   <v-navigation-drawer
     v-model="drawer"
     :rail="rail && !mobile"
     :permanent="!mobile"
     :temporary="mobile"
+    color="navy"
+    class="ov-drawer"
   >
 
     <!-- Brand lockup: OV monogram (lens ring + V) + module identity.
@@ -22,7 +27,7 @@
       <v-list-item-title class="ov-lockup font-weight-bold">TRAIGA Auditor</v-list-item-title>
       <v-list-item-subtitle class="d-flex align-center" style="gap: 6px">
         OpticVector
-        <v-chip size="x-small" color="accent" variant="tonal" label>GOVERN</v-chip>
+        <v-chip size="x-small" color="accent" variant="tonal" label class="ov-chip-govern">GOVERN</v-chip>
       </v-list-item-subtitle>
       <template #append>
         <v-btn v-if="!mobile"
@@ -171,3 +176,21 @@ async function signOut() {
   router.push('/login')
 }
 </script>
+
+<style scoped>
+/* UI-7 navy chrome (both themes). These rules tune the drawer's secondary
+   text and icons for the navy surface - values match the CivicRoute rail
+   (govassist App.vue .ov-rail) so the platform reads as one product. Deep
+   selectors are needed because Vuetify renders these nodes inside child
+   components. */
+.ov-drawer :deep(.v-list-item-subtitle) { color: #7f9bb4 !important; opacity: 1; }
+.ov-drawer :deep(.v-list-item__prepend > .v-icon) { color: #9fc4e6; opacity: 1; }
+.ov-drawer :deep(.v-list-item--active .v-list-item__prepend > .v-icon) { color: #fff; }
+.ov-drawer :deep(.v-list-item--active) { background: rgba(62, 155, 224, 0.18); }
+.ov-drawer :deep(.v-divider) { border-color: rgba(255, 255, 255, 0.14); opacity: 1; }
+/* Tonal chips on navy: the ~12% underlay reads as disabled (same finding as
+   the UI-3c stealth fix) - raise it, and brighten the GOVERN teal to the
+   dark-surface accent value so it clears the navy. */
+.ov-drawer :deep(.v-chip--variant-tonal .v-chip__underlay) { opacity: 0.26; }
+.ov-drawer :deep(.ov-chip-govern) { color: #3FC1AD !important; }
+</style>

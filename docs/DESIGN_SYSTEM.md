@@ -31,7 +31,12 @@ error `#E57368`, background `#0B1620`, surface `#12202E`.
 
 1. **One navy chrome, one accent per module.** Product identity is expressed by the
    accent chip in the lockup (Auditor teal · GOVERN, GovAssist blue · ANSWER,
-   CivicRoute amber · ROUTE) — never by changing the palette per product.
+   CivicRoute amber · ROUTE) — never by changing the palette per product. The chrome is navy in
+   **both themes** (UI-7, 2026-08-23): the nav drawer and mobile app bar stay
+   Navy `#0F1E2D` in Light and Stealth alike — a light theme lightens the
+   *workspace*, never the chrome. Grounding: NN/g's contrast-polarity research
+   (Piepenbrock 2013; Dobres 2017) favors light content surfaces for dense
+   data reading; the navy frame carries the brand while tables stay light.
 2. **OV Blue is the only interactive color.** Accents and status colors are never
    used for buttons or links.
 3. **Status colors are semantic and identical across modules.** Compliant green,

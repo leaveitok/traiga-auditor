@@ -60,3 +60,4 @@ first release." Use `git log` for anything earlier.
 | 01.17 | 2026-08-23 | ship_crisp_stealth_states.bat | UI-3c: stealth tonal-contrast fix, neutral city-detail header (score carries band color), skeleton loading rows + KPI skeleton tiles |
 | 01.18 | 2026-08-23 | ship_pin_webstack.bat | PIN-1: pin fastapi/starlette/pydantic/slowapi as a set - local can no longer drift from the CI-proven window (2026-08-23 422 incident) |
 | 01.19 | 2026-08-23 | ship_ui_delight.bat | UI-6: delight pass - 150ms route motion, count-up stat numerals, DESIGN_SYSTEM v1.1 Motion and data-viz honesty - sparklines deferred to the KPI history store |
+| 01.20 | 2026-08-24 | ship_ui_navy_chrome.bat | UI-7: navy chrome in both themes - drawer and mobile app bar stay navy in Light, matching the CivicRoute rail; DESIGN_SYSTEM rule 1 extended with the NN/g grounding |
