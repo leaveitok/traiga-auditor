@@ -282,6 +282,41 @@ the rule to **derive the FILES list from the git diff, never hand-type it**.
    whole file on Windows. Encoded in `ship_pin_webstack.bat` step [2/7] and a
    comment in `requirements.txt`. The gate worked: the bat exited before stamping,
    nothing was committed.
+14. **Last-write-wins collapse on a (city, tool) registry key, and blanket statutory
+   obligations (found 2026-08-24, by the CIO reading his own tenant's data):** two
+   defects that both came from treating a REGISTRY ROW as if it were a SOURCE RECORD.
+   (a) `core/discovery/merge.py` keys `ai_assets` by `(city, tool_id)`, but a tenant
+   holds one OAuth app registration per client ID and a vendor routinely holds several.
+   Allen's Google export carried four ChatGPT client IDs (200+23+16+10 consents) and
+   five Anthropic ones (53+6+2+1+1); every grant upserted the same row, so the LAST one
+   won. The registry read "10" for ChatGPT and renamed the Claude row **"Claude Design
+   (1)"** after the smallest registration. **Tell: an inventory row whose name is an
+   oddly specific sub-product, or a count far below what the source file shows.** Fix:
+   aggregate in the PURE layer (`oauth.aggregate_by_tool`) so the orchestrator stays a
+   dumb writer — sum the consents, keep the per-registration breakdown, inherit the
+   WORST scope tier, and name the row from the CATALOG (`identity.build_tool_index`
+   now returns `display_names`). Any future channel that can emit several records per
+   tool must collapse them the same way, or it re-opens this class.
+   (b) `api/routes/inventory.py` attached the whole External Transparency ruleset to
+   EVERY asset, so staff-side tools discovered by OAuth displayed Tex. Bus. & Com. Code
+   552.051 disclosure duties. 552.051(b) binds an agency that "makes available an
+   artificial intelligence system intended to interact with consumers" — Grammarly on a
+   clerk's laptop is not that. Fix: `engine/applicability.py` (pure) decides, reading
+   EVERY discovery source rather than the `provenance` field, which records only the
+   FIRST channel — an OAuth-first asset the crawler later finds live is public-facing
+   and must NOT stay suppressed. **Standing rule: a statutory obligation is rendered
+   only where the statute's own trigger is satisfied. Over-flagging a city with laws it
+   does not owe costs more credibility than a missed cosmetic ever will.**
+   (c) **A green SUBSET is not a green suite.** The first ship attempt died at gate [5]
+   on three reds in `test_oauth_signature_harvest.py` — a file the cloud sandbox had
+   never run, because only the pure modules were staged there. The failures were real:
+   canonical naming had been extended to SINGLE-registration rows, which renamed
+   "Grammarly for Windows" to "Grammarly" and broke the harvest contract. The revert is
+   also the more honest rule — one registration keeps the name the export actually
+   observed, since "Zoom" consented by 384 people is not by itself proof the city runs
+   "Zoom AI Companion"; the catalog match belongs in `tool_id`, not in the row's name.
+   Rule: when a sandbox can only run part of the suite, say so and let the bat's pytest
+   gate be the verdict — never report a partial run as "tests pass".
 
 ---
 

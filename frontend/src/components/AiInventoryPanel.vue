@@ -125,6 +125,20 @@
           </v-tooltip>
         </template>
 
+        <template #item.users="{ item }">
+          <v-tooltip v-if="item.users" location="bottom" max-width="340" :text="usersTip(item)">
+            <template #activator="{ props: up }">
+              <div v-bind="up" class="d-inline-flex flex-column align-start" style="row-gap: 2px">
+                <span class="text-body-2 font-weight-medium">{{ item.users.toLocaleString() }}</span>
+                <span v-if="item.instance_count > 1" class="text-caption text-medium-emphasis">
+                  {{ item.instance_count }} registrations
+                </span>
+              </div>
+            </template>
+          </v-tooltip>
+          <span v-else class="text-caption text-medium-emphasis">&mdash;</span>
+        </template>
+
         <template #item.provenance="{ item }">
           <!-- Crisp-pass rule (docs/DESIGN_SYSTEM.md): badge stacks use ONE chip
                size and a fixed 2px rhythm, left-aligned - mixed sizes and inline
@@ -204,6 +218,13 @@
                       last observed {{ shortDate(item.last_observed_utc) }}
                     </div>
                   </div>
+                  <div v-else-if="item.provenance === 'discovered_oauth'" class="text-body-2">
+                    Found by an internal AI scan of your tenant's app consents.
+                    <div class="text-caption text-medium-emphasis">
+                      First observed {{ shortDate(item.first_observed_utc) }} ·
+                      last observed {{ shortDate(item.last_observed_utc) }}
+                    </div>
+                  </div>
                   <div v-else class="text-body-2">
                     Declared by {{ item.attested_by || 'team' }} {{ shortDate(item.attested_utc) }}
                   </div>
@@ -218,14 +239,70 @@
                     <v-chip v-for="c in item.data_categories" :key="c" size="x-small"
                             color="deep-orange" variant="tonal" label class="mr-1">{{ c }}</v-chip>
                   </div>
+                  <!-- One tool commonly holds several OAuth app registrations. Showing the
+                       breakdown is what turns a bare number into something a CIO can act on:
+                       it names the registration to revoke. -->
+                  <template v-if="(item.evidence?.instances || []).length">
+                    <div class="text-caption font-weight-bold mt-3 mb-1">
+                      App registrations ({{ item.evidence.instances.length }})
+                    </div>
+                    <v-table density="compact">
+                      <thead>
+                        <tr>
+                          <th class="text-left">App name</th>
+                          <th class="text-right">Consents</th>
+                          <th class="text-left">Data reach</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr v-for="ins in item.evidence.instances" :key="ins.app_id || ins.app_name">
+                          <td class="text-body-2">{{ ins.app_name }}</td>
+                          <td class="text-body-2 text-right">{{ ins.user_count }}</td>
+                          <td>
+                            <v-chip size="x-small" variant="tonal" label
+                                    :color="sensitivityColor(ins.scope_sensitivity)">
+                              {{ ins.scope_sensitivity }}
+                            </v-chip>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </v-table>
+                    <div class="text-caption text-medium-emphasis mt-1">
+                      Consents per app registration, not distinct people.
+                    </div>
+                  </template>
                 </v-col>
                 <v-col cols="12" md="6">
-                  <div class="text-caption font-weight-bold mb-1">Statutory obligations</div>
-                  <div v-for="o in item.obligations" :key="o.rule_id" class="text-body-2 mb-1">
-                    <v-icon size="14" class="mr-1"
-                            :color="o.severity === 'high' ? 'error' : 'warning'">mdi-scale-balance</v-icon>
-                    {{ o.title }} <span class="text-caption text-medium-emphasis">({{ o.citation }})</span>
-                  </div>
+                  <!-- APPLICABILITY, not a blanket list. 552.051 obliges an agency that
+                       makes an AI system available to interact with CONSUMERS; a staff-side
+                       tool is not that, and printing the disclosure rules on its row was
+                       reading to CIOs as an accusation. The backend decides; this renders. -->
+                  <template v-if="item.obligation_basis && item.obligation_basis.applies === false">
+                    <div class="text-caption font-weight-bold mb-1">Statutory applicability</div>
+                    <v-alert type="info" variant="tonal" density="compact" class="mb-3 text-body-2">
+                      {{ item.obligation_basis.note }}
+                    </v-alert>
+                    <template v-if="(item.internal_controls || []).length">
+                      <div class="text-caption font-weight-bold mb-1">Controls that do apply</div>
+                      <div v-for="c in item.internal_controls" :key="c.rule_id" class="text-body-2 mb-1">
+                        <v-icon size="14" class="mr-1" color="primary">mdi-clipboard-check-outline</v-icon>
+                        {{ c.title }}
+                        <span class="text-caption text-medium-emphasis">({{ c.citation }})</span>
+                      </div>
+                    </template>
+                  </template>
+                  <template v-else>
+                    <div class="text-caption font-weight-bold mb-1">Statutory obligations</div>
+                    <div v-for="o in item.obligations" :key="o.rule_id" class="text-body-2 mb-1">
+                      <v-icon size="14" class="mr-1"
+                              :color="o.severity === 'high' ? 'error' : 'warning'">mdi-scale-balance</v-icon>
+                      {{ o.title }} <span class="text-caption text-medium-emphasis">({{ o.citation }})</span>
+                    </div>
+                    <div v-if="item.obligation_basis && item.obligation_basis.basis === 'unverified_deployment'"
+                         class="text-caption text-medium-emphasis mt-1">
+                      {{ item.obligation_basis.note }}
+                    </div>
+                  </template>
                   <div v-if="item.attested_by && item.lifecycle_status === 'attested'"
                        class="text-caption text-medium-emphasis mt-2">
                     Attested by {{ item.attested_by }} {{ shortDate(item.attested_utc) }}
@@ -454,18 +531,21 @@ async function downloadPack() {
 // Every discovery channel gets a distinct chip. Missing entries here previously
 // made agenda/procurement items render as "Declared" — the source is now explicit.
 const provenanceLabel = (p) => ({
+  discovered_oauth: 'Internal AI scan',
   discovered_scan: 'Website scan', discovered_agenda: 'Council agenda',
   discovered_procurement: 'Procurement', discovered_budget: 'Budget',
   discovered_sentinel: 'Staff usage', declared: 'Declared',
 }[p] || 'Declared')
 const provenanceColor = (p) => ({
   discovered_scan: 'indigo', discovered_agenda: 'blue', discovered_procurement: 'cyan',
-  discovered_budget: 'light-blue', discovered_sentinel: 'deep-purple', declared: 'teal',
+  discovered_budget: 'light-blue', discovered_sentinel: 'deep-purple',
+  discovered_oauth: 'purple', declared: 'teal',
 }[p] || 'teal')
 const provenanceIcon = (p) => ({
   discovered_scan: 'mdi-radar', discovered_agenda: 'mdi-gavel',
   discovered_procurement: 'mdi-file-document-outline', discovered_budget: 'mdi-cash-multiple',
-  discovered_sentinel: 'mdi-monitor-eye', declared: 'mdi-account-edit',
+  discovered_sentinel: 'mdi-monitor-eye', discovered_oauth: 'mdi-shield-search',
+  declared: 'mdi-account-edit',
 }[p] || 'mdi-account-edit')
 const provenanceTip = (p) => ({
   discovered_scan: 'Found automatically by the compliance scanner (public website)',
@@ -473,6 +553,8 @@ const provenanceTip = (p) => ({
   discovered_procurement: 'Found in an uploaded procurement / contract file',
   discovered_budget: 'Found in the adopted budget document',
   discovered_sentinel: 'Observed by Sentinel browser DLP: staff using this AI tool on city devices',
+  discovered_oauth: 'Found by an internal AI scan of your tenant: staff consented this app '
+    + 'to reach city data. Nobody declared it.',
   declared: 'Declared by your team',
 }[p] || 'Declared by your team')
 
@@ -492,6 +574,13 @@ const _DEPLOYMENT = {
                             tip: 'Found in the adopted budget — planned/funded, not verified live. Confirm it is deployed.' },
   discovered_sentinel:    { label: 'Staff-reported',    color: 'deep-purple', icon: 'mdi-monitor-eye',
                             tip: 'Observed in staff browser usage on city devices.' },
+  // Internal AI scan (OAuth consents). NOT public-facing on this evidence, so the row
+  // must not read as a live disclosure obligation - see the applicability gate the
+  // backend applies in api/routes/inventory.py.
+  discovered_oauth:       { label: 'Internal use',      color: 'purple',      icon: 'mdi-office-building-cog-outline',
+                            tip: 'Consented by staff inside your tenant. Internal staff use, '
+                               + 'not a public-facing AI system, so no Tex. Bus. & Com. Code '
+                               + '552.051 disclosure duty on this evidence alone.' },
   declared:               { label: 'Self-declared',     color: 'teal',        icon: 'mdi-account-check-outline',
                             tip: 'Declared by your team.' },
 }
@@ -545,14 +634,22 @@ const visibleAssets = computed(() => {
     rows = rows.filter(a => a.city === cityFilter.value)
   // Workflow ordering: needs-attestation first, then attested, retired last.
   const rank = { discovered: 0, attested: 1, retired: 2 }
-  return [...rows].sort((a, b) =>
-    (rank[a.lifecycle_status] ?? 1) - (rank[b.lifecycle_status] ?? 1))
+  // Lift the two counts out of `evidence` as NUMBERS. The table sorts on the item key,
+  // and evidence.user_count is a string, so sorting it would order 9 above 384.
+  return rows
+    .map(a => ({
+      ...a,
+      users: Number(a.evidence?.user_count ?? 0) || 0,
+      instance_count: Number(a.evidence?.instance_count ?? 0) || 0,
+    }))
+    .sort((a, b) => (rank[a.lifecycle_status] ?? 1) - (rank[b.lifecycle_status] ?? 1))
 })
 
 const headers = computed(() => [
   { title: 'AI System', key: 'display_name' },
   ...(props.city ? [] : [{ title: 'City', key: 'city' }]),
   { title: 'Source', key: 'provenance', sortable: false },
+  { title: 'Users', key: 'users' },
   { title: 'Disclosure', key: 'disclosure_status', sortable: false },
   { title: 'Owner', key: 'owner_email', sortable: false },
   { title: 'Status', key: 'lifecycle_status' },
@@ -567,6 +664,24 @@ const disclosureLabel = (a) => ({
   non_compliant: `${a.open_violation_count} open violation${Number(a.open_violation_count) > 1 ? 's' : ''}`,
   compliant: 'Compliant', not_assessed: 'Not assessed',
 }[a.disclosure_status] || a.disclosure_status)
+
+// The export counts CONSENTS PER APP REGISTRATION, not distinct people: one employee
+// who authorised two ChatGPT client IDs appears in both. Said here so the number can
+// never travel to a council slide as a headcount.
+const usersTip = (item) => {
+  const n = Number(item.users || 0).toLocaleString()
+  const k = Number(item.instance_count || 1)
+  return k > 1
+    ? `${n} consents across ${k} app registrations for this tool. Counts consents, not `
+      + 'distinct people: an employee who authorised two registrations is counted twice. '
+      + 'Expand the row for the per-registration breakdown.'
+    : `${n} consent(s) recorded in the tenant export. Counts consents, not distinct people.`
+}
+
+// Semantic status colors, identical across modules (docs/DESIGN_SYSTEM.md).
+const sensitivityColor = (s) => ({
+  high: 'error', medium: 'warning', low: 'success',
+}[String(s || '').toLowerCase()] || 'blue-grey')
 
 const lifecycleColor = (s) => ({ discovered: 'warning', attested: 'success', retired: 'grey' }[s] || 'default')
 const lifecycleLabel = (s) => ({ discovered: 'Needs attestation', attested: 'Attested', retired: 'Retired' }[s] || s)

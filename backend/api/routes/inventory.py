@@ -24,6 +24,7 @@ from core.auth import get_current_user
 from core.dependencies import get_repository, get_sentinel_repository
 from core.governance_service import GovernanceRepository
 from core.sentinel_feed import sync_to_inventory
+from engine import applicability
 
 router = APIRouter(prefix="/inventory", tags=["inventory"])
 
@@ -55,6 +56,7 @@ def _can_write(principal: Principal, city: str) -> bool:
 # ── Read-time enrichment (never stored, so never stale) ──────────────────────
 
 _OBLIGATIONS: Optional[List[Dict[str, str]]] = None
+_INTERNAL_CONTROLS: Optional[List[Dict[str, str]]] = None
 
 
 def _obligations() -> List[Dict[str, str]]:
@@ -76,6 +78,29 @@ def _obligations() -> List[Dict[str, str]]:
     return _OBLIGATIONS
 
 
+def _internal_controls() -> List[Dict[str, str]]:
+    """Internal-governance controls, which DO apply to a staff-side AI tool.
+
+    The point of the applicability gate is not to say "nothing applies here" — it is to
+    replace an obligation a tool cannot owe with the governance work it actually does.
+    """
+    global _INTERNAL_CONTROLS
+    if _INTERNAL_CONTROLS is None:
+        try:
+            from engine.rule_loader import load_schema
+            rules = (load_schema().get("Compliance_Ruleset", {})
+                     .get("Internal_Governance_Module", {}).get("rules", []))
+            _INTERNAL_CONTROLS = [{
+                "rule_id":  r.get("rule_id", ""),
+                "title":    r.get("title", ""),
+                "citation": r.get("citation", ""),
+                "severity": r.get("severity", ""),
+            } for r in rules]
+        except Exception:
+            _INTERNAL_CONTROLS = []
+    return _INTERNAL_CONTROLS
+
+
 def _parse_json(value: Any, default: Any) -> Any:
     try:
         parsed = json.loads(value) if isinstance(value, str) and value else value
@@ -94,11 +119,18 @@ def _enrich(asset: Dict[str, Any],
     open_count = open_by_city_vendor.get(
         (a.get("city", ""), a.get("vendor_id", "")), 0)
     a["open_violation_count"] = open_count
-    if a.get("provenance") == "discovered_scan":
+    if a.get("provenance") == applicability.PUBLIC_FACING_PROVENANCE:
         a["disclosure_status"] = "non_compliant" if open_count else "compliant"
     else:
         a["disclosure_status"] = "not_assessed"   # declared assets: scans can't see them
-    a["obligations"] = _obligations()
+
+    # APPLICABILITY GATE (engine/applicability.py owns the rule). Attaching the External
+    # Transparency ruleset to EVERY asset put Tex. Bus. & Com. Code 552.051 disclosure
+    # duties on staff-side tools found in an OAuth export, which cannot owe them.
+    basis = applicability.assess_asset(a)
+    a["obligation_basis"] = basis
+    a["obligations"] = _obligations() if basis["applies"] else []
+    a["internal_controls"] = [] if basis["applies"] else _internal_controls()
     return a
 
 

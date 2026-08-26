@@ -100,3 +100,83 @@ def test_user_count_survives_without_identities():
 
 def test_provenance_is_oauth():
     assert oauth.PROVENANCE == "discovered_oauth"
+
+
+# --- one row per TOOL, not per app registration ---------------------------------
+#
+# REGRESSION GUARD. The registry key downstream is (city, tool_id), so several grants
+# for one tool used to upsert the same row and the LAST one won. A real Google export
+# carried four ChatGPT client IDs (200 + 23 + 16 + 10 consents) and the registry showed
+# 10; five Anthropic ones (53 + 6 + 2 + 1 + 1) displayed as "Claude Design (1)" because
+# the smallest registration sorted last.
+
+def _chatgpt_grants():
+    return [
+        _grant("OpenAI", ["openid"], app_id="app-a", user_count=200),
+        _grant("ChatGPT", ["Mail.Read"], app_id="app-b", user_count=23),
+        _grant("ChatGPT", ["Mail.Read"], app_id="app-c", user_count=16),
+        _grant("OpenAI", ["openid"], app_id="app-d", user_count=10),
+    ]
+
+
+def _normalized(grants):
+    return oauth.normalize(grants, INDEX, "City of Testville", scope_rules=RULES)
+
+
+def test_grants_for_one_tool_collapse_to_one_asset():
+    res = _normalized(_chatgpt_grants())
+    rows = [a for a in res["assets"] if a["tool_id"] == "openai_chatgpt"]
+    assert len(rows) == 1, "one tool must produce exactly one registry row"
+    assert res["source_meta"]["tools"] == len(res["assets"])
+
+
+def test_collapsed_row_sums_consents_instead_of_keeping_the_last():
+    row = [a for a in _normalized(_chatgpt_grants())["assets"]
+           if a["tool_id"] == "openai_chatgpt"][0]
+    assert row["evidence"]["user_count"] == "249"     # not "10"
+    assert row["evidence"]["instance_count"] == 4
+
+
+def test_collapsed_row_keeps_the_per_registration_breakdown():
+    row = [a for a in _normalized(_chatgpt_grants())["assets"]
+           if a["tool_id"] == "openai_chatgpt"][0]
+    instances = row["evidence"]["instances"]
+    assert [i["user_count"] for i in instances] == [200, 23, 16, 10]  # largest first
+    assert {i["app_id"] for i in instances} == {"app-a", "app-b", "app-c", "app-d"}
+
+
+def test_collapsed_row_is_named_from_the_catalog_not_the_last_grant():
+    """The smallest, last-processed registration must not rename the tool."""
+    grants = _chatgpt_grants() + [_grant("ChatGPT Tiny Add-on", ["openid"],
+                                         app_id="app-e", user_count=1)]
+    row = [a for a in _normalized(grants)["assets"]
+           if a["tool_id"] == "openai_chatgpt"][0]
+    assert row["display_name"] == INDEX["display_names"]["openai_chatgpt"]
+
+
+def test_collapsed_row_inherits_the_worst_scope_reach():
+    """A row must never look safer than its most permissive registration."""
+    row = [a for a in _normalized(_chatgpt_grants())["assets"]
+           if a["tool_id"] == "openai_chatgpt"][0]
+    assert row["evidence"]["scope_sensitivity"] == "high"
+
+
+def test_user_count_basis_is_stated_not_implied():
+    """The count is consents per registration, never a headcount. Say so in the data."""
+    for row in _normalized(_chatgpt_grants())["assets"]:
+        assert row["evidence"]["user_count_basis"] == "consents_per_app_registration"
+
+
+def test_single_grant_still_reports_one_instance():
+    res = _normalized([_grant("ChatGPT", ["openid"], user_count=7)])
+    row = [a for a in res["assets"] if a["tool_id"] == "openai_chatgpt"][0]
+    assert row["evidence"]["instance_count"] == 1
+    assert row["evidence"]["user_count"] == "7"
+
+
+def test_aggregation_does_not_leak_identities():
+    """Privacy default survives the collapse."""
+    grants = [_grant("ChatGPT", ["openid"], users=["alice@city.gov"], app_id="a1"),
+              _grant("OpenAI", ["openid"], users=["bob@city.gov"], app_id="a2")]
+    blob = json.dumps(_normalized(grants))
+    assert "alice@city.gov" not in blob and "bob@city.gov" not in blob

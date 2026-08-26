@@ -31,6 +31,11 @@ from engine.collectors import procurement
 
 PROVENANCE = "discovered_oauth"
 
+# Scope tiers, weakest to strongest. Used when several grants for the SAME tool are
+# collapsed: the row must carry the WORST reach any of its app registrations holds,
+# never an average and never the last one seen.
+_SENSITIVITY_ORDER = ("unknown", "low", "medium", "high")
+
 # Grant fields we carry into evidence. Deliberately excludes anything user-identifying.
 _EVIDENCE_FIELDS = ("app_id", "publisher", "provider", "scopes_joined",
                     "scope_sensitivity", "scope_reaches", "user_count",
@@ -218,7 +223,7 @@ def normalize(grants: List[Dict[str, Any]], index: Dict[str, Any], city: str,
         rows.append(row)
 
     extra = _EVIDENCE_FIELDS + (("consenting_users",) if include_users else ())
-    return procurement.normalize(
+    result = procurement.normalize(
         rows, index, city_field="city", min_confidence=mc,
         provenance=PROVENANCE,
         extra_evidence_fields=extra,
@@ -227,3 +232,122 @@ def normalize(grants: List[Dict[str, Any]], index: Dict[str, Any], city: str,
         # who used it would be least defensible.
         collect_unmatched=_SIGNATURE_FIELDS,
     )
+    # One registry row per TOOL, not per app registration — see aggregate_by_tool.
+    result["assets"] = aggregate_by_tool(result.get("assets", []), index)
+    result.setdefault("source_meta", {})["tools"] = len(result["assets"])
+    return result
+
+
+def _as_int(value: Any) -> int:
+    try:
+        return int(str(value).strip())
+    except (TypeError, ValueError):
+        return 0
+
+
+def aggregate_by_tool(assets: List[Dict[str, Any]],
+                      index: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+    """
+    Collapse every grant for the SAME (city, tool) into ONE asset, PURELY.
+
+    WHY THIS EXISTS. A tenant holds one OAuth app registration per client ID, and a
+    single vendor routinely holds several: Allen's Google export carries four ChatGPT
+    client IDs (200 + 23 + 16 + 10 consents) and five Anthropic ones (53 + 6 + 2 + 1 + 1).
+    The registry key downstream is (city, tool_id), so before this function existed each
+    grant upserted the same row and the LAST one won: the tenant's 249 ChatGPT consents
+    displayed as 10, and 63 Claude consents displayed as "Claude Design (1)" because the
+    smallest registration sorted last. Aggregating here — in the pure layer, where it is
+    unit-testable and storage-agnostic — means the orchestrator stays a dumb writer.
+
+    Aggregation rules, each chosen so the row can never overstate what the export proves:
+      * user_count  = SUM of the grants' counts. These are CONSENTS PER APP REGISTRATION,
+        not distinct people: one employee who authorised two ChatGPT client IDs is counted
+        twice. `user_count_basis` records that so no caller can present it as a headcount.
+      * instance_count / instances = the per-registration breakdown, kept so a CIO can see
+        WHY the number is what it is (and spot a rogue registration).
+      * scope_sensitivity = the HIGHEST tier across the grants, and scope_reaches their
+        union. A row must inherit its worst reach.
+      * tenant_wide_admin_consent = yes if ANY registration was admin-consented.
+      * display_name = the CATALOG name ONLY when several registrations are collapsed,
+        because no single raw name represents the group and the smallest registration
+        must not get to name the tool. A tool with ONE registration keeps that
+        registration's raw name: it is what the export actually observed, and it is what
+        the admin sees in their own console. Promoting it to the catalog name would
+        assert more than the evidence proves ("Zoom", consented by 384 people, is not by
+        itself proof the city runs "Zoom AI Companion"); the catalog match lives in
+        tool_id, where it belongs. Unmatched AI-keyword candidates always keep their raw
+        name — there is no catalog name to use.
+      * the largest grant supplies the remaining single-valued evidence (app_id, scopes,
+        publisher), because that is the registration a human should look at first.
+
+    Order-stable: groups appear in the order their first grant did.
+    """
+    display_names = (index or {}).get("display_names", {}) or {}
+    grouped: Dict[tuple, List[Dict[str, Any]]] = {}
+    order: List[tuple] = []
+    for a in assets:
+        key = (a.get("city", ""), a.get("tool_id", ""))
+        if key not in grouped:
+            grouped[key] = []
+            order.append(key)
+        grouped[key].append(a)
+
+    out: List[Dict[str, Any]] = []
+    for key in order:
+        group = grouped[key]
+        if len(group) == 1:
+            # One registration: the row IS that grant, so its observed name stands and a
+            # one-row breakdown table would be noise. Still stamp the count's basis.
+            single = dict(group[0])
+            ev = dict(single.get("evidence", {}))
+            ev["instance_count"] = 1
+            ev["user_count_basis"] = "consents_per_app_registration"
+            single["evidence"] = ev
+            out.append(single)
+            continue
+
+        # Largest registration first — it supplies the single-valued evidence.
+        ranked = sorted(group, key=lambda x: _as_int(x.get("evidence", {}).get("user_count")),
+                        reverse=True)
+        primary = ranked[0]
+        evidence = dict(primary.get("evidence", {}))
+
+        total = sum(_as_int(g.get("evidence", {}).get("user_count")) for g in group)
+        reaches: List[str] = []
+        worst = 0
+        instances: List[Dict[str, Any]] = []
+        for g in ranked:
+            gev = g.get("evidence", {})
+            sens = str(gev.get("scope_sensitivity") or "unknown")
+            if sens in _SENSITIVITY_ORDER:
+                worst = max(worst, _SENSITIVITY_ORDER.index(sens))
+            for reach in str(gev.get("scope_reaches") or "").split(";"):
+                reach = reach.strip()
+                if reach and reach not in reaches:
+                    reaches.append(reach)
+            instances.append({
+                "app_name":          g.get("display_name", ""),
+                "app_id":            gev.get("app_id", ""),
+                "user_count":        _as_int(gev.get("user_count")),
+                "scope_sensitivity": sens,
+                "provider":          gev.get("provider", ""),
+            })
+
+        evidence["user_count"] = str(total)
+        evidence["user_count_basis"] = "consents_per_app_registration"
+        evidence["instance_count"] = len(group)
+        evidence["instances"] = instances
+        evidence["scope_sensitivity"] = _SENSITIVITY_ORDER[worst]
+        if reaches:
+            evidence["scope_reaches"] = "; ".join(reaches)
+        if any(str(g.get("evidence", {}).get("tenant_wide_admin_consent") or "").lower()
+               in ("yes", "true", "1") for g in group):
+            evidence["tenant_wide_admin_consent"] = "yes"
+
+        merged = dict(primary)
+        merged["display_name"] = (display_names.get(primary.get("tool_id", ""))
+                                  or primary.get("display_name", ""))
+        merged["confidence"] = max((g.get("confidence", 0) or 0) for g in group)
+        merged["evidence"] = evidence
+        out.append(merged)
+    return out

@@ -39,15 +39,26 @@ def build_tool_index(schema: Dict[str, Any]) -> Dict[str, Any]:
         "by_alias": { channel: { normalized_alias: tool_id } },
         "by_name":  { normalized_name_or_id: tool_id },
         "procurement_candidates": [ (normalized_string, tool_id) ],  # for fuzzy match
+        "display_names": { tool_id: canonical_display_name },
       }
+
+    WHY display_names: a channel that collapses several raw records into ONE registry
+    row (OAuth, where one tool can hold many app registrations) must name that row from
+    the CATALOG, not from whichever raw record happened to be processed last. Without
+    this map the pure layer has no access to the canonical name and the row inherits a
+    raw app name — which is how a tenant with 63 Claude consents ended up displaying
+    "Claude Design (1)".
     """
     by_alias: Dict[str, Dict[str, str]] = {c: {} for c in ALIAS_CHANNELS}
     by_name: Dict[str, str] = {}
+    display_names: Dict[str, str] = {}
     proc_candidates: List[Tuple[str, str]] = []
 
     def _register(tool_id: str, display_name: str, aliases: Dict[str, Any]) -> None:
         if not tool_id:
             return
+        if display_name:
+            display_names.setdefault(tool_id, display_name)
         by_name.setdefault(_norm(tool_id), tool_id)
         by_name.setdefault(_norm(display_name or tool_id), tool_id)
         proc_candidates.append((_norm(display_name or tool_id), tool_id))
@@ -72,6 +83,7 @@ def build_tool_index(schema: Dict[str, Any]) -> Dict[str, Any]:
                    ((schema.get("AI_Tool_Catalog") or {}).get("ai_keywords") or []) if _norm(k)]
 
     return {"by_alias": by_alias, "by_name": by_name,
+            "display_names": display_names,
             "procurement_candidates": proc_candidates,
             "ai_keywords": ai_keywords}
 
